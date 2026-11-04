@@ -1,0 +1,199 @@
+'use client';
+
+import React, { useState } from 'react';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
+import { Shield, Lock, Mail, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Sparkles, KeyRound } from 'lucide-react';
+import { Button } from '../../../components/ui/Button';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const locale = useLocale();
+  const isRtl = locale === 'ar';
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const res = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'فشل تسجيل الدخول، يرجى التحقق من البيانات');
+      }
+
+      // Store auth session
+      localStorage.setItem('lord_auth_token', data.token);
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('lord_current_user', JSON.stringify(data.user));
+
+      // Route based on role
+      if (data.user.accessRole === 'SUPER_ADMIN') {
+        router.push(`/${locale}/dashboard`);
+      } else if (data.user.accessRole === 'TREASURY') {
+        router.push(`/${locale}/payout-desk`);
+      } else {
+        router.push(`/${locale}/workspace`);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickAdmin = () => {
+    setEmail('thelordit711@gmail.com');
+    setPassword('thelord777286650');
+  };
+
+  return (
+    <div className="min-h-screen bg-[#07090E] relative flex items-center justify-center p-4 overflow-hidden">
+      {/* Background radial glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-lord-gold/10 rounded-full blur-[140px] pointer-events-none" />
+
+      <div className="w-full max-w-md z-10">
+        {/* Brand Card */}
+        <div className="bg-[#0F141C] p-8 md:p-10 rounded-3xl border border-lord-gold/40 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-lord-gold/30 via-lord-gold to-lord-gold/30" />
+
+          {/* Logo & Emblem */}
+          <div className="flex flex-col items-center text-center mb-8">
+            <div className="relative w-28 h-28 mb-4 rounded-full p-1 bg-gradient-to-b from-lord-gold via-lord-gold/40 to-transparent shadow-gold-glow">
+              <div className="w-full h-full rounded-full bg-[#07090E] flex items-center justify-center overflow-hidden border border-lord-gold/60">
+                <Image
+                  src="/logo.png"
+                  alt="THE LORD OF CRYPTO"
+                  width={112}
+                  height={112}
+                  className="object-cover scale-110"
+                  priority
+                />
+              </div>
+            </div>
+
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-lord-gold via-amber-200 to-lord-gold bg-clip-text text-transparent">
+              THE LORD OF CRYPTO
+            </h1>
+            <p className="text-sm text-gray-400 mt-1">
+              منظومة الرقابة المالية وإدارة الكوادر الذكية C.P ERP
+            </p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-3 text-red-400 text-sm animate-pulse">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-2">
+                البريد الإلكتروني المعتمد
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@thelordofcrypto.com"
+                  className="w-full bg-[#131A24] border border-gray-700/80 focus:border-lord-gold rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-500 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-lord-gold"
+                  dir="ltr"
+                />
+                <Mail className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-2">
+                كلمة المرور
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-[#131A24] border border-gray-700/80 focus:border-lord-gold rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-500 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-lord-gold font-mono"
+                  dir="ltr"
+                />
+                <Lock className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Quick Admin Auto-fill for convenience */}
+            <div className="flex items-center justify-between text-xs">
+              <button
+                type="button"
+                onClick={handleQuickAdmin}
+                className="text-lord-gold hover:text-amber-300 transition-colors flex items-center gap-1.5 font-medium"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>دخول حساب الإدارة التنفيذية</span>
+              </button>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-gradient-to-r from-lord-gold via-amber-500 to-lord-gold text-lord-dark font-bold rounded-xl shadow-lg shadow-lord-gold/20 hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-lord-dark border-t-transparent rounded-full animate-spin" />
+                  جاري تسجيل الدخول...
+                </span>
+              ) : (
+                <>
+                  <span>تسجيل الدخول للنظام</span>
+                  {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                </>
+              )}
+            </Button>
+          </form>
+
+          {/* Divider */}
+          <div className="my-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-800" />
+            <span className="text-[11px] text-gray-500 tracking-wider">أو عبر الدخول السحابي الموحد</span>
+            <div className="flex-1 h-px bg-gray-800" />
+          </div>
+
+          {/* Kinde SSO Button */}
+          <a
+            href="/api/auth/login"
+            className="w-full py-3 px-4 rounded-xl border border-gray-700 hover:border-lord-gold/60 bg-lord-slate/40 hover:bg-lord-slate/70 text-gray-300 hover:text-white transition-all text-xs font-semibold flex items-center justify-center gap-2 group"
+          >
+            <Sparkles className="w-4 h-4 text-lord-gold group-hover:scale-110 transition-transform" />
+            <span>الدخول الآمن عبر Kinde Enterprise SSO</span>
+          </a>
+
+          {/* Footer note */}
+          <div className="mt-8 text-center text-[11px] text-gray-500">
+            للانضمام لكادر العمل، يرجى طلب رابط دعوة رسمي من إدارة النظام.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

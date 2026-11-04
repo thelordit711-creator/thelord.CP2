@@ -1,0 +1,76 @@
+{
+  "common": {
+    "appName": "THE LORD OF CRYPTO",
+    "controlPanel": "لوحة التحكم والعمليات C.P",
+    "online": "متصل الآن",
+    "offline": "غير متصل",
+    "inMeeting": "في اجتماع",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "copy": "نسخ",
+    "copied": "تم النسخ بنجاح",
+    "back": "رجوع",
+    "next": "التالي",
+    "submit": "إرسال",
+    "details": "التفاصيل",
+    "loading": "جاري التحميل...",
+    "search": "بحث...",
+    "status": "الحالة",
+    "actions": "الإجراءات"
+  },
+  "roles": {
+    "SUPER_ADMIN": "المسؤول العام (Super Admin)",
+    "EMPLOYEE": "عضو الفريق (Employee)",
+    "TREASURY": "الصندوق والخزينة (Treasury)"
+  },
+  "jobTitles": {
+    "DEAL_ANALYST": "محلل صفقات",
+    "TG_CONTENT_MANAGER": "مدير محتوى تليجرام",
+    "SUPPORT_AGENT": "موظف دعم ومبيعات (Sales)",
+    "WEB_BOT_DEVELOPER": "مبرمج ويب وبوتات",
+    "TG_ADS_MANAGER": "مدير إعلانات Telegram Ads",
+    "TG_CHANNEL_PROMO_MANAGER": "مدير إعلانات قنوات تليجرام",
+    "GRAPHIC_VIDEO_EDITOR": "موظف جرافيكس ومونتاج",
+    "YOUTUBE_MANAGER": "مسؤول منصة يوتيوب",
+    "X_PLATFORM_MANAGER": "مسؤول منصة X (1 و 2)",
+    "FB_IG_MANAGER": "مسؤول فيسبوك وإنستقرام",
+    "MARKETING_DEV_LEAD": "مسؤول التسويق والتطوير"
+  },
+  "departments": {
+    "TRADING": "التحليل والتداول",
+    "MARKETING": "التسويق والإعلانات",
+    "CONTENT_MEDIA": "صناعة المحتوى والميديا",
+    "DEVELOPMENT": "البرمجة والتطوير",
+    "SUPPORT": "الدعم وخدمة العملاء",
+    "MANAGEMENT": "الإدارة والنمو"
+  },
+  "treasury": {
+    "title": "شاشة الصندوق المركزية المعزولة",
+    "subtitle": "تنفيذ أوامر الصرف المعتمدة عبر BEP20 والمحافظ المحلية (جيب / جوالي)",
+    "waitingTreasury": "بانتظار الصندوق",
+    "inProgress": "قيد التنفيذ",
+    "disbursed": "تم الصرف",
+    "btnInProgress": "قيد التنفيذ",
+    "btnDisburse": "تم الصرف",
+    "txHashLabel": "رقم العملية (TxHash على BEP20)",
+    "referenceNumLabel": "رقم الحوالة / الإشعار المرجعي",
+    "phoneLabel": "رقم الهاتف المسجل:",
+    "accountHolder": "اسم المستلم في المحفظة:",
+    "bep20Label": "عنوان المحفظة (BEP20 USDT):"
+  },
+  "onboarding": {
+    "title": "معالج تهيئة الملف المهني والمالي",
+    "subtitle": "أكمل الخطوات الـ 5 للبدء في استلام المهام والمستحقات",
+    "step1": "القسم والوظائف",
+    "step2": "المهارات والخبرات",
+    "step3": "الأدوات والأنشطة",
+    "step4": "وسائل استلام الأرباح",
+    "step5": "المراجعة والتأكيد",
+    "preferredMethod": "وسيلة الدفع الافتراضية المفضلة",
+    "jeebTitle": "محفظة جيب (Jeeb Wallet)",
+    "jawaliTitle": "محفظة جوالي (Jawali Wallet)",
+    "bep20Title": "محفظة USDT - شبكة BEP20 (Binance Smart Chain)"
+  }
+}
+

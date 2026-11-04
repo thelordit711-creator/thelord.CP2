@@ -1,0 +1,76 @@
+{
+  "common": {
+    "appName": "THE LORD OF CRYPTO",
+    "controlPanel": "Control Panel C.P",
+    "online": "Online",
+    "offline": "Offline",
+    "inMeeting": "In Meeting",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "copy": "Copy",
+    "copied": "Copied successfully",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "details": "Details",
+    "loading": "Loading...",
+    "search": "Search...",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "roles": {
+    "SUPER_ADMIN": "Super Admin",
+    "EMPLOYEE": "Employee",
+    "TREASURY": "Treasury"
+  },
+  "jobTitles": {
+    "DEAL_ANALYST": "Deal Analyst",
+    "TG_CONTENT_MANAGER": "Telegram Content Manager",
+    "SUPPORT_AGENT": "Sales & Support Agent",
+    "WEB_BOT_DEVELOPER": "Web & Bot Developer",
+    "TG_ADS_MANAGER": "Telegram Ads Manager",
+    "TG_CHANNEL_PROMO_MANAGER": "TG Channel Promo Manager",
+    "GRAPHIC_VIDEO_EDITOR": "Graphic & Video Editor",
+    "YOUTUBE_MANAGER": "YouTube Manager",
+    "X_PLATFORM_MANAGER": "X Platform Manager (1 & 2)",
+    "FB_IG_MANAGER": "Facebook & Instagram Manager",
+    "MARKETING_DEV_LEAD": "Marketing & Development Lead"
+  },
+  "departments": {
+    "TRADING": "Trading & Analysis",
+    "MARKETING": "Marketing & Ads",
+    "CONTENT_MEDIA": "Content & Media",
+    "DEVELOPMENT": "Engineering & Bots",
+    "SUPPORT": "Support & Sales",
+    "MANAGEMENT": "Management & Growth"
+  },
+  "treasury": {
+    "title": "Isolated Treasury Desk",
+    "subtitle": "Executing approved payouts via BEP20 and local mobile wallets (Jeeb / Jawali)",
+    "waitingTreasury": "Waiting Treasury",
+    "inProgress": "In Progress",
+    "disbursed": "Disbursed",
+    "btnInProgress": "In Progress",
+    "btnDisburse": "Mark as Disbursed",
+    "txHashLabel": "TxHash (BEP20)",
+    "referenceNumLabel": "Transfer / Reference Number",
+    "phoneLabel": "Registered Phone:",
+    "accountHolder": "Beneficiary Account Holder:",
+    "bep20Label": "BEP20 USDT Address:"
+  },
+  "onboarding": {
+    "title": "Professional & Financial Onboarding",
+    "subtitle": "Complete the 5 steps to start receiving tasks and payouts",
+    "step1": "Department & Roles",
+    "step2": "Skills & Experience",
+    "step3": "Tools & Activities",
+    "step4": "Payout Methods",
+    "step5": "Review & Confirm",
+    "preferredMethod": "Default Preferred Payout Method",
+    "jeebTitle": "Jeeb Wallet",
+    "jawaliTitle": "Jawali Wallet",
+    "bep20Title": "USDT - BEP20 Address"
+  }
+}
+

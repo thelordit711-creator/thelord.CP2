@@ -1,0 +1,25 @@
+{
+  "name": "the-lord-of-crypto-cp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "THE LORD OF CRYPTO — Control Panel (C.P) Enterprise Workspace & Simple Financial ERP",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=packages/shared-types\" \"npm run dev --workspace=apps/api\" \"npm run dev --workspace=apps/web\"",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:types": "npm run build --workspace=@lord/shared-types",
+    "build:api": "npm run build --workspace=@lord/api",
+    "build:web": "npm run build --workspace=@lord/web",
+    "build": "npm --workspace=@lord/shared-types run build && npm --workspace=@lord/api run build && npm --workspace=@lord/web run build",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}
+
