@@ -43,6 +43,23 @@ import {
 import { useGetMeQuery, useGetAllEmployeesQuery } from '../../../store/api/usersApi';
 import { toast } from 'sonner';
 
+// WebRTC Remote Video Tile Component
+const RemotePeerVideo: React.FC<{ stream: MediaStream; isMuted?: boolean; className?: string }> = ({
+  stream,
+  isMuted = false,
+  className = ''
+}) => {
+  const vRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (vRef.current && stream) {
+      vRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return <video ref={vRef} autoPlay playsInline muted={isMuted} className={className} />;
+};
+
 export default function MeetingPage() {
   const { socket, isConnected } = useSocket();
 
@@ -80,6 +97,16 @@ export default function MeetingPage() {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [hasMediaPermission, setHasMediaPermission] = useState<boolean | null>(null);
+
+  // WebRTC P2P Peer Connections & Remote Streams
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const [remotePeers, setRemotePeers] = useState<Array<{
+    socketId: string;
+    userId: string;
+    fullName: string;
+    isHost?: boolean;
+    stream: MediaStream;
+  }>>([]);
 
   const [activeTab, setActiveTab] = useState<'meeting' | 'video-review'>('meeting');
   const [meetingNotes, setMeetingNotes] = useState('');
@@ -181,6 +208,147 @@ export default function MeetingPage() {
       socket.off('meeting:notes-updated', handleNotesUpdate);
     };
   }, [socket, refetchMeeting]);
+
+  // WebRTC Peer Connection Helper
+  const createPeerConnection = (targetSocketId: string, peerInfo?: { userId?: string; fullName?: string; isHost?: boolean }) => {
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
+
+    const activeStream = isScreenSharing && screenStream ? screenStream : mediaStream;
+    if (activeStream) {
+      activeStream.getTracks().forEach((track) => {
+        pc.addTrack(track, activeStream);
+      });
+    }
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && socket) {
+        socket.emit('meeting:signal:candidate', {
+          toSocketId: targetSocketId,
+          candidate: event.candidate
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      const [remoteStream] = event.streams;
+      if (remoteStream) {
+        setRemotePeers((prev) => {
+          const filtered = prev.filter((p) => p.socketId !== targetSocketId);
+          return [
+            ...filtered,
+            {
+              socketId: targetSocketId,
+              userId: peerInfo?.userId || '',
+              fullName: peerInfo?.fullName || 'عضو منضم',
+              isHost: peerInfo?.isHost,
+              stream: remoteStream
+            }
+          ];
+        });
+      }
+    };
+
+    peerConnectionsRef.current.set(targetSocketId, pc);
+    return pc;
+  };
+
+  // WebRTC Signaling Event Listeners
+  useEffect(() => {
+    if (!socket || !currentUser) return;
+
+    socket.emit('meeting:signal:join', {
+      userId: currentUser._id,
+      fullName: currentUser.fullName,
+      isHost: currentUser.accessRole === 'SUPER_ADMIN'
+    });
+
+    const handleUserJoined = async (data: { socketId: string; userId: string; fullName: string; isHost?: boolean }) => {
+      try {
+        const pc = createPeerConnection(data.socketId, data);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('meeting:signal:offer', {
+          toSocketId: data.socketId,
+          offer,
+          isScreen: isScreenSharing,
+          fromName: currentUser.fullName
+        });
+      } catch (err) {
+        console.warn('Error creating WebRTC offer:', err);
+      }
+    };
+
+    const handleOffer = async (data: { fromSocketId: string; offer: any; fromName?: string; isHost?: boolean }) => {
+      try {
+        let pc = peerConnectionsRef.current.get(data.fromSocketId);
+        if (!pc) {
+          pc = createPeerConnection(data.fromSocketId, {
+            fullName: data.fromName || 'المسؤول',
+            isHost: data.isHost !== undefined ? data.isHost : true
+          });
+        }
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit('meeting:signal:answer', {
+          toSocketId: data.fromSocketId,
+          answer
+        });
+      } catch (err) {
+        console.warn('Error handling WebRTC offer:', err);
+      }
+    };
+
+    const handleAnswer = async (data: { fromSocketId: string; answer: any }) => {
+      try {
+        const pc = peerConnectionsRef.current.get(data.fromSocketId);
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        }
+      } catch (err) {
+        console.warn('Error handling WebRTC answer:', err);
+      }
+    };
+
+    const handleCandidate = async (data: { fromSocketId: string; candidate: any }) => {
+      try {
+        const pc = peerConnectionsRef.current.get(data.fromSocketId);
+        if (pc) {
+          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+      } catch (err) {
+        console.warn('Error adding ICE candidate:', err);
+      }
+    };
+
+    const handleUserLeft = (data: { socketId: string }) => {
+      const pc = peerConnectionsRef.current.get(data.socketId);
+      if (pc) {
+        pc.close();
+        peerConnectionsRef.current.delete(data.socketId);
+      }
+      setRemotePeers((prev) => prev.filter((p) => p.socketId !== data.socketId));
+    };
+
+    socket.on('meeting:signal:user-joined', handleUserJoined);
+    socket.on('meeting:signal:offer', handleOffer);
+    socket.on('meeting:signal:answer', handleAnswer);
+    socket.on('meeting:signal:candidate', handleCandidate);
+    socket.on('meeting:signal:user-left', handleUserLeft);
+
+    return () => {
+      socket.off('meeting:signal:user-joined', handleUserJoined);
+      socket.off('meeting:signal:offer', handleOffer);
+      socket.off('meeting:signal:answer', handleAnswer);
+      socket.off('meeting:signal:candidate', handleCandidate);
+      socket.off('meeting:signal:user-left', handleUserLeft);
+    };
+  }, [socket, currentUser, mediaStream, screenStream, isScreenSharing]);
 
   // Toggle Microphone
   const toggleAudio = () => {
@@ -412,72 +580,111 @@ export default function MeetingPage() {
           {/* Main Video Stream Stage */}
           <div className="lg:col-span-2 space-y-4">
             {/* Active Video Screen (Real WebRTC Video Tag) */}
-            <div className="relative aspect-video rounded-3xl bg-black border-2 border-gray-800 overflow-hidden shadow-2xl flex items-center justify-center">
-              {/* Screen Sharing Stream */}
-              {isScreenSharing && (
-                <video
-                  ref={screenVideoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-contain bg-black"
-                />
-              )}
+            {(() => {
+              const isCurrentUserHost = currentUser?.accessRole === 'SUPER_ADMIN';
+              const hostPeer = remotePeers.find((p) => p.isHost);
+              const primaryRemote = hostPeer || remotePeers[0];
+              const shouldDisplayRemote = !isCurrentUserHost && !!primaryRemote;
 
-              {/* Local Webcam Video Stream */}
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  isScreenSharing ? 'hidden' : isVideoOff ? 'opacity-0' : 'opacity-100'
-                }`}
-              />
+              return (
+                <div className="relative aspect-video rounded-3xl bg-black border-2 border-gray-800 overflow-hidden shadow-2xl flex items-center justify-center">
+                  {/* Remote Stream View (If viewer, display the broadcaster/host) */}
+                  {shouldDisplayRemote ? (
+                    <RemotePeerVideo
+                      stream={primaryRemote.stream}
+                      isMuted={false}
+                      className="w-full h-full object-contain bg-black"
+                    />
+                  ) : isScreenSharing ? (
+                    <video
+                      ref={screenVideoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-contain bg-black"
+                    />
+                  ) : (
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className={`w-full h-full object-cover transition-opacity duration-300 ${
+                        isVideoOff ? 'opacity-0' : 'opacity-100'
+                      }`}
+                    />
+                  )}
 
-              {/* Camera Off Fallback View */}
-              {isVideoOff && !isScreenSharing && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 bg-gradient-to-br from-obsidian-card via-obsidian-surface to-obsidian-primary">
-                  <div className="w-24 h-24 rounded-full bg-lord-gold/20 border-2 border-lord-gold flex items-center justify-center text-4xl shadow-gold-glow">
-                    {currentUser?.avatarUrl ? (
-                      <img
-                        src={currentUser.avatarUrl}
-                        alt=""
-                        className="w-full h-full rounded-full object-cover"
+                  {/* Camera Off Fallback View */}
+                  {!shouldDisplayRemote && isVideoOff && !isScreenSharing && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 bg-gradient-to-br from-obsidian-card via-obsidian-surface to-obsidian-primary">
+                      <div className="w-24 h-24 rounded-full bg-lord-gold/20 border-2 border-lord-gold flex items-center justify-center text-4xl shadow-gold-glow">
+                        {currentUser?.avatarUrl ? (
+                          <img
+                            src={currentUser.avatarUrl}
+                            alt=""
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          '🦁'
+                        )}
+                      </div>
+                      <div className="text-center">
+                        <h3 className="text-sm font-bold text-white">{currentUser?.fullName || 'عضو الكادر'}</h3>
+                        <span className="text-xs text-lord-gold font-mono">الكاميرا مغلقة مؤقتاً • البث الصوتي قيد العمل</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Camera Permission State */}
+                  {!shouldDisplayRemote && hasMediaPermission === false && !isVideoOff && !isScreenSharing && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 bg-obsidian-card p-6 text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                        <VideoOff className="w-8 h-8" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">إذن الكاميرا أو الميكروفون غير مفعل</h4>
+                      <p className="text-xs text-gray-400 max-w-sm">
+                        يرجى السماح بالوصول للكاميرا والميكروفون من إعدادات المتصفح لبدء بث الفيديو الحي
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Top Overlay Badges */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-gray-800 text-xs">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    <span className="text-white font-mono font-bold">
+                      {shouldDisplayRemote
+                        ? `بث مباشر: ${primaryRemote.fullName || 'القائد الأعلى'}`
+                        : isScreenSharing
+                        ? 'مشاركة الشاشة الحية'
+                        : 'بث مباشر WebRTC'}
+                    </span>
+                  </div>
+
+                  <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-800 text-[11px] text-gray-300">
+                    <Users className="w-3.5 h-3.5 text-lord-gold" />
+                    <span>المشاركون: {participants.length || 1}</span>
+                  </div>
+
+                  {/* Floating Self-View PIP (When viewing remote stream) */}
+                  {shouldDisplayRemote && (
+                    <div className="absolute bottom-20 right-4 w-36 sm:w-48 aspect-video rounded-2xl overflow-hidden border-2 border-lord-gold/80 shadow-2xl bg-black z-30">
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full h-full object-cover ${isVideoOff ? 'opacity-0' : 'opacity-100'}`}
                       />
-                    ) : (
-                      '🦁'
-                    )}
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-sm font-bold text-white">{currentUser?.fullName || 'عضو الكادر'}</h3>
-                    <span className="text-xs text-lord-gold font-mono">الكاميرا مغلقة مؤقتاً • البث الصوتي قيد العمل</span>
-                  </div>
-                </div>
-              )}
-
-              {/* No Camera Permission State */}
-              {hasMediaPermission === false && !isVideoOff && !isScreenSharing && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center space-y-3 bg-obsidian-card p-6 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-                    <VideoOff className="w-8 h-8" />
-                  </div>
-                  <h4 className="text-sm font-bold text-white">إذن الكاميرا أو الميكروفون غير مفعل</h4>
-                  <p className="text-xs text-gray-400 max-w-sm">
-                    يرجى السماح بالوصول للكاميرا والميكروفون من إعدادات المتصفح لبدء بث الفيديو الحي
-                  </p>
-                </div>
-              )}
-
-              {/* Top Overlay Badges */}
-              <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-gray-800 text-xs">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                <span className="text-white font-mono font-bold">بث مباشر WebRTC</span>
-              </div>
-
-              <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-800 text-[11px] text-gray-300">
-                <Users className="w-3.5 h-3.5 text-lord-gold" />
-                <span>المشاركون: {participants.length || 1}</span>
-              </div>
+                      {isVideoOff && (
+                        <div className="absolute inset-0 bg-[#0F141C] flex items-center justify-center text-[10px] text-lord-gold font-semibold">
+                          كاميرتك مغلقة
+                        </div>
+                      )}
+                      <div className="absolute bottom-1 right-2 bg-black/80 px-2 py-0.5 rounded text-[9px] text-white font-mono">
+                        أنت ({currentUser?.fullName || 'أنت'})
+                      </div>
+                    </div>
+                  )}
 
               {/* Bottom Control Bar */}
               <div className="absolute bottom-4 inset-x-4 flex items-center justify-between p-3 rounded-2xl bg-black/80 backdrop-blur-md border border-gray-800">
@@ -541,6 +748,8 @@ export default function MeetingPage() {
                 </Button>
               </div>
             </div>
+          );
+        })()}
 
             {/* Real Participants List (From MongoDB MeetingRoom.participants) */}
             <div className="space-y-2">
@@ -566,25 +775,34 @@ export default function MeetingPage() {
                     const userObj = p.userId || {};
                     const displayName = p.fullName || userObj.fullName || 'عضو الكادر';
                     const role = p.accessRole || userObj.accessRole || '';
+                    const remotePeer = remotePeers.find(
+                      (rp) => rp.socketId === p.socketId || rp.userId === (userObj._id || userObj.id || p.userId)
+                    );
 
                     return (
                       <div
                         key={idx}
-                        className={`p-3 rounded-2xl bg-obsidian-card border transition-all text-center space-y-1.5 ${
+                        className={`p-3 rounded-2xl bg-obsidian-card border transition-all text-center space-y-1.5 overflow-hidden ${
                           p.isSpeaking ? 'border-lord-gold shadow-gold-glow' : 'border-obsidian-border'
                         }`}
                       >
-                        <div className="w-10 h-10 rounded-full bg-obsidian-surface border border-gray-700 flex items-center justify-center text-sm font-bold text-lord-gold mx-auto overflow-hidden">
-                          {p.avatarUrl || userObj.avatarUrl ? (
-                            <img
-                              src={p.avatarUrl || userObj.avatarUrl}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            displayName.charAt(0) || '👤'
-                          )}
-                        </div>
+                        {remotePeer && remotePeer.stream ? (
+                          <div className="w-full aspect-video rounded-xl bg-black overflow-hidden mb-1.5 border border-gray-700">
+                            <RemotePeerVideo stream={remotePeer.stream} isMuted={false} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-obsidian-surface border border-gray-700 flex items-center justify-center text-sm font-bold text-lord-gold mx-auto overflow-hidden">
+                            {p.avatarUrl || userObj.avatarUrl ? (
+                              <img
+                                src={p.avatarUrl || userObj.avatarUrl}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              displayName.charAt(0) || '👤'
+                            )}
+                          </div>
+                        )}
                         <strong className="text-xs text-white block truncate">{displayName}</strong>
                         <span className="text-[10px] text-gray-400 font-mono block truncate">
                           {role === 'SUPER_ADMIN' ? 'الإدارة العليا' : role === 'TREASURY' ? 'الخزينة' : 'كادر تنفيذي'}

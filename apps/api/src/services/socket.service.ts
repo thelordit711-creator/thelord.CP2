@@ -40,6 +40,46 @@ export class SocketService {
         socket.join('room:treasury');
       }
 
+      // WebRTC Live Meeting & Broadcast P2P Signaling
+      socket.on('meeting:signal:join', (data: { userId: string; fullName: string; isHost?: boolean }) => {
+        socket.join('room:meeting:central');
+        socket.to('room:meeting:central').emit('meeting:signal:user-joined', {
+          socketId: socket.id,
+          userId: data.userId,
+          fullName: data.fullName,
+          isHost: !!data.isHost
+        });
+      });
+
+      socket.on('meeting:signal:offer', (data: { toSocketId: string; offer: any; isScreen?: boolean; fromName?: string }) => {
+        this.io?.to(data.toSocketId).emit('meeting:signal:offer', {
+          fromSocketId: socket.id,
+          offer: data.offer,
+          isScreen: data.isScreen,
+          fromName: data.fromName
+        });
+      });
+
+      socket.on('meeting:signal:answer', (data: { toSocketId: string; answer: any }) => {
+        this.io?.to(data.toSocketId).emit('meeting:signal:answer', {
+          fromSocketId: socket.id,
+          answer: data.answer
+        });
+      });
+
+      socket.on('meeting:signal:candidate', (data: { toSocketId: string; candidate: any }) => {
+        this.io?.to(data.toSocketId).emit('meeting:signal:candidate', {
+          fromSocketId: socket.id,
+          candidate: data.candidate
+        });
+      });
+
+      socket.on('disconnecting', () => {
+        socket.to('room:meeting:central').emit('meeting:signal:user-left', {
+          socketId: socket.id
+        });
+      });
+
       socket.on('disconnect', async () => {
         if (userId) {
           this.userSocketMap.delete(userId);
