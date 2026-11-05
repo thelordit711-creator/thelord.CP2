@@ -330,8 +330,8 @@ export interface IPayoutOrder {
 export interface IManualAdjustmentLog {
   _id?: string;
   adjustedBy: string | Partial<IUser>;
-  targetBalance: 'GENERAL_BUDGET' | 'TREASURY_BALANCE';
-  operation: 'INCREASE' | 'DECREASE' | 'SET';
+  targetBalance: 'GENERAL_BUDGET' | 'TREASURY_BALANCE' | 'TRANSFER_BETWEEN_BUDGETS';
+  operation: 'INCREASE' | 'DECREASE' | 'SET' | 'FUND_TREASURY' | 'RETURN_TO_BUDGET' | 'DEPOSIT';
   amount: number;
   reason: string;
   createdAt: Date | string;
@@ -483,8 +483,9 @@ export interface IConfirmDisbursedDto {
 }
 
 export interface IAdjustVaultBalanceDto {
-  targetBalance: 'GENERAL_BUDGET' | 'TREASURY_BALANCE';
-  operation: 'INCREASE' | 'DECREASE' | 'SET';
+  targetBalance?: 'GENERAL_BUDGET' | 'TREASURY_BALANCE' | 'TRANSFER_BETWEEN_BUDGETS';
+  operation?: 'INCREASE' | 'DECREASE' | 'SET' | 'FUND_TREASURY' | 'RETURN_TO_BUDGET' | 'DEPOSIT';
+  actionType?: 'DEPOSIT_GENERAL_BUDGET' | 'FUND_TREASURY' | 'RETURN_TO_BUDGET' | 'MANUAL_ADJUST';
   amount: number;
   reason: string;
 }

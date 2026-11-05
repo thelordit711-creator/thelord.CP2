@@ -78,7 +78,7 @@ export class TreasuryController {
       const { id } = req.params;
       const body = req.body as IConfirmDisbursedDto;
 
-      if (!body.txHashOrReferenceNumber) {
+      if (!body.txHashOrReferenceNumber || !body.txHashOrReferenceNumber.trim()) {
         res.status(400).json({
           success: false,
           error: 'TxHash (for BEP20) or Reference/Transfer number (for Jeeb/Jawali) is mandatory'
@@ -86,32 +86,23 @@ export class TreasuryController {
         return;
       }
 
-      const order = await PayoutOrder.findById(id);
-      if (!order) {
-        res.status(404).json({ success: false, error: 'Payout order not found' });
-        return;
-      }
-
-      // Update transfer proof
-      order.executionStatus = 'DISBURSED';
-      order.disbursedClickedAt = new Date();
-      order.transferProof = {
-        txHashOrReferenceNumber: body.txHashOrReferenceNumber.trim(),
-        receiptScreenshot: body.receiptScreenshot,
-        executedByTreasuryId: req.user?._id
-      };
-      await order.save();
-
-      // Execute atomic accounting deduction from CompanyVault & EmployeeLedger
-      const result = await AccountingService.executeDisbursement(id, req.user?._id?.toString() || '');
+      // Execute atomic accounting deduction from CompanyVault & EmployeeLedger with Liquidity Check
+      const result = await AccountingService.executeDisbursement(
+        id,
+        req.user?._id?.toString() || '',
+        {
+          txHashOrReferenceNumber: body.txHashOrReferenceNumber.trim(),
+          receiptScreenshot: body.receiptScreenshot
+        }
+      );
 
       res.json({
         success: true,
-        message: 'Payout successfully disbursed and settled in Company Vault',
+        message: 'تم تأكيد الصرف بنجاح وخصمه من رصيد الصندوق وتوثيقه محاسبياً',
         data: result
       });
     } catch (error) {
-      res.status(500).json({ success: false, error: (error as Error).message });
+      res.status(400).json({ success: false, error: (error as Error).message });
     }
   }
 }

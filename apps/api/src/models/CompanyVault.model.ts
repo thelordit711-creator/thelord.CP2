@@ -7,13 +7,13 @@ const ManualAdjustmentLogSchema = new Schema({
   adjustedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   targetBalance: { 
     type: String, 
-    enum: ['GENERAL_BUDGET', 'TREASURY_BALANCE'], 
-    required: true 
+    enum: ['GENERAL_BUDGET', 'TREASURY_BALANCE', 'TRANSFER_BETWEEN_BUDGETS'], 
+    default: 'GENERAL_BUDGET' 
   },
   operation: { 
     type: String, 
-    enum: ['INCREASE', 'DECREASE', 'SET'], 
-    required: true 
+    enum: ['INCREASE', 'DECREASE', 'SET', 'FUND_TREASURY', 'RETURN_TO_BUDGET', 'DEPOSIT'], 
+    default: 'INCREASE' 
   },
   amount: { type: Number, required: true },
   reason: { type: String, required: true },

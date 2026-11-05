@@ -129,34 +129,85 @@ export class FinanceController {
   public static async adjustVault(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const body = req.body as IAdjustVaultBalanceDto;
-      const vault = await AccountingService.getOrCreateVault();
+      const amount = Number(body.amount);
 
-      if (body.targetBalance === 'GENERAL_BUDGET') {
-        if (body.operation === 'INCREASE') vault.generalBudget += body.amount;
-        else if (body.operation === 'DECREASE') vault.generalBudget -= body.amount;
-        else if (body.operation === 'SET') vault.generalBudget = body.amount;
-      } else {
-        if (body.operation === 'INCREASE') vault.treasuryBalance += body.amount;
-        else if (body.operation === 'DECREASE') vault.treasuryBalance -= body.amount;
-        else if (body.operation === 'SET') vault.treasuryBalance = body.amount;
+      if (isNaN(amount) || amount <= 0) {
+        res.status(400).json({ success: false, error: 'يرجى إدخال مبلغ صحيح أكبر من الصفر' });
+        return;
       }
 
-      vault.manualAdjustmentsLog.push({
-        adjustedBy: req.user?._id as any,
-        targetBalance: body.targetBalance,
-        operation: body.operation,
-        amount: body.amount,
-        reason: body.reason,
-        createdAt: new Date()
+      const adminId = req.user?._id?.toString() || '';
+      let vault;
+
+      if (body.actionType === 'FUND_TREASURY') {
+        vault = await AccountingService.fundTreasuryFromGeneralBudget(amount, body.reason, adminId);
+      } else if (body.actionType === 'RETURN_TO_BUDGET') {
+        vault = await AccountingService.returnFromTreasuryToGeneralBudget(amount, body.reason, adminId);
+      } else if (body.actionType === 'DEPOSIT_GENERAL_BUDGET') {
+        vault = await AccountingService.depositToGeneralBudget(amount, body.reason, adminId);
+      } else {
+        vault = await AccountingService.getOrCreateVault();
+
+        if (body.targetBalance === 'TREASURY_BALANCE') {
+          if (body.operation === 'INCREASE') {
+            // Strict Accounting Rule: Any addition to treasury must be deducted from General Budget
+            if (vault.generalBudget < amount) {
+              res.status(400).json({
+                success: false,
+                error: `رصيد الميزانية العامة للشركة (${vault.generalBudget.toLocaleString()} USDT) غير كافٍ لتغذية الصندوق بمبلغ (${amount.toLocaleString()} USDT). يرجى إيداع رصيد أولاً في الميزانية العامة.`
+              });
+              return;
+            }
+            vault.generalBudget -= amount;
+            vault.treasuryBalance += amount;
+          } else if (body.operation === 'DECREASE') {
+            if (vault.treasuryBalance < amount) {
+              res.status(400).json({
+                success: false,
+                error: `رصيد الصندوق المتاح (${vault.treasuryBalance.toLocaleString()} USDT) أقل من المبلغ المطلوب خصمه (${amount.toLocaleString()} USDT).`
+              });
+              return;
+            }
+            vault.treasuryBalance -= amount;
+            vault.generalBudget += amount;
+          } else if (body.operation === 'SET') {
+            vault.treasuryBalance = amount;
+          }
+        } else {
+          // GENERAL_BUDGET
+          if (body.operation === 'INCREASE') {
+            vault.generalBudget += amount;
+          } else if (body.operation === 'DECREASE') {
+            if (vault.generalBudget < amount) {
+              res.status(400).json({ success: false, error: 'المبلغ المطلوب خصمه أكبر من رصيد الميزانية العامة' });
+              return;
+            }
+            vault.generalBudget -= amount;
+          } else if (body.operation === 'SET') {
+            vault.generalBudget = amount;
+          }
+        }
+
+        vault.manualAdjustmentsLog.push({
+          adjustedBy: req.user?._id as any,
+          targetBalance: body.targetBalance || 'GENERAL_BUDGET',
+          operation: body.operation || 'INCREASE',
+          amount,
+          reason: body.reason,
+          createdAt: new Date()
+        });
+
+        await vault.save();
+        SocketService.emitToAdmins('vault:updated', vault);
+      }
+
+      res.json({
+        success: true,
+        message: 'تم تحديث الأرصدة بنجاح وفق القواعد المحاسبية للمنظومة',
+        data: vault
       });
-
-      await vault.save();
-
-      SocketService.emitToAdmins('vault:updated', vault);
-
-      res.json({ success: true, message: 'Vault balance adjusted successfully', data: vault });
     } catch (error) {
-      res.status(500).json({ success: false, error: (error as Error).message });
+      res.status(400).json({ success: false, error: (error as Error).message });
     }
   }
 
