@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { Shield, Lock, Mail, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Sparkles, KeyRound } from 'lucide-react';
+import { Shield, Lock, Mail, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 
 export default function LoginPage() {
@@ -54,11 +54,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickAdmin = () => {
-    setEmail('thelordit711@gmail.com');
-    setPassword('thelord777286650');
   };
 
   return (
@@ -138,18 +133,6 @@ export default function LoginPage() {
                 />
                 <Lock className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
-            </div>
-
-            {/* Quick Admin Auto-fill for convenience */}
-            <div className="flex items-center justify-between text-xs">
-              <button
-                type="button"
-                onClick={handleQuickAdmin}
-                className="text-lord-gold hover:text-amber-300 transition-colors flex items-center gap-1.5 font-medium"
-              >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>دخول حساب الإدارة التنفيذية</span>
-              </button>
             </div>
 
             <Button
