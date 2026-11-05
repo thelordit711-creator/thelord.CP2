@@ -11,6 +11,7 @@ import { useGetAllEmployeesQuery } from '../../../../store/api/usersApi';
 import { Button } from '../../../../components/ui/Button';
 import { Badge } from '../../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../../components/voice/DirectVoiceRecorder';
+import { StageDeliverableBox } from '../../../../components/tasks/StageDeliverableBox';
 import {
   Briefcase,
   CheckCircle,
@@ -383,82 +384,21 @@ export default function EmployeeWorkspacePage() {
                     <span>مراحل التنفيذ المتسلسلة:</span>
                   </h4>
 
-                  {selectedTask.stages?.map((stage: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className={`p-4 rounded-2xl border transition-all ${
-                        stage.status === 'IN_PROGRESS'
-                          ? 'border-lord-gold bg-lord-gold/5'
-                          : stage.status === 'APPROVED'
-                          ? 'border-emerald-500/30 bg-emerald-500/5'
-                          : 'border-gray-800 bg-obsidian-surface opacity-70'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-white">
-                          مرحلة {stage.stageOrder}: {stage.stageTitle}
-                        </span>
-                        <Badge
-                          variant={
-                            stage.status === 'APPROVED'
-                              ? 'disbursed'
-                              : stage.status === 'IN_PROGRESS'
-                              ? 'processing'
-                              : 'neutral'
-                          }
-                        >
-                          {stage.status}
-                        </Badge>
-                      </div>
-
-                      {stage.instructions && (
-                        <p className="text-xs text-gray-400 mb-3">{stage.instructions}</p>
-                      )}
-
-                      {/* Active Stage Submission Box */}
-                      {stage.status === 'IN_PROGRESS' && (
-                        <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
-                          <label className="block text-xs font-semibold text-gray-300">
-                            تقرير الإنجاز أو رابط النشر:
-                          </label>
-                          <textarea
-                            rows={3}
-                            placeholder="اكتب التقرير، رابط المنشور على X، إحصائيات المشاهدات..."
-                            value={textSubmission}
-                            onChange={e => setTextSubmission(e.target.value)}
-                            className="w-full bg-obsidian-primary border border-gray-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-lord-gold"
-                          />
-
-                          {/* Direct Voice Recorder Component */}
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                              إرفاق رسالة صوتية للمرحلة 🎙️:
-                            </label>
-                            <DirectVoiceRecorder
-                              onRecordingComplete={data => {
-                                setVoiceNoteAttachment({
-                                  fileType: 'VOICE_NOTE',
-                                  fileName: `voice-note-${Date.now()}.webm`,
-                                  fileUrl: data.previewUrl,
-                                  durationInSeconds: data.durationInSeconds
-                                });
-                              }}
-                            />
-                          </div>
-
-                          <Button
-                            variant="gold"
-                            size="md"
-                            isLoading={isSubmittingStage}
-                            onClick={() => handleStageSubmit(selectedTask._id, stage.stageOrder)}
-                            className="w-full mt-2"
-                          >
-                            <Send className="w-4 h-4 ml-1.5" />
-                            <span>إرسال المرحلة للمراجعة والاعتماد</span>
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                  {selectedTask.stages?.map((stage: any) => (
+                    <StageDeliverableBox
+                      key={stage.stageOrder}
+                      taskId={selectedTask._id}
+                      stage={stage}
+                      canSubmit={true}
+                      isAdmin={false}
+                      onRefresh={async () => {
+                        const res = await refetchTasks();
+                        if (res?.data?.data) {
+                          const updated = res.data.data.find((t: any) => t._id === selectedTask._id);
+                          if (updated) setSelectedTask(updated);
+                        }
+                      }}
+                    />
                   ))}
                 </div>
               </div>

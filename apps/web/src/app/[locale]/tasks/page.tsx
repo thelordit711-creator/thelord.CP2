@@ -13,6 +13,7 @@ import { useSocket } from '../../../providers/SocketProvider';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../components/voice/DirectVoiceRecorder';
+import { StageDeliverableBox } from '../../../components/tasks/StageDeliverableBox';
 import {
   CheckSquare,
   Plus,
@@ -63,6 +64,20 @@ export default function TasksPage() {
   const [reviewStage] = useReviewTaskStageMutation();
 
   const employees = employeesRes?.data || [];
+
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('lord_current_user');
+      if (stored) {
+        try {
+          setCurrentUser(JSON.parse(stored));
+        } catch (e) {}
+      }
+    }
+  }, []);
+
+  const isAdmin = currentUser?.accessRole === 'SUPER_ADMIN';
 
   // Real-time zero-refresh socket listener
   React.useEffect(() => {
@@ -1070,69 +1085,20 @@ export default function TasksPage() {
 
               <div className="space-y-3">
                 {selectedTask.stages?.map((stage: any) => (
-                  <div
+                  <StageDeliverableBox
                     key={stage.stageOrder}
-                    className={`p-4 rounded-2xl border text-xs space-y-3 ${
-                      stage.status === 'APPROVED'
-                        ? 'bg-emerald-500/5 border-emerald-500/30'
-                        : stage.status === 'IN_PROGRESS'
-                        ? 'bg-lord-gold/5 border-lord-gold/30'
-                        : stage.status === 'SUBMITTED_FOR_REVIEW'
-                        ? 'bg-amber-500/5 border-amber-500/40'
-                        : 'bg-obsidian-card border-gray-800 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-obsidian-primary border border-gray-700 flex items-center justify-center font-bold text-xs text-white">
-                          {stage.stageOrder}
-                        </span>
-                        <strong className="text-white text-xs">{stage.stageTitle}</strong>
-                      </div>
-                      <Badge
-                        variant={
-                          stage.status === 'APPROVED'
-                            ? 'disbursed'
-                            : stage.status === 'IN_PROGRESS'
-                            ? 'gold'
-                            : stage.status === 'SUBMITTED_FOR_REVIEW'
-                            ? 'processing'
-                            : 'neutral'
-                        }
-                      >
-                        {stage.status}
-                      </Badge>
-                    </div>
-
-                    {stage.instructions && (
-                      <p className="text-[11px] text-gray-400 bg-obsidian-primary/50 p-2.5 rounded-xl border border-gray-800/80">
-                        {stage.instructions}
-                      </p>
-                    )}
-
-                    {/* Stage Required Input Specs */}
-                    {stage.requiredInputs && stage.requiredInputs.length > 0 && (
-                      <div className="p-2.5 bg-obsidian-primary/80 rounded-xl border border-gray-800 flex items-center justify-between text-[11px]">
-                        <span className="text-gray-300">المرفق المطلوب: <b className="text-white">{stage.requiredInputs[0]?.fieldLabel}</b></span>
-                        <span className="font-mono text-lord-gold font-bold">[{stage.requiredInputs[0]?.expectedType}] {stage.requiredInputs[0]?.isMandatory ? 'إلزامي' : 'اختياري'}</span>
-                      </div>
-                    )}
-
-                    {/* Admin Stage Approval Button */}
-                    {stage.status !== 'APPROVED' && (
-                      <div className="flex justify-end pt-1">
-                        <Button
-                          variant="gold"
-                          size="sm"
-                          onClick={() => handleApproveStage(selectedTask._id, stage.stageOrder)}
-                          className="rounded-xl shadow-gold-glow flex items-center gap-1.5"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>اعتماد المرحلة وفتح التالية ✓</span>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                    taskId={selectedTask._id}
+                    stage={stage}
+                    canSubmit={true}
+                    isAdmin={isAdmin}
+                    onRefresh={async () => {
+                      const res = await refetch();
+                      if (res?.data?.data) {
+                        const updated = res.data.data.find((t: any) => t._id === selectedTask._id);
+                        if (updated) setSelectedTask(updated);
+                      }
+                    }}
+                  />
                 ))}
               </div>
             </div>

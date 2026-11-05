@@ -175,7 +175,7 @@ export class TasksController {
       const stage = task.stages[stageIndex];
 
       // Update required inputs submission
-      if (body.requiredInputs) {
+      if (body.requiredInputs && Array.isArray(body.requiredInputs)) {
         body.requiredInputs.forEach((sub: any) => {
           const reqField = stage.requiredInputs.find((rf: any) => rf.fieldLabel === sub.fieldLabel);
           if (reqField) {
@@ -185,11 +185,23 @@ export class TasksController {
               mediaAttachment: sub.mediaAttachment as any,
               submittedAt: new Date()
             };
+          } else {
+            stage.requiredInputs.push({
+              fieldLabel: sub.fieldLabel || 'تقرير ومخرجات التنفيذ',
+              expectedType: sub.expectedType || (sub.mediaAttachment ? 'IMAGE' : 'TEXT'),
+              isMandatory: true,
+              employeeSubmission: {
+                textOrUrlValue: sub.textOrUrlValue,
+                numberValue: sub.numberValue,
+                mediaAttachment: sub.mediaAttachment as any,
+                submittedAt: new Date()
+              }
+            });
           }
         });
       }
 
-      if (body.additionalAttachments) {
+      if (body.additionalAttachments && Array.isArray(body.additionalAttachments)) {
         stage.additionalAttachments.push(...(body.additionalAttachments as any[]));
       }
       if (body.employeeVoiceNote) {
@@ -206,6 +218,7 @@ export class TasksController {
         stageTitle: stage.stageTitle,
         employeeName: req.user?.fullName
       });
+      SocketService.broadcast('task:updated', task);
 
       res.json({
         success: true,
@@ -269,6 +282,7 @@ export class TasksController {
             nextStageUnlocked: stageIndex + 1 < task.stages.length
           });
         });
+        SocketService.broadcast('task:updated', task);
 
         res.json({ success: true, message: 'Stage approved', data: task });
       } else {
@@ -282,6 +296,7 @@ export class TasksController {
             feedback: body.note
           });
         });
+        SocketService.broadcast('task:updated', task);
 
         res.json({ success: true, message: 'Revision requested', data: task });
       }
