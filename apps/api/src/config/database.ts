@@ -1,21 +1,30 @@
 import mongoose from 'mongoose';
 
+let isConnected = false;
+
 export const connectDatabase = async (): Promise<void> => {
+  if (isConnected || mongoose.connection.readyState === 1) {
+    return;
+  }
+
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/the_lord_of_crypto_cp';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://TheLordIT:TheLordIT@cluster0.uh1subp.mongodb.net/the_lord_of_crypto_cp';
     
     mongoose.set('strictQuery', true);
     
     await mongoose.connect(mongoUri, {
-      autoIndex: true,
-      maxPoolSize: 20,
-      serverSelectionTimeoutMS: 5000,
+      autoIndex: false,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 8000,
     });
 
+    isConnected = true;
     console.log('🦁 [Database] MongoDB connected successfully');
   } catch (error) {
     console.error('❌ [Database] MongoDB connection error:', error);
-    process.exit(1);
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
   }
 };
 

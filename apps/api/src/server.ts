@@ -31,14 +31,46 @@ SocketService.init(server);
 
 // Essential Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
+
+// Robust CORS Middleware for Vercel, Production, and Localhost
+app.use((req, res, next) => {
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Set-Cookie');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
+  origin: (origin, callback) => {
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
 }));
+app.options('*', cors());
 app.use(compression());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Ensure database connection middleware
+app.use(async (req, res, next) => {
+  try {
+    await connectDatabase();
+    next();
+  } catch (err) {
+    console.error('Database connection middleware error:', err);
+    next(err);
+  }
+});
 
 // Static uploads serving
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
@@ -77,12 +109,15 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 async function startServer() {
   await connectDatabase();
-  server.listen(PORT, HOST, () => {
-    console.log(`🦁 THE LORD OF CRYPTO C.P API running on http://${HOST}:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    server.listen(PORT, HOST, () => {
+      console.log(`🦁 THE LORD OF CRYPTO C.P API running on http://${HOST}:${PORT}`);
+    });
+  }
 }
 
 startServer();
 
 export { app, server };
+export default app;
 

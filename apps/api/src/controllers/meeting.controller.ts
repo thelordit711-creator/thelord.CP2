@@ -61,7 +61,7 @@ export class MeetingController {
 
       // Check if user is already in participants
       const existingIndex = room.participants.findIndex(
-        (p) => p.userId.toString() === req.user?._id.toString()
+        (p: any) => p.userId?.toString() === req.user?._id.toString()
       );
 
       if (existingIndex === -1) {
@@ -107,7 +107,7 @@ export class MeetingController {
       const room = await MeetingRoom.findOne({ status: 'ACTIVE' });
       if (room) {
         room.participants = room.participants.filter(
-          (p) => p.userId.toString() !== req.user?._id.toString()
+          (p: any) => p.userId?.toString() !== req.user?._id.toString()
         ) as any;
         await room.save();
 

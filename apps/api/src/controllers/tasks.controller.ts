@@ -15,7 +15,7 @@ export class TasksController {
       const isProposed = !isAdmin || body.isProposedByEmployee;
 
       // Format stages if provided
-      const stages = (body.stages || []).map((st, idx) => ({
+      const stages = (body.stages || []).map((st: any, idx: number) => ({
         stageOrder: st.stageOrder || idx + 1,
         stageTitle: st.stageTitle,
         instructions: st.instructions,
@@ -158,7 +158,7 @@ export class TasksController {
         return;
       }
 
-      const stageIndex = task.stages.findIndex(s => s.stageOrder === stageOrder);
+      const stageIndex = task.stages.findIndex((s: any) => s.stageOrder === stageOrder);
       if (stageIndex === -1) {
         res.status(404).json({ success: false, error: 'Stage not found' });
         return;
@@ -168,8 +168,8 @@ export class TasksController {
 
       // Update required inputs submission
       if (body.requiredInputs) {
-        body.requiredInputs.forEach(sub => {
-          const reqField = stage.requiredInputs.find(rf => rf.fieldLabel === sub.fieldLabel);
+        body.requiredInputs.forEach((sub: any) => {
+          const reqField = stage.requiredInputs.find((rf: any) => rf.fieldLabel === sub.fieldLabel);
           if (reqField) {
             reqField.employeeSubmission = {
               textOrUrlValue: sub.textOrUrlValue,
@@ -222,7 +222,7 @@ export class TasksController {
         return;
       }
 
-      const stageIndex = task.stages.findIndex(s => s.stageOrder === stageOrder);
+      const stageIndex = task.stages.findIndex((s: any) => s.stageOrder === stageOrder);
       if (stageIndex === -1) {
         res.status(404).json({ success: false, error: 'Stage not found' });
         return;
@@ -249,12 +249,12 @@ export class TasksController {
         }
 
         // Recalculate overall progress
-        const approvedCount = task.stages.filter(s => s.status === 'APPROVED').length;
+        const approvedCount = task.stages.filter((s: any) => s.status === 'APPROVED').length;
         task.overallProgressPercent = Math.round((approvedCount / task.stages.length) * 100);
 
         await task.save();
 
-        task.assignedTo.forEach(empId => {
+        task.assignedTo.forEach((empId: any) => {
           SocketService.emitToUser(empId.toString(), 'stage:approved', {
             taskId: task._id,
             stageOrder,
@@ -267,7 +267,7 @@ export class TasksController {
         currentStage.status = 'NEEDS_REVISION';
         await task.save();
 
-        task.assignedTo.forEach(empId => {
+        task.assignedTo.forEach((empId: any) => {
           SocketService.emitToUser(empId.toString(), 'stage:revision_requested', {
             taskId: task._id,
             stageOrder,
