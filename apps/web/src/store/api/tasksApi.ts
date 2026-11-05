@@ -19,6 +19,21 @@ export const tasksApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Task']
     }),
+    updateTask: builder.mutation<IApiResponse<ITask>, { id: string; data: Partial<ICreateTaskDto> }>({
+      query: ({ id, data }) => ({
+        url: `/tasks/${id}`,
+        method: 'PATCH',
+        body: data
+      }),
+      invalidatesTags: (result, error, { id }) => ['Task', { type: 'Task', id }]
+    }),
+    deleteTask: builder.mutation<IApiResponse<{ message: string }>, string>({
+      query: (id) => ({
+        url: `/tasks/${id}`,
+        method: 'DELETE'
+      }),
+      invalidatesTags: ['Task']
+    }),
     submitTaskStage: builder.mutation<IApiResponse<ITask>, { taskId: string; stageOrder: number; data: ISubmitStageDto }>({
       query: ({ taskId, stageOrder, data }) => ({
         url: `/tasks/${taskId}/stages/${stageOrder}`,
@@ -50,6 +65,8 @@ export const {
   useGetTasksQuery,
   useGetTaskByIdQuery,
   useCreateOrProposeTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
   useSubmitTaskStageMutation,
   useReviewTaskStageMutation,
   useAddDirectReportMutation

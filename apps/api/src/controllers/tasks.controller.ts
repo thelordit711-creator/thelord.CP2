@@ -74,6 +74,10 @@ export class TasksController {
         status: isProposed ? 'PENDING_ADMIN_REVIEW' : 'TODO'
       });
 
+      const populatedTask = await Task.findById(task._id)
+        .populate('assignedTo', 'fullName email avatarUrl jobTitles')
+        .populate('createdBy', 'fullName email avatarUrl');
+
       if (isProposed) {
         SocketService.emitToAdmins('task:proposed', {
           taskId: task._id,
@@ -81,11 +85,15 @@ export class TasksController {
           proposer: req.user?.fullName
         });
       } else {
-        // Notify assigned employees
+        // Real-time broadcast so manager/staff dashboards refresh automatically without reload
+        SocketService.broadcast('task:created', populatedTask);
+
+        // Notify assigned employees individually
         (task.assignedTo as any[]).forEach(empId => {
           SocketService.emitToUser(empId.toString(), 'task:assigned', {
             taskId: task._id,
-            title: task.title
+            title: task.title,
+            assignedByName: req.user?.fullName || 'القائد الأعلى'
           });
         });
       }
@@ -93,7 +101,7 @@ export class TasksController {
       res.status(201).json({
         success: true,
         message: isProposed ? 'Task proposed for admin review' : 'Task created successfully',
-        data: task
+        data: populatedTask || task
       });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
@@ -311,6 +319,105 @@ export class TasksController {
       });
 
       res.json({ success: true, message: 'Report submitted directly to admin', data: report });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 7. Update Task (Admin only)
+  public static async updateTask(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const isAdmin = req.user?.accessRole === 'SUPER_ADMIN';
+
+      if (!isAdmin) {
+        res.status(403).json({ success: false, error: 'صلاحية تعديل المهمة مخصصة للإدارة فقط' });
+        return;
+      }
+
+      const task = await Task.findById(id);
+      if (!task) {
+        res.status(404).json({ success: false, error: 'المهمة غير موجودة' });
+        return;
+      }
+
+      const body = req.body;
+      if (body.title !== undefined) task.title = body.title;
+      if (body.description !== undefined) task.description = body.description;
+      if (body.priority !== undefined) task.priority = body.priority;
+      if (body.dueDate !== undefined) task.dueDate = body.dueDate ? new Date(body.dueDate) : undefined;
+      if (body.targetPlatform !== undefined) task.targetPlatform = body.targetPlatform;
+      if (body.serviceCategory !== undefined) task.serviceCategory = body.serviceCategory;
+      if (body.status !== undefined) task.status = body.status;
+      if (body.assignedTo !== undefined) task.assignedTo = body.assignedTo;
+      if (body.isDailyRecurring !== undefined) task.isDailyRecurring = body.isDailyRecurring;
+      if (body.dailyRecurrenceTime !== undefined) task.dailyRecurrenceTime = body.dailyRecurrenceTime;
+      if (body.financialRequirement !== undefined) {
+        task.financialRequirement = {
+          ...task.financialRequirement,
+          ...body.financialRequirement
+        };
+      }
+      if (body.stages && Array.isArray(body.stages)) {
+        task.stages = body.stages as any;
+      }
+
+      await task.save();
+
+      const updatedTask = await Task.findById(task._id)
+        .populate('assignedTo', 'fullName email avatarUrl jobTitles')
+        .populate('createdBy', 'fullName email avatarUrl');
+
+      // Realtime broadcast of update
+      SocketService.broadcast('task:updated', updatedTask);
+      (task.assignedTo as any[]).forEach(empId => {
+        SocketService.emitToUser(empId.toString(), 'task:assigned', {
+          taskId: task._id,
+          title: task.title,
+          isUpdated: true
+        });
+      });
+
+      res.json({
+        success: true,
+        message: 'تم تعديل المهمة بنجاح',
+        data: updatedTask
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 8. Delete Task (Admin only)
+  public static async deleteTask(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const isAdmin = req.user?.accessRole === 'SUPER_ADMIN';
+
+      if (!isAdmin) {
+        res.status(403).json({ success: false, error: 'صلاحية حذف المهمة مخصصة للإدارة فقط' });
+        return;
+      }
+
+      const task = await Task.findById(id);
+      if (!task) {
+        res.status(404).json({ success: false, error: 'المهمة غير موجودة' });
+        return;
+      }
+
+      const assignedEmpIds = (task.assignedTo || []).map((e: any) => e.toString());
+      await Task.findByIdAndDelete(id);
+
+      // Realtime notification of deletion to all dashboards
+      SocketService.broadcast('task:deleted', { taskId: id, title: task.title });
+      assignedEmpIds.forEach(empId => {
+        SocketService.emitToUser(empId, 'task:deleted', { taskId: id, title: task.title });
+      });
+
+      res.json({
+        success: true,
+        message: 'تم حذف المهمة بنجاح'
+      });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }

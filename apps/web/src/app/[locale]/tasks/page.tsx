@@ -4,9 +4,12 @@ import React, { useState } from 'react';
 import {
   useGetTasksQuery,
   useCreateOrProposeTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
   useReviewTaskStageMutation
 } from '../../../store/api/tasksApi';
 import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
+import { useSocket } from '../../../providers/SocketProvider';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../components/voice/DirectVoiceRecorder';
@@ -45,17 +48,116 @@ import {
   Building2,
   CalendarClock,
   Tag,
-  HelpCircle
+  HelpCircle,
+  Edit3
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function TasksPage() {
+  const { socket } = useSocket();
   const { data: tasksRes, refetch } = useGetTasksQuery();
   const { data: employeesRes } = useGetAllEmployeesQuery();
   const [createTask, { isLoading: isCreating }] = useCreateOrProposeTaskMutation();
+  const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
+  const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
   const [reviewStage] = useReviewTaskStageMutation();
 
   const employees = employeesRes?.data || [];
+
+  // Real-time zero-refresh socket listener
+  React.useEffect(() => {
+    if (!socket) return;
+
+    const handleTaskRefresh = () => {
+      refetch();
+    };
+
+    const handleTaskAssigned = (data: any) => {
+      refetch();
+      toast.info('📋 إشعار مهمة جديد:', {
+        description: data.title || 'تم تحديث قائمة المهام'
+      });
+    };
+
+    socket.on('task:created', handleTaskRefresh);
+    socket.on('task:updated', handleTaskRefresh);
+    socket.on('task:deleted', handleTaskRefresh);
+    socket.on('task:assigned', handleTaskAssigned);
+
+    return () => {
+      socket.off('task:created', handleTaskRefresh);
+      socket.off('task:updated', handleTaskRefresh);
+      socket.off('task:deleted', handleTaskRefresh);
+      socket.off('task:assigned', handleTaskAssigned);
+    };
+  }, [socket, refetch]);
+
+  // Edit Task State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editPriority, setEditPriority] = useState('HIGH');
+  const [editPlatform, setEditPlatform] = useState('TG_VIP');
+  const [editDueDate, setEditDueDate] = useState('');
+
+  const handleOpenEdit = (task: any) => {
+    setEditingTaskId(task._id);
+    setEditTitle(task.title);
+    setEditDescription(task.description);
+    setEditPriority(task.priority || 'HIGH');
+    setEditPlatform(task.targetPlatform || 'TG_VIP');
+    setEditDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTaskId) return;
+
+    try {
+      await updateTask({
+        id: editingTaskId,
+        data: {
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          priority: editPriority as any,
+          targetPlatform: editPlatform as any,
+          dueDate: editDueDate ? new Date(editDueDate).toISOString() : undefined
+        }
+      }).unwrap();
+
+      toast.success('تم تعديل بيانات المهمة بنجاح 💾');
+      setIsEditModalOpen(false);
+      if (selectedTask && selectedTask._id === editingTaskId) {
+        setSelectedTask((prev: any) => ({
+          ...prev,
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          priority: editPriority,
+          targetPlatform: editPlatform
+        }));
+      }
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل تعديل المهمة');
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string, title?: string) => {
+    if (!window.confirm(`هل أنت متأكد من رغبتك في حذف مهمة "${title || 'المحددة'}" نهائياً من المنظومة؟`)) {
+      return;
+    }
+
+    try {
+      await deleteTask(taskId).unwrap();
+      toast.success('تم حذف المهمة نهائياً بنجاح 🗑️');
+      if (selectedTask && selectedTask._id === taskId) {
+        setSelectedTask(null);
+      }
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل حذف المهمة');
+    }
+  };
 
   // View state (ClickUp Hallmark)
   const [activeView, setActiveView] = useState<'board' | 'list' | 'timeline' | 'analytics'>('board');
@@ -916,13 +1018,36 @@ export default function TasksPage() {
                 <h2 className="text-lg md:text-xl font-black text-white">{selectedTask.title}</h2>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedTask(null)}
-                className="p-2 rounded-xl bg-obsidian-card hover:bg-gray-800 text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenEdit(selectedTask)}
+                  className="text-lord-gold border-lord-gold/40 hover:bg-lord-gold/10 flex items-center gap-1.5 rounded-xl"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>تعديل</span>
+                </Button>
+
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => handleDeleteTask(selectedTask._id, selectedTask.title)}
+                  disabled={isDeleting}
+                  className="flex items-center gap-1.5 rounded-xl"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>حذف</span>
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedTask(null)}
+                  className="p-2 rounded-xl bg-obsidian-card hover:bg-gray-800 text-gray-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -1566,6 +1691,111 @@ export default function TasksPage() {
                   isLoading={isCreating}
                 >
                   نشر المهمة واعتماد المراحل 🚀
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT TASK MODAL */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto space-y-5">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-lord-gold" />
+                <h3 className="text-base font-bold text-white">تعديل بيانات المهمة</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">عنوان المهمة:</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="w-full bg-obsidian-card border border-gray-700 rounded-xl px-4 py-2.5 text-xs text-white focus:border-lord-gold focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">تفاصيل وخطة العمل:</label>
+                <textarea
+                  rows={3}
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  className="w-full bg-obsidian-card border border-gray-700 rounded-xl px-4 py-2.5 text-xs text-white focus:border-lord-gold focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">درجة الأولوية:</label>
+                  <select
+                    value={editPriority}
+                    onChange={e => setEditPriority(e.target.value)}
+                    className="w-full bg-obsidian-card border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:border-lord-gold focus:outline-none"
+                  >
+                    <option value="CRITICAL">حرجة جداً (CRITICAL)</option>
+                    <option value="HIGH">مرتفعة (HIGH)</option>
+                    <option value="MEDIUM">متوسطة (MEDIUM)</option>
+                    <option value="LOW">منخفضة (LOW)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">المنصة المستهدفة:</label>
+                  <select
+                    value={editPlatform}
+                    onChange={e => setEditPlatform(e.target.value)}
+                    className="w-full bg-obsidian-card border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:border-lord-gold focus:outline-none"
+                  >
+                    <option value="TG_VIP">قناة VIP الخاصة (تليجرام)</option>
+                    <option value="TG_FREE">القناة العامة المجانية</option>
+                    <option value="YOUTUBE">يوتيوب (YouTube)</option>
+                    <option value="X_TWITTER">منصة إكس (Twitter)</option>
+                    <option value="FACEBOOK_INSTA">فيسبوك وإنستقرام</option>
+                    <option value="INTERNAL_SYSTEM">نظام البوتات والتطوير الداخلي</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">موعد التسليم النهائي (Due Date):</label>
+                <input
+                  type="date"
+                  value={editDueDate}
+                  onChange={e => setEditDueDate(e.target.value)}
+                  className="w-full bg-obsidian-card border border-gray-700 rounded-xl px-4 py-2 text-xs text-white focus:border-lord-gold focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-800">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(false)}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="submit"
+                  variant="gold"
+                  size="md"
+                  isLoading={isUpdating}
+                >
+                  حفظ التعديلات 💾
                 </Button>
               </div>
             </form>

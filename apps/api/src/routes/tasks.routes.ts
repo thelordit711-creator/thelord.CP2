@@ -16,6 +16,12 @@ router.get('/', rbacGuard(['SUPER_ADMIN', 'EMPLOYEE']), TasksController.getTasks
 // Get single task
 router.get('/:id', rbacGuard(['SUPER_ADMIN', 'EMPLOYEE']), TasksController.getTaskById);
 
+// Update task (admin only)
+router.patch('/:id', rbacGuard(['SUPER_ADMIN']), TasksController.updateTask);
+
+// Delete task (admin only)
+router.delete('/:id', rbacGuard(['SUPER_ADMIN']), TasksController.deleteTask);
+
 // Submit stage by employee
 router.post('/:id/stages/:order', rbacGuard(['EMPLOYEE', 'SUPER_ADMIN']), TasksController.submitStage);
 

@@ -28,8 +28,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkStatus } from '@lord/shared-types';
+import { useSocket } from '../../../../providers/SocketProvider';
 
 export default function EmployeeWorkspacePage() {
+  const { socket } = useSocket();
   const { data: tasksRes, refetch: refetchTasks } = useGetTasksQuery();
   const { data: statementRes } = useGetMyStatementQuery();
   const { data: employeesRes } = useGetAllEmployeesQuery();
@@ -39,6 +41,35 @@ export default function EmployeeWorkspacePage() {
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'propose' | 'statement'>('tasks');
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
+
+  // Real-time Socket Listener for Instant Task Assignment & Updates (Zero Reload)
+  React.useEffect(() => {
+    if (!socket) return;
+
+    const handleTaskAssigned = (data: any) => {
+      refetchTasks();
+      toast.info('📋 مهمة جديدة أُسندت إليك الآن!', {
+        description: data.title ? `${data.title} - انقر للبدء بالتنفيذ` : 'انقر لعرض تفاصيل المهمة ومراحلها',
+        duration: 9000
+      });
+    };
+
+    const handleTaskRefresh = () => {
+      refetchTasks();
+    };
+
+    socket.on('task:assigned', handleTaskAssigned);
+    socket.on('task:created', handleTaskRefresh);
+    socket.on('task:updated', handleTaskRefresh);
+    socket.on('task:deleted', handleTaskRefresh);
+
+    return () => {
+      socket.off('task:assigned', handleTaskAssigned);
+      socket.off('task:created', handleTaskRefresh);
+      socket.off('task:updated', handleTaskRefresh);
+      socket.off('task:deleted', handleTaskRefresh);
+    };
+  }, [socket, refetchTasks]);
 
   // Proposal form state
   const [proposalTitle, setProposalTitle] = useState('');
