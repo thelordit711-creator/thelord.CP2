@@ -8,16 +8,10 @@ import { MediaFileType } from '@lord/shared-types';
 const router = Router();
 router.use(verifyKindeJWT);
 
-// Ensure uploads directory exists safely across Vercel serverless and local node
-const isServerless = !!process.env.VERCEL;
-const uploadsDir = isServerless ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads');
-
-try {
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-} catch (err) {
-  console.warn('Uploads directory creation warning:', err);
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
