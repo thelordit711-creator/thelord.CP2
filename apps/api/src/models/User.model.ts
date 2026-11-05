@@ -52,15 +52,10 @@ const UserSchema = new Schema<IUserDocument>({
 
   primaryDepartment: {
     type: String,
-    enum: ['TRADING', 'MARKETING', 'CONTENT_MEDIA', 'DEVELOPMENT', 'SUPPORT', 'MANAGEMENT']
+    enum: ['TRADING', 'MARKETING', 'CONTENT_MEDIA', 'DEVELOPMENT', 'SUPPORT', 'MANAGEMENT', 'EXECUTIVE_MANAGEMENT']
   },
   jobTitles: [{
-    type: String,
-    enum: [
-      'DEAL_ANALYST', 'TG_CONTENT_MANAGER', 'SUPPORT_AGENT', 'WEB_BOT_DEVELOPER',
-      'TG_ADS_MANAGER', 'TG_CHANNEL_PROMO_MANAGER', 'GRAPHIC_VIDEO_EDITOR',
-      'YOUTUBE_MANAGER', 'X_PLATFORM_MANAGER', 'FB_IG_MANAGER', 'MARKETING_DEV_LEAD'
-    ]
+    type: String
   }],
   skills: [{
     name: { type: String, required: true },
