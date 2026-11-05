@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -73,7 +74,15 @@ app.use(async (req, res, next) => {
 });
 
 // Static uploads serving
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+const uploadsStaticDir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads');
+try {
+  if (!fs.existsSync(uploadsStaticDir)) {
+    fs.mkdirSync(uploadsStaticDir, { recursive: true });
+  }
+} catch (e) {
+  // safe fallback
+}
+app.use('/uploads', express.static(uploadsStaticDir));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
