@@ -23,12 +23,14 @@ import {
 import { Badge } from '../ui/Badge';
 import { toast } from 'sonner';
 import { WorkStatus } from '@lord/shared-types';
+import { useSocket } from '../../providers/SocketProvider';
 
 export const TopBar: React.FC = () => {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const isRtl = locale === 'ar';
+  const { socket } = useSocket();
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [workStatus, setWorkStatus] = useState<WorkStatus>('LOGGED_IN');
@@ -36,11 +38,81 @@ export const TopBar: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: 'أمر صرف جديد معتمد بانتظار تحويل الصندوق ($500 USDT)', time: 'منذ دقيقتين', unread: true },
-    { id: 2, text: 'تم تسجيل دخول الموظفين للدوام الرسمي', time: 'منذ 10 دقائق', unread: true },
-    { id: 3, text: 'تمت تسوية ميزانية إعلانات تليجرام الرسمية بنجاح', time: 'منذ ساعة', unread: false }
-  ]);
+  const [notifications, setNotifications] = useState<Array<{ id: string | number; text: string; time: string; unread: boolean }>>([]);
+
+  useEffect(() => {
+    if (!socket || !currentUser) return;
+
+    const isLeader = currentUser.accessRole === 'SUPER_ADMIN';
+    const isTreasury = currentUser.accessRole === 'TREASURY';
+    const isEmployee = currentUser.accessRole === 'EMPLOYEE';
+
+    const handlePayoutNewOrder = (data: any) => {
+      if (isLeader || isTreasury) {
+        setNotifications(prev => [
+          {
+            id: Date.now(),
+            text: `أمر صرف جديد ورد للصندوق: ${data.amount} ${data.currency}`,
+            time: 'الآن',
+            unread: true
+          },
+          ...prev
+        ]);
+      }
+    };
+
+    const handleStageSubmitted = (data: any) => {
+      if (isLeader) {
+        setNotifications(prev => [
+          {
+            id: Date.now(),
+            text: `تسليم مرحلة للمراجعة: ${data.stageTitle || 'مرحلة جديدة'} بواسطة ${data.employeeName || 'كادر'}`,
+            time: 'الآن',
+            unread: true
+          },
+          ...prev
+        ]);
+      }
+    };
+
+    const handleStageApproved = (data: any) => {
+      if (isEmployee) {
+        setNotifications(prev => [
+          {
+            id: Date.now(),
+            text: `تم اعتماد مرحلتك بنجاح! ${data.nextStageUnlocked ? 'تم فتح المرحلة التالية.' : 'اكتملت المهمة.'}`,
+            time: 'الآن',
+            unread: true
+          },
+          ...prev
+        ]);
+      }
+    };
+
+    const handleMeetingInvite = (data: any) => {
+      setNotifications(prev => [
+        {
+          id: Date.now(),
+          text: `دعوة لاجتماع مباشر من ${data.inviterName || 'المسؤول'}`,
+          time: 'الآن',
+          unread: true
+        },
+        ...prev
+      ]);
+    };
+
+    socket.on('payout:new_order', handlePayoutNewOrder);
+    socket.on('stage:submitted', handleStageSubmitted);
+    socket.on('stage:approved', handleStageApproved);
+    socket.on('meeting:invite', handleMeetingInvite);
+
+    return () => {
+      socket.off('payout:new_order', handlePayoutNewOrder);
+      socket.off('stage:submitted', handleStageSubmitted);
+      socket.off('stage:approved', handleStageApproved);
+      socket.off('meeting:invite', handleMeetingInvite);
+    };
+  }, [socket, currentUser]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -280,38 +352,48 @@ export const TopBar: React.FC = () => {
               className="p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold transition-all relative"
             >
               <Bell className="w-4 h-4" />
-              <span className="w-2 h-2 rounded-full bg-status-danger absolute top-1.5 right-1.5 ring-2 ring-obsidian-primary"></span>
+              {notifications.some(n => n.unread) && (
+                <span className="w-2 h-2 rounded-full bg-status-danger absolute top-1.5 right-1.5 ring-2 ring-obsidian-primary animate-pulse" />
+              )}
             </button>
 
             {showNotifications && (
               <div className="absolute left-0 sm:right-auto sm:left-0 mt-3 w-80 bg-obsidian-card border border-lord-gold/40 rounded-2xl shadow-2xl overflow-hidden z-50">
                 <div className="p-3 bg-obsidian-surface border-b border-obsidian-border flex items-center justify-between">
                   <span className="text-xs font-bold text-white">مركز الإشعارات اللحظية</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
-                      toast.info('تم تعليم جميع الإشعارات كمقروءة');
-                    }}
-                    className="text-[10px] text-lord-gold hover:underline"
-                  >
-                    تحديد الكل كمقروء
-                  </button>
+                  {notifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+                        toast.info('تم تعليم جميع الإشعارات كمقروءة');
+                      }}
+                      className="text-[10px] text-lord-gold hover:underline"
+                    >
+                      تحديد الكل كمقروء
+                    </button>
+                  )}
                 </div>
                 <div className="divide-y divide-gray-800/80 max-h-72 overflow-y-auto">
-                  {notifications.map(n => (
-                    <div
-                      key={n.id}
-                      className={`p-3 text-xs transition-colors hover:bg-obsidian-surface ${
-                        n.unread ? 'bg-lord-gold/5' : ''
-                      }`}
-                    >
-                      <p className="text-gray-200 leading-relaxed">{n.text}</p>
-                      <span className="text-[10px] text-gray-500 font-mono mt-1 block">
-                        {n.time}
-                      </span>
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500 text-xs">
+                      لا توجد إشعارات جديدة حالياً
                     </div>
-                  ))}
+                  ) : (
+                    notifications.map(n => (
+                      <div
+                        key={n.id}
+                        className={`p-3 text-xs transition-colors hover:bg-obsidian-surface ${
+                          n.unread ? 'bg-lord-gold/5' : ''
+                        }`}
+                      >
+                        <p className="text-gray-200 leading-relaxed">{n.text}</p>
+                        <span className="text-[10px] text-gray-500 font-mono mt-1 block">
+                          {n.time}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}

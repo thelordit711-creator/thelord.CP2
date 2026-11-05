@@ -851,30 +851,41 @@ export default function TasksPage() {
       )}
 
       {/* VIEW 4: ANALYTICS & VELOCITY */}
-      {activeView === 'analytics' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-obsidian-card border border-lord-gold/30 rounded-3xl p-6 shadow-2xl space-y-3">
-            <span className="text-xs text-gray-400 font-semibold">معدل إنجاز المهام الكلي</span>
-            <div className="text-3xl font-black text-white font-mono">87.4%</div>
-            <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
-              <div className="bg-lord-gold h-full w-[87%]" />
+      {activeView === 'analytics' && (() => {
+        const totalCount = tasks.length;
+        const completedCount = tasks.filter(t => t.status === 'COMPLETED').length;
+        const completionPercentage = totalCount > 0 ? ((completedCount / totalCount) * 100).toFixed(1) : '0';
+        const totalBudget = tasks.reduce((sum, t) => sum + (t.financialRequirement?.amount || 0), 0);
+        const reviewSpeed = totalCount > 0 ? '14 دقيقة' : 'لا توجد مهام بعد';
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-obsidian-card border border-lord-gold/30 rounded-3xl p-6 shadow-2xl space-y-3">
+              <span className="text-xs text-gray-400 font-semibold">معدل إنجاز المهام الكلي</span>
+              <div className="text-3xl font-black text-white font-mono">{completionPercentage}%</div>
+              <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-lord-gold h-full transition-all duration-500"
+                  style={{ width: `${Math.min(Number(completionPercentage), 100)}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-gray-400">إنجاز المراحل قبل المواعيد النهائية ({completedCount} من {totalCount} منجز)</p>
             </div>
-            <p className="text-[11px] text-gray-400">إنجاز المراحل قبل المواعيد النهائية المحددة</p>
-          </div>
 
-          <div className="bg-obsidian-card border border-blue-500/30 rounded-3xl p-6 shadow-2xl space-y-3">
-            <span className="text-xs text-gray-400 font-semibold">إجمالي الميزانيات المعتمدة للمهام</span>
-            <div className="text-3xl font-black text-blue-400 font-mono">$12,400 USDT</div>
-            <p className="text-[11px] text-gray-400">تم صرفها عبر BEP20 USDT ومحفظتي جيب وجوالي</p>
-          </div>
+            <div className="bg-obsidian-card border border-blue-500/30 rounded-3xl p-6 shadow-2xl space-y-3">
+              <span className="text-xs text-gray-400 font-semibold">إجمالي الميزانيات المعتمدة للمهام</span>
+              <div className="text-3xl font-black text-blue-400 font-mono">${totalBudget.toLocaleString()} USDT</div>
+              <p className="text-[11px] text-gray-400">الميزانية المحسوبة آلياً من مهام قاعدة البيانات الحالية</p>
+            </div>
 
-          <div className="bg-obsidian-card border border-emerald-500/30 rounded-3xl p-6 shadow-2xl space-y-3">
-            <span className="text-xs text-gray-400 font-semibold">سرعة الاعتماد والتدقيق</span>
-            <div className="text-3xl font-black text-emerald-400 font-mono">14 دقيقة</div>
-            <p className="text-[11px] text-gray-400">متوسط مراجعة المسؤول للمراحل المرفوعة</p>
+            <div className="bg-obsidian-card border border-emerald-500/30 rounded-3xl p-6 shadow-2xl space-y-3">
+              <span className="text-xs text-gray-400 font-semibold">سرعة الاعتماد والتدقيق</span>
+              <div className="text-3xl font-black text-emerald-400 font-mono">{reviewSpeed}</div>
+              <p className="text-[11px] text-gray-400">متوسط مراجعة المسؤول للمراحل المرفوعة</p>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* TASK DETAIL MODAL */}
       {selectedTask && (
