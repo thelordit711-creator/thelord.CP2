@@ -114,14 +114,20 @@ export class ProjectsController {
   }
 
   /**
-   * Update project status or budget
+   * Update project details, status, or budget (SUPER_ADMIN only)
    */
   public static async updateProject(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
+      if (!req.user || req.user.accessRole !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, error: 'غير مصرح. تعديل المشاريع مخصص للإدارة العليا فقط' });
+        return;
+      }
+
       const { id } = req.params;
       const updated = await Project.findByIdAndUpdate(id, req.body, { new: true })
-        .populate('teamMembers', 'fullName email')
-        .populate('createdBy', 'fullName email');
+        .populate('teamMembers', 'fullName email primaryDepartment avatarUrl')
+        .populate('createdBy', 'fullName email accessRole')
+        .populate('wbsMilestones.assignedTasks');
 
       if (!updated) {
         res.status(404).json({ success: false, error: 'المشروع غير موجود' });
@@ -134,6 +140,35 @@ export class ProjectsController {
         success: true,
         data: updated,
         message: 'تم تحديث المشروع بنجاح'
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Delete project by ID (SUPER_ADMIN only)
+   */
+  public static async deleteProject(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || req.user.accessRole !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, error: 'غير مصرح. حذف المشاريع مخصص للإدارة العليا فقط' });
+        return;
+      }
+
+      const { id } = req.params;
+      const project = await Project.findByIdAndDelete(id);
+
+      if (!project) {
+        res.status(404).json({ success: false, error: 'المشروع غير موجود' });
+        return;
+      }
+
+      SocketService.broadcast('project:deleted', { projectId: id });
+
+      res.json({
+        success: true,
+        message: 'تم حذف المشروع نهائياً بنجاح 🗑️'
       });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });

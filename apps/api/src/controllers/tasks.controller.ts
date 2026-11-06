@@ -226,13 +226,19 @@ export class TasksController {
       task.status = 'IN_PROGRESS';
       await task.save();
 
+      const populatedTask = await Task.findById(task._id)
+        .populate('assignedTo', 'fullName email avatarUrl jobTitles')
+        .populate('createdBy', 'fullName email avatarUrl')
+        .populate('directReports.submittedBy', 'fullName avatarUrl');
+
       SocketService.emitToAdmins('stage:submitted', {
         taskId: task._id,
         stageOrder,
         stageTitle: stage.stageTitle,
-        employeeName: req.user?.fullName
+        employeeName: req.user?.fullName,
+        task: populatedTask
       });
-      SocketService.broadcast('task:updated', task);
+      SocketService.broadcast('task:updated', populatedTask);
 
       // Persist notification for all administrators
       const admins = await User.find({ accessRole: 'SUPER_ADMIN' }).select('_id');
@@ -252,7 +258,7 @@ export class TasksController {
       res.json({
         success: true,
         message: 'Stage submitted for admin review',
-        data: task
+        data: populatedTask || task
       });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
@@ -309,11 +315,17 @@ export class TasksController {
 
         await task.save();
 
+        const populatedTask = await Task.findById(task._id)
+          .populate('assignedTo', 'fullName email avatarUrl jobTitles')
+          .populate('createdBy', 'fullName email avatarUrl')
+          .populate('directReports.submittedBy', 'fullName avatarUrl');
+
         task.assignedTo.forEach((empId: any) => {
           SocketService.emitToUser(empId.toString(), 'stage:approved', {
             taskId: task._id,
             stageOrder,
-            nextStageUnlocked: stageIndex + 1 < task.stages.length
+            nextStageUnlocked: stageIndex + 1 < task.stages.length,
+            task: populatedTask
           });
           SocketService.dispatchNotification({
             recipientId: empId.toString(),
@@ -326,18 +338,24 @@ export class TasksController {
             priority: 'MEDIUM'
           });
         });
-        SocketService.broadcast('task:updated', task);
+        SocketService.broadcast('task:updated', populatedTask || task);
 
-        res.json({ success: true, message: 'Stage approved', data: task });
+        res.json({ success: true, message: 'Stage approved', data: populatedTask || task });
       } else {
         currentStage.status = 'NEEDS_REVISION';
         await task.save();
+
+        const populatedTask = await Task.findById(task._id)
+          .populate('assignedTo', 'fullName email avatarUrl jobTitles')
+          .populate('createdBy', 'fullName email avatarUrl')
+          .populate('directReports.submittedBy', 'fullName avatarUrl');
 
         task.assignedTo.forEach((empId: any) => {
           SocketService.emitToUser(empId.toString(), 'stage:revision_requested', {
             taskId: task._id,
             stageOrder,
-            feedback: body.note
+            feedback: body.note,
+            task: populatedTask
           });
           SocketService.dispatchNotification({
             recipientId: empId.toString(),
@@ -350,9 +368,9 @@ export class TasksController {
             priority: 'HIGH'
           });
         });
-        SocketService.broadcast('task:updated', task);
+        SocketService.broadcast('task:updated', populatedTask || task);
 
-        res.json({ success: true, message: 'Revision requested', data: task });
+        res.json({ success: true, message: 'Revision requested', data: populatedTask || task });
       }
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });

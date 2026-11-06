@@ -16,7 +16,10 @@ import {
   AlertCircle,
   X,
   Loader2,
-  FileText
+  FileText,
+  Edit3,
+  Trash2,
+  CheckCircle
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
@@ -36,6 +39,18 @@ export default function ProjectsPage() {
   const [createMode, setCreateMode] = useState<'AI' | 'MANUAL'>('AI');
   const [selectedProjectPlan, setSelectedProjectPlan] = useState<any | null>(null);
   const [isDecomposingAll, setIsDecomposingAll] = useState(false);
+
+  // Edit Project States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string>('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editStatus, setEditStatus] = useState('ACTIVE');
+  const [editAllocatedBudget, setEditAllocatedBudget] = useState(2500);
+  const [editTargetEndDate, setEditTargetEndDate] = useState('');
+  const [editTeamMembers, setEditTeamMembers] = useState<string[]>([]);
+  const [isUpdatingProject, setIsUpdatingProject] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -78,12 +93,19 @@ export default function ProjectsPage() {
     if (socket) {
       socket.on('project:created', () => fetchProjects());
       socket.on('project:updated', () => fetchProjects());
+      socket.on('project:deleted', (data: any) => {
+        fetchProjects();
+        if (selectedProjectPlan && selectedProjectPlan._id === data?.projectId) {
+          setSelectedProjectPlan(null);
+        }
+      });
     }
 
     return () => {
       if (socket) {
         socket.off('project:created');
         socket.off('project:updated');
+        socket.off('project:deleted');
       }
     };
   }, [socket]);
@@ -250,6 +272,110 @@ export default function ProjectsPage() {
     }
   };
 
+  // Open Edit Modal
+  const handleOpenEdit = (project: any) => {
+    setEditingProjectId(project._id);
+    setEditTitle(project.title || '');
+    setEditDescription(project.description || '');
+    setEditStatus(project.status || 'ACTIVE');
+    setEditAllocatedBudget(project.allocatedBudget || 0);
+    setEditTargetEndDate(
+      project.targetEndDate ? new Date(project.targetEndDate).toISOString().slice(0, 10) : ''
+    );
+    setEditTeamMembers((project.teamMembers || []).map((m: any) => m._id || m));
+    setIsEditModalOpen(true);
+  };
+
+  // Submit Edit Project
+  const handleSaveEditProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProjectId) return;
+    setIsUpdatingProject(true);
+    try {
+      const token = localStorage.getItem('lord_auth_token');
+      const res = await fetch(`${apiUrl}/projects/${editingProjectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          status: editStatus,
+          allocatedBudget: Number(editAllocatedBudget),
+          targetEndDate: editTargetEndDate ? new Date(editTargetEndDate) : undefined,
+          teamMembers: editTeamMembers
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'فشل تحديث بيانات المشروع');
+
+      toast.success('تم تحديث المشروع وسجلاته بنجاح! 💾');
+      setIsEditModalOpen(false);
+      fetchProjects();
+      if (selectedProjectPlan && selectedProjectPlan._id === editingProjectId) {
+        setSelectedProjectPlan(data.data);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'حدث خطأ أثناء تعديل المشروع');
+    } finally {
+      setIsUpdatingProject(false);
+    }
+  };
+
+  // Delete Project
+  const handleDeleteProject = async (projectId: string, projectTitle: string) => {
+    const confirmDelete = window.confirm(`هل أنت متأكد من حذف مشروع "${projectTitle}" نهائياً وجميع بياناته؟`);
+    if (!confirmDelete) return;
+
+    setIsDeletingProject(true);
+    try {
+      const token = localStorage.getItem('lord_auth_token');
+      const res = await fetch(`${apiUrl}/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'فشل حذف المشروع');
+
+      toast.success('تم حذف المشروع نهائياً بنجاح 🗑️');
+      if (selectedProjectPlan && selectedProjectPlan._id === projectId) {
+        setSelectedProjectPlan(null);
+      }
+      fetchProjects();
+    } catch (err: any) {
+      toast.error(err.message || 'تعذر حذف المشروع');
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
+
+  // Quick Status Switch
+  const handleQuickStatusChange = async (projectId: string, newStatus: string) => {
+    try {
+      const token = localStorage.getItem('lord_auth_token');
+      const res = await fetch(`${apiUrl}/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'فشل تغيير حالة المشروع');
+
+      toast.success(`تم تحديث حالة المشروع إلى: ${newStatus}`);
+      fetchProjects();
+    } catch (err: any) {
+      toast.error(err.message || 'حدث خطأ أثناء تغيير الحالة');
+    }
+  };
+
   const totalAllocated = projects.reduce((acc, p) => acc + (p.allocatedBudget || 0), 0);
   const totalSpent = projects.reduce((acc, p) => acc + (p.spentBudget || 0), 0);
 
@@ -369,7 +495,7 @@ export default function ProjectsPage() {
                       className="px-3 py-1.5 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1.5 shadow-md"
                     >
                       <FileText className="w-3.5 h-3.5 text-lord-gold" />
-                      <span>عرض خطة المشروع 📋</span>
+                      <span>عرض الخطة 📋</span>
                     </button>
 
                     <button
@@ -382,9 +508,46 @@ export default function ProjectsPage() {
                       <span>تحويل الخطة لمهام 🚀</span>
                     </button>
 
-                    <Badge variant={project.status === 'COMPLETED' ? 'cyber' : 'gold'}>
-                      {project.status === 'ACTIVE' ? 'نشط قيد التنفيذ ⚡' : project.status}
-                    </Badge>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(project)}
+                      className="px-2.5 py-1.5 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1 shadow-md"
+                      title="تعديل بيانات المشروع"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-lord-gold" />
+                      <span>تعديل</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isDeletingProject}
+                      onClick={() => handleDeleteProject(project._id, project.title)}
+                      className="px-2.5 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-xs font-bold text-red-400 transition-all flex items-center gap-1 shadow-md"
+                      title="حذف المشروع نهائياً"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>حذف</span>
+                    </button>
+
+                    {/* Quick Status Selector */}
+                    <select
+                      value={project.status || 'ACTIVE'}
+                      onChange={(e) => handleQuickStatusChange(project._id, e.target.value)}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        project.status === 'COMPLETED'
+                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                          : project.status === 'ACTIVE'
+                          ? 'bg-lord-gold/15 border-lord-gold/40 text-lord-gold'
+                          : project.status === 'ON_HOLD'
+                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                          : 'bg-gray-800 border-gray-700 text-gray-300'
+                      }`}
+                    >
+                      <option value="PLANNING">قيد التخطيط 📋</option>
+                      <option value="ACTIVE">نشط قيد التنفيذ ⚡</option>
+                      <option value="ON_HOLD">معلق مؤقتاً ⏸️</option>
+                      <option value="COMPLETED">مكتمل 100% 🏆</option>
+                    </select>
                   </div>
                 </div>
 
@@ -634,7 +797,7 @@ export default function ProjectsPage() {
                 <p className="text-xs text-gray-400 mt-1">{selectedProjectPlan.description}</p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
                   disabled={isDecomposingAll}
@@ -643,6 +806,25 @@ export default function ProjectsPage() {
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>تحويل الخطة كاملة إلى مهام 🚀</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenEdit(selectedProjectPlan)}
+                  className="px-3 py-2 rounded-xl bg-obsidian-card border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1.5 shadow-md"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-lord-gold" />
+                  <span>تعديل</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isDeletingProject}
+                  onClick={() => handleDeleteProject(selectedProjectPlan._id, selectedProjectPlan.title)}
+                  className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-xs font-bold text-red-400 transition-all flex items-center gap-1.5 shadow-md"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>حذف</span>
                 </button>
 
                 <button
@@ -750,6 +932,148 @@ export default function ProjectsPage() {
                 })}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* EDIT PROJECT MODAL */}
+      {/* ============================================================== */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
+          <div className="bg-obsidian-surface border-2 border-lord-gold/60 rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl max-h-[92vh] overflow-y-auto space-y-5">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-lord-gold" />
+                <h3 className="text-lg font-black text-white">تعديل بيانات وسجلات المشروع</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1.5 rounded-xl bg-obsidian-card hover:bg-gray-800 text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditProject} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1">عنوان المشروع:</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full bg-obsidian-card border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-lord-gold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1">وصف المشروع وخطة العمل:</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full bg-obsidian-card border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-lord-gold leading-relaxed"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-300 block mb-1">حالة المشروع:</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="w-full bg-obsidian-card border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-lord-gold"
+                  >
+                    <option value="PLANNING">قيد التخطيط (PLANNING)</option>
+                    <option value="ACTIVE">نشط قيد التنفيذ (ACTIVE)</option>
+                    <option value="ON_HOLD">معلق مؤقتاً (ON_HOLD)</option>
+                    <option value="COMPLETED">مكتمل 100% (COMPLETED)</option>
+                    <option value="CANCELLED">ملغي (CANCELLED)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-300 block mb-1">سقف الميزانية المخصصة (USDT):</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editAllocatedBudget}
+                    onChange={(e) => setEditAllocatedBudget(Number(e.target.value))}
+                    className="w-full bg-obsidian-card border border-gray-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-lord-gold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1">تاريخ التسليم النهائي المستهدف:</label>
+                <input
+                  type="date"
+                  value={editTargetEndDate}
+                  onChange={(e) => setEditTargetEndDate(e.target.value)}
+                  className="w-full bg-obsidian-card border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-lord-gold"
+                />
+              </div>
+
+              {/* Team Members Checklist */}
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1.5">أعضاء الفريق والمسؤولون التنفيذيون:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-obsidian-card rounded-2xl border border-gray-800">
+                  {employees.map((emp: any) => {
+                    const isSelected = editTeamMembers.includes(emp._id);
+                    return (
+                      <label
+                        key={emp._id}
+                        className={`p-2 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-lord-gold/15 border-lord-gold text-white font-bold'
+                            : 'bg-obsidian-surface border-gray-800 text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] shrink-0 font-bold">
+                            {emp.fullName?.charAt(0) || 'U'}
+                          </span>
+                          <span className="truncate">{emp.fullName}</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            setEditTeamMembers((prev) =>
+                              isSelected ? prev.filter((id) => id !== emp._id) : [...prev, emp._id]
+                            );
+                          }}
+                          className="rounded text-lord-gold"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-800">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(false)}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="submit"
+                  variant="gold"
+                  size="md"
+                  isLoading={isUpdatingProject}
+                  className="shadow-gold-glow font-bold"
+                >
+                  حفظ التعديلات 💾
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

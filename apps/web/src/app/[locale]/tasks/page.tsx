@@ -82,12 +82,31 @@ export default function TasksPage() {
 
   const isAdmin = currentUser?.accessRole === 'SUPER_ADMIN';
 
+  // Mobile Segmented Column Tab state
+  const [mobileKanbanTab, setMobileKanbanTab] = useState<'TODO' | 'IN_PROGRESS' | 'PENDING_ADMIN_REVIEW' | 'COMPLETED'>('TODO');
+
+  // Keep selectedTask synchronized with live tasks list
+  React.useEffect(() => {
+    if (selectedTask && tasksRes?.data) {
+      const fresh = tasksRes.data.find((t: any) => t._id === selectedTask._id);
+      if (fresh) {
+        setSelectedTask(fresh);
+      }
+    }
+  }, [tasksRes]);
+
   // Real-time zero-refresh socket listener
   React.useEffect(() => {
     if (!socket) return;
 
-    const handleTaskRefresh = () => {
+    const handleTaskRefresh = (updatedData?: any) => {
       refetch();
+      if (updatedData) {
+        const freshTask = updatedData.task || updatedData;
+        if (freshTask && freshTask._id) {
+          setSelectedTask((prev: any) => (prev && prev._id === freshTask._id ? freshTask : prev));
+        }
+      }
     };
 
     const handleTaskAssigned = (data: any) => {
@@ -99,14 +118,41 @@ export default function TasksPage() {
 
     socket.on('task:created', handleTaskRefresh);
     socket.on('task:updated', handleTaskRefresh);
-    socket.on('task:deleted', handleTaskRefresh);
+    socket.on('task:deleted', (data: any) => {
+      refetch();
+      const delId = typeof data === 'string' ? data : data?.taskId || data?._id;
+      if (delId) {
+        setSelectedTask((prev: any) => (prev && prev._id === delId ? null : prev));
+      }
+    });
     socket.on('task:assigned', handleTaskAssigned);
+    socket.on('stage:submitted', (data: any) => {
+      refetch();
+      if (data?.task) {
+        setSelectedTask((prev: any) => (prev && prev._id === data.task._id ? data.task : prev));
+      }
+    });
+    socket.on('stage:approved', (data: any) => {
+      refetch();
+      if (data?.task) {
+        setSelectedTask((prev: any) => (prev && prev._id === data.task._id ? data.task : prev));
+      }
+    });
+    socket.on('stage:revision_requested', (data: any) => {
+      refetch();
+      if (data?.task) {
+        setSelectedTask((prev: any) => (prev && prev._id === data.task._id ? data.task : prev));
+      }
+    });
 
     return () => {
       socket.off('task:created', handleTaskRefresh);
       socket.off('task:updated', handleTaskRefresh);
-      socket.off('task:deleted', handleTaskRefresh);
+      socket.off('task:deleted');
       socket.off('task:assigned', handleTaskAssigned);
+      socket.off('stage:submitted');
+      socket.off('stage:approved');
+      socket.off('stage:revision_requested');
     };
   }, [socket, refetch]);
 
@@ -506,14 +552,16 @@ export default function TasksPage() {
 
   const handleApproveStage = async (taskId: string, stageOrder: number) => {
     try {
-      await reviewStage({
+      const res = await reviewStage({
         taskId,
         stageOrder,
         data: { action: 'APPROVE', note: 'المرحلة معتمدة 100% ومستوفية للشروط' }
       }).unwrap();
 
       toast.success(`تم اعتماد المرحلة ${stageOrder} وفتح المرحلة التالية تلقائياً!`);
-      if (selectedTask) {
+      if (res?.data) {
+        setSelectedTask(res.data);
+      } else if (selectedTask) {
         setSelectedTask((prev: any) => ({
           ...prev,
           stages: prev.stages.map((s: any) =>
@@ -727,18 +775,71 @@ export default function TasksPage() {
 
       {/* VIEW 1: ADVANCED KANBAN BOARD VIEW */}
       {activeView === 'board' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Column 1: TODO */}
-          <div className="bg-obsidian-card border border-obsidian-border rounded-3xl p-4 flex flex-col min-h-[500px]">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
-              <span className="text-xs font-bold text-gray-300 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
-                <span>مهام مطلوبة وجديدة (To Do)</span>
-              </span>
-              <span className="text-[10px] font-mono bg-obsidian-surface px-2 py-0.5 rounded text-gray-400 font-bold">
-                {filteredTasks.filter(t => t.status === 'TODO').length}
-              </span>
-            </div>
+        <div className="space-y-4">
+          {/* Mobile Kanban Column Switcher (Visible only on mobile devices) */}
+          <div className="grid grid-cols-4 md:hidden gap-1.5 p-1 bg-obsidian-surface rounded-2xl border border-gray-800 text-xs">
+            <button
+              type="button"
+              onClick={() => setMobileKanbanTab('TODO')}
+              className={`py-2 px-1 rounded-xl font-bold text-center transition-all flex flex-col items-center gap-0.5 ${
+                mobileKanbanTab === 'TODO'
+                  ? 'bg-gray-700 text-white shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <span className="text-[11px]">مطلوبة</span>
+              <span className="text-[9px] font-mono opacity-80">({filteredTasks.filter(t => t.status === 'TODO').length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileKanbanTab('IN_PROGRESS')}
+              className={`py-2 px-1 rounded-xl font-bold text-center transition-all flex flex-col items-center gap-0.5 ${
+                mobileKanbanTab === 'IN_PROGRESS'
+                  ? 'bg-blue-600 text-white shadow-blue-glow'
+                  : 'text-blue-400/70 hover:text-blue-300'
+              }`}
+            >
+              <span className="text-[11px]">قيد العمل</span>
+              <span className="text-[9px] font-mono opacity-80">({filteredTasks.filter(t => t.status === 'IN_PROGRESS').length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileKanbanTab('PENDING_ADMIN_REVIEW')}
+              className={`py-2 px-1 rounded-xl font-bold text-center transition-all flex flex-col items-center gap-0.5 ${
+                mobileKanbanTab === 'PENDING_ADMIN_REVIEW'
+                  ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
+                  : 'text-lord-gold/70 hover:text-lord-gold'
+              }`}
+            >
+              <span className="text-[11px]">المراجعة</span>
+              <span className="text-[9px] font-mono opacity-80">({filteredTasks.filter(t => t.status === 'PENDING_ADMIN_REVIEW').length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileKanbanTab('COMPLETED')}
+              className={`py-2 px-1 rounded-xl font-bold text-center transition-all flex flex-col items-center gap-0.5 ${
+                mobileKanbanTab === 'COMPLETED'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-emerald-400/70 hover:text-emerald-300'
+              }`}
+            >
+              <span className="text-[11px]">مكتملة</span>
+              <span className="text-[9px] font-mono opacity-80">({filteredTasks.filter(t => t.status === 'COMPLETED').length})</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Column 1: TODO */}
+            <div className={`bg-obsidian-card border border-obsidian-border rounded-3xl p-4 flex flex-col min-h-[300px] md:min-h-[500px] ${mobileKanbanTab === 'TODO' ? 'flex' : 'hidden md:flex'}`}>
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
+                <span className="text-xs font-bold text-gray-300 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+                  <span>مهام مطلوبة وجديدة (To Do)</span>
+                </span>
+                <span className="text-[10px] font-mono bg-obsidian-surface px-2 py-0.5 rounded text-gray-400 font-bold">
+                  {filteredTasks.filter(t => t.status === 'TODO').length}
+                </span>
+              </div>
 
             <div className="space-y-3 flex-1 overflow-y-auto">
               {filteredTasks.filter(t => t.status === 'TODO').map(task => (
@@ -824,7 +925,7 @@ export default function TasksPage() {
           </div>
 
           {/* Column 2: IN_PROGRESS */}
-          <div className="bg-obsidian-card border border-blue-500/30 rounded-3xl p-4 flex flex-col min-h-[500px]">
+          <div className={`bg-obsidian-card border border-blue-500/30 rounded-3xl p-4 flex flex-col min-h-[300px] md:min-h-[500px] ${mobileKanbanTab === 'IN_PROGRESS' ? 'flex' : 'hidden md:flex'}`}>
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
               <span className="text-xs font-bold text-blue-400 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
@@ -898,7 +999,7 @@ export default function TasksPage() {
           </div>
 
           {/* Column 3: PENDING_ADMIN_REVIEW */}
-          <div className="bg-obsidian-card border border-amber-500/30 rounded-3xl p-4 flex flex-col min-h-[500px]">
+          <div className={`bg-obsidian-card border border-amber-500/30 rounded-3xl p-4 flex flex-col min-h-[300px] md:min-h-[500px] ${mobileKanbanTab === 'PENDING_ADMIN_REVIEW' ? 'flex' : 'hidden md:flex'}`}>
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
               <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
@@ -956,7 +1057,7 @@ export default function TasksPage() {
           </div>
 
           {/* Column 4: COMPLETED */}
-          <div className="bg-obsidian-card border border-emerald-500/30 rounded-3xl p-4 flex flex-col min-h-[500px]">
+          <div className={`bg-obsidian-card border border-emerald-500/30 rounded-3xl p-4 flex flex-col min-h-[300px] md:min-h-[500px] ${mobileKanbanTab === 'COMPLETED' ? 'flex' : 'hidden md:flex'}`}>
             <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
               <span className="text-xs font-bold text-emerald-400 flex items-center gap-2">
                 <CheckCircle className="w-3.5 h-3.5" />
@@ -1000,7 +1101,8 @@ export default function TasksPage() {
             </div>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* VIEW 2: LIST / TABLE VIEW */}
       {activeView === 'list' && (
@@ -1189,11 +1291,11 @@ export default function TasksPage() {
 
       {/* TASK DETAIL MODAL */}
       {selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-4xl w-full p-6 md:p-8 shadow-2xl max-h-[92vh] overflow-y-auto space-y-6">
-            <div className="flex items-start justify-between border-b border-gray-800 pb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-4xl w-full p-4 sm:p-6 md:p-8 shadow-2xl max-h-[94vh] overflow-y-auto space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-800 pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <Badge variant="gold">{selectedTask.targetPlatform}</Badge>
                   <Badge
                     variant={
@@ -1213,18 +1315,18 @@ export default function TasksPage() {
                     </span>
                   )}
                 </div>
-                <h2 className="text-lg md:text-xl font-black text-white">{selectedTask.title}</h2>
+                <h2 className="text-base sm:text-xl font-black text-white">{selectedTask.title}</h2>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 justify-end">
                 <Button
                   variant="gold"
                   size="sm"
                   onClick={() => setIsExecutionWorkspaceOpen(true)}
-                  className="shadow-gold-glow flex items-center gap-1.5 rounded-xl font-bold"
+                  className="shadow-gold-glow flex items-center gap-1 rounded-xl font-bold text-xs"
                 >
-                  <Sparkles className="w-3.5 h-3.5 ml-1" />
-                  <span>مساحة التنفيذ الذكية ⚡</span>
+                  <Sparkles className="w-3.5 h-3.5 ml-0.5" />
+                  <span>مساحة التنفيذ ⚡</span>
                 </Button>
 
                 {isAdmin && (
@@ -1233,7 +1335,7 @@ export default function TasksPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleOpenEdit(selectedTask)}
-                      className="text-lord-gold border-lord-gold/40 hover:bg-lord-gold/10 flex items-center gap-1.5 rounded-xl font-bold"
+                      className="text-lord-gold border-lord-gold/40 hover:bg-lord-gold/10 flex items-center gap-1 rounded-xl font-bold text-xs"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                       <span>تعديل</span>
@@ -1244,7 +1346,7 @@ export default function TasksPage() {
                       size="sm"
                       onClick={() => handleDeleteTask(selectedTask._id, selectedTask.title)}
                       disabled={isDeleting}
-                      className="flex items-center gap-1.5 rounded-xl font-bold"
+                      className="flex items-center gap-1 rounded-xl font-bold text-xs"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>حذف</span>
@@ -1255,7 +1357,7 @@ export default function TasksPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedTask(null)}
-                  className="p-2 rounded-xl bg-obsidian-card hover:bg-gray-800 text-gray-400 hover:text-white"
+                  className="p-1.5 sm:p-2 rounded-xl bg-obsidian-card hover:bg-gray-800 text-gray-400 hover:text-white"
                 >
                   <X className="w-5 h-5" />
                 </button>

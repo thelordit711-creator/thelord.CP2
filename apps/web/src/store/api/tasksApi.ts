@@ -5,7 +5,10 @@ export const tasksApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getTasks: builder.query<IApiResponse<ITask[]>, void>({
       query: () => '/tasks',
-      providesTags: ['Task']
+      providesTags: (result) =>
+        result?.data
+          ? [...result.data.map((t: any) => ({ type: 'Task' as const, id: t._id })), 'Task']
+          : ['Task']
     }),
     getTaskById: builder.query<IApiResponse<ITask>, string>({
       query: (id) => `/tasks/${id}`,
@@ -40,7 +43,7 @@ export const tasksApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data
       }),
-      invalidatesTags: (result, error, { taskId }) => [{ type: 'Task', id: taskId }]
+      invalidatesTags: (result, error, { taskId }) => ['Task', { type: 'Task', id: taskId }]
     }),
     reviewTaskStage: builder.mutation<IApiResponse<ITask>, { taskId: string; stageOrder: number; data: IReviewStageDto }>({
       query: ({ taskId, stageOrder, data }) => ({
@@ -48,7 +51,7 @@ export const tasksApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: data
       }),
-      invalidatesTags: (result, error, { taskId }) => [{ type: 'Task', id: taskId }]
+      invalidatesTags: (result, error, { taskId }) => ['Task', { type: 'Task', id: taskId }]
     }),
     addDirectReport: builder.mutation<IApiResponse<any>, { taskId: string; textContent?: string; attachments?: any[] }>({
       query: ({ taskId, ...body }) => ({
@@ -56,7 +59,7 @@ export const tasksApi = baseApi.injectEndpoints({
         method: 'POST',
         body
       }),
-      invalidatesTags: (result, error, { taskId }) => [{ type: 'Task', id: taskId }]
+      invalidatesTags: (result, error, { taskId }) => ['Task', { type: 'Task', id: taskId }]
     }),
     claimBountyTask: builder.mutation<IApiResponse<ITask>, string>({
       query: (taskId) => ({

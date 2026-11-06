@@ -43,6 +43,16 @@ export default function EmployeeWorkspacePage() {
   const [activeTab, setActiveTab] = useState<'tasks' | 'propose' | 'statement'>('tasks');
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
 
+  // Keep selectedTask synchronized with live tasks list
+  React.useEffect(() => {
+    if (selectedTask && tasksRes?.data) {
+      const fresh = tasksRes.data.find((t: any) => t._id === selectedTask._id);
+      if (fresh) {
+        setSelectedTask(fresh);
+      }
+    }
+  }, [tasksRes]);
+
   // Real-time Socket Listener for Instant Task Assignment & Updates (Zero Reload)
   React.useEffect(() => {
     if (!socket) return;
@@ -55,20 +65,43 @@ export default function EmployeeWorkspacePage() {
       });
     };
 
-    const handleTaskRefresh = () => {
+    const handleTaskRefresh = (updatedTask?: any) => {
       refetchTasks();
+      if (updatedTask && updatedTask._id) {
+        setSelectedTask((prev: any) => (prev && prev._id === updatedTask._id ? updatedTask : prev));
+      }
     };
 
     socket.on('task:assigned', handleTaskAssigned);
     socket.on('task:created', handleTaskRefresh);
     socket.on('task:updated', handleTaskRefresh);
-    socket.on('task:deleted', handleTaskRefresh);
+    socket.on('task:deleted', (data: any) => {
+      refetchTasks();
+      const delId = typeof data === 'string' ? data : data?.taskId || data?._id;
+      if (delId) {
+        setSelectedTask((prev: any) => (prev && prev._id === delId ? null : prev));
+      }
+    });
+    socket.on('stage:approved', (data: any) => {
+      refetchTasks();
+      if (data?.task) {
+        setSelectedTask((prev: any) => (prev && prev._id === data.task._id ? data.task : prev));
+      }
+    });
+    socket.on('stage:revision_requested', (data: any) => {
+      refetchTasks();
+      if (data?.task) {
+        setSelectedTask((prev: any) => (prev && prev._id === data.task._id ? data.task : prev));
+      }
+    });
 
     return () => {
       socket.off('task:assigned', handleTaskAssigned);
       socket.off('task:created', handleTaskRefresh);
       socket.off('task:updated', handleTaskRefresh);
-      socket.off('task:deleted', handleTaskRefresh);
+      socket.off('task:deleted');
+      socket.off('stage:approved');
+      socket.off('stage:revision_requested');
     };
   }, [socket, refetchTasks]);
 
@@ -171,7 +204,7 @@ export default function EmployeeWorkspacePage() {
 
   const handleStageSubmit = async (taskId: string, stageOrder: number) => {
     try {
-      await submitStage({
+      const res = await submitStage({
         taskId,
         stageOrder,
         data: {
@@ -188,6 +221,9 @@ export default function EmployeeWorkspacePage() {
       toast.success('تم إرسال المرحلة بنجاح إلى المسؤول للمراجعة!');
       setTextSubmission('');
       setVoiceNoteAttachment(null);
+      if (res?.data) {
+        setSelectedTask(res.data);
+      }
       refetchTasks();
     } catch (err: any) {
       toast.error(err?.data?.error || 'فشل في تسليم المرحلة');
