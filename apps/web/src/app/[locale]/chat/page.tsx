@@ -11,6 +11,7 @@ import {
   Mic,
   Video,
   Smile,
+  Check,
   CheckCheck,
   Sparkles,
   Phone,
@@ -21,17 +22,26 @@ import {
   FileText,
   ChevronRight,
   ArrowRight,
-  Plus
+  Plus,
+  CornerUpLeft,
+  Edit2,
+  Trash2,
+  MoreVertical,
+  Volume2
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../components/voice/DirectVoiceRecorder';
 import { AudioCallModal } from '../../../components/chat/AudioCallModal';
+import { TelegramAudioWaveform } from '../../../components/chat/TelegramAudioWaveform';
 import { useSocket } from '../../../providers/SocketProvider';
 import {
   useGetRoomsAndMembersQuery,
   useGetMessagesQuery,
   useSendMessageMutation,
+  useEditMessageMutation,
+  useDeleteMessageMutation,
+  useMarkRoomAsReadMutation,
   useCreateChannelMutation
 } from '../../../store/api/chatApi';
 import { useGetMeQuery } from '../../../store/api/usersApi';
@@ -42,6 +52,7 @@ export default function ChatPage() {
   const router = useRouter();
   const { socket, isConnected } = useSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // 1. Fetch current logged-in user from MongoDB
   const { data: meResponse } = useGetMeQuery();
@@ -90,6 +101,20 @@ export default function ChatPage() {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Telegram Features States: Quote Reply & Message Edit
+  const [replyingToMessage, setReplyingToMessage] = useState<{
+    _id: string;
+    content?: string;
+    senderName?: string;
+  } | null>(null);
+
+  const [editingMessage, setEditingMessage] = useState<{
+    id: string;
+    originalContent: string;
+  } | null>(null);
+
+  const [activeMenuMessageId, setActiveMenuMessageId] = useState<string | null>(null);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -119,32 +144,64 @@ export default function ChatPage() {
   const {
     data: messages = [],
     isLoading: isLoadingMessages,
-    isFetching: isFetchingMessages,
     refetch: refetchMessages
   } = useGetMessagesQuery(activeChat.id, { skip: !activeChat.id });
 
   const [sendMessageMutation, { isLoading: isSending }] = useSendMessageMutation();
+  const [editMessageMutation] = useEditMessageMutation();
+  const [deleteMessageMutation] = useDeleteMessageMutation();
+  const [markRoomAsRead] = useMarkRoomAsReadMutation();
+
+  // Mark room messages as read on view
+  useEffect(() => {
+    if (activeChat.id && currentUserId) {
+      markRoomAsRead(activeChat.id).catch(() => {});
+    }
+  }, [activeChat.id, currentUserId, markRoomAsRead, messages.length]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 4. Real-time Socket.io listener for new messages in the active room
+  // 4. Real-time Socket.io listeners for active room messages, edits, and deletions
   useEffect(() => {
     if (!socket || !activeChat.id) return;
 
-    const eventName = `chat:${activeChat.id}:message`;
+    const eventMessage = `chat:${activeChat.id}:message`;
+    const eventUpdated = `chat:${activeChat.id}:message_updated`;
+    const eventDeleted = `chat:${activeChat.id}:message_deleted`;
+    const eventRead = `chat:${activeChat.id}:read`;
+
     const handleNewMessage = () => {
+      refetchMessages();
+      markRoomAsRead(activeChat.id).catch(() => {});
+    };
+
+    const handleMessageUpdated = () => {
       refetchMessages();
     };
 
-    socket.on(eventName, handleNewMessage);
+    const handleMessageDeleted = () => {
+      refetchMessages();
+    };
+
+    const handleReadReceipt = () => {
+      refetchMessages();
+    };
+
+    socket.on(eventMessage, handleNewMessage);
+    socket.on(eventUpdated, handleMessageUpdated);
+    socket.on(eventDeleted, handleMessageDeleted);
+    socket.on(eventRead, handleReadReceipt);
 
     return () => {
-      socket.off(eventName, handleNewMessage);
+      socket.off(eventMessage, handleNewMessage);
+      socket.off(eventUpdated, handleMessageUpdated);
+      socket.off(eventDeleted, handleMessageDeleted);
+      socket.off(eventRead, handleReadReceipt);
     };
-  }, [socket, activeChat.id, refetchMessages]);
+  }, [socket, activeChat.id, refetchMessages, markRoomAsRead]);
 
   // 5. Real-time Socket.io listener for incoming WebRTC audio calls and channel creation
   useEffect(() => {
@@ -198,7 +255,6 @@ export default function ChatPage() {
       toast.error('يرجى تسجيل الدخول أولاً');
       return;
     }
-    // Canonical DM room ID format: dm_minId_maxId
     const sortedIds = [String(currentUserId), String(member._id)].sort();
     const dmRoomId = `dm_${sortedIds[0]}_${sortedIds[1]}`;
 
@@ -210,18 +266,76 @@ export default function ChatPage() {
       role: member.accessRole,
       department: member.primaryDepartment
     });
+    setReplyingToMessage(null);
+    setEditingMessage(null);
     setShowMobileChatRoom(true);
   };
 
-  // Handle sending a real text, image, or document message to MongoDB
+  // Start Quote / Reply
+  const handleStartReply = (msg: any) => {
+    const senderName = msg.senderId?.fullName || (String(msg.senderId?._id || msg.senderId) === String(currentUserId) ? 'أنت' : 'عضو');
+    setReplyingToMessage({
+      _id: msg._id,
+      content: msg.content || 'مرفق أو تسجيل صوتي',
+      senderName
+    });
+    setEditingMessage(null);
+    inputRef.current?.focus();
+  };
+
+  // Start Editing Message
+  const handleStartEdit = (msg: any) => {
+    setEditingMessage({
+      id: msg._id,
+      originalContent: msg.content || ''
+    });
+    setMessageInput(msg.content || '');
+    setReplyingToMessage(null);
+    inputRef.current?.focus();
+  };
+
+  // Delete message for everyone
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه الرسالة للجميع؟')) return;
+    try {
+      await deleteMessageMutation({ id: messageId, chatRoomId: activeChat.id }).unwrap();
+      toast.success('تم حذف الرسالة بنجاح 🗑️');
+      refetchMessages();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل حذف الرسالة');
+    }
+  };
+
+  // Handle sending or updating message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if ((!messageInput.trim() && !selectedAttachment) || isSending) return;
 
     const textToSend = messageInput.trim();
     const attToSend = selectedAttachment;
+
+    // If currently editing a message
+    if (editingMessage) {
+      try {
+        await editMessageMutation({
+          id: editingMessage.id,
+          content: textToSend,
+          chatRoomId: activeChat.id
+        }).unwrap();
+        toast.success('تم تعديل الرسالة بنجاح ✏️');
+        setEditingMessage(null);
+        setMessageInput('');
+        refetchMessages();
+      } catch (err: any) {
+        toast.error(err?.data?.error || 'فشل تعديل الرسالة');
+      }
+      return;
+    }
+
     setMessageInput('');
     setSelectedAttachment(null);
+    const replyIdToSend = replyingToMessage?._id;
+    setReplyingToMessage(null);
 
     try {
       const attachments = attToSend ? [
@@ -236,20 +350,21 @@ export default function ChatPage() {
       await sendMessageMutation({
         chatRoomId: activeChat.id,
         content: textToSend,
-        attachments
+        attachments,
+        replyToId: replyIdToSend
       }).unwrap();
       refetchMessages();
     } catch (err: any) {
       toast.error(err?.data?.error || 'فشل إرسال الرسالة إلى قاعدة البيانات');
-      setMessageInput(textToSend); // restore on failure
+      setMessageInput(textToSend);
       setSelectedAttachment(attToSend);
     }
   };
 
-  // Handle sending a real voice note message to MongoDB
+  // Handle sending a voice note message
   const handleVoiceCompleted = async (audioData: { blob: Blob; durationInSeconds: number; previewUrl: string }) => {
     try {
-      toast.loading('جاري تشفير وحفظ التسجيل الصوتي في قاعدة البيانات...', { id: 'voice-upload' });
+      toast.loading('جاري تشفير وحفظ التسجيل الصوتي...', { id: 'voice-upload' });
       const reader = new FileReader();
       reader.readAsDataURL(audioData.blob);
       reader.onloadend = async () => {
@@ -257,20 +372,22 @@ export default function ChatPage() {
           const base64Audio = reader.result as string;
           await sendMessageMutation({
             chatRoomId: activeChat.id,
-            content: '🎙️ رسالة صوتية مشفرة',
+            content: '',
             attachments: [
               {
                 fileName: `voice_note_${Date.now()}.webm`,
                 fileUrl: base64Audio,
                 fileType: 'VOICE_NOTE',
                 durationInSeconds: Math.round(audioData.durationInSeconds),
-                caption: 'تسجيل صوتي مباشر'
+                caption: 'تسجيل صوتي'
               }
-            ]
+            ],
+            replyToId: replyingToMessage?._id
           }).unwrap();
 
+          setReplyingToMessage(null);
           toast.dismiss('voice-upload');
-          toast.success('تم إرسال الرسالة الصوتية بنجاح 🎙️');
+          toast.success('تم إرسال التسجيل الصوتي بنجاح 🎙️');
           setShowVoiceRecorder(false);
           refetchMessages();
         } catch (error: any) {
@@ -311,15 +428,15 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col md:flex-row gap-4 h-[calc(100vh-100px)]">
+    <div className="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col md:flex-row gap-4 h-[calc(100vh-100px)] select-none">
       {/* Channels & Team Directory Sidebar */}
       <div className={`w-full md:w-80 bg-obsidian-card border border-obsidian-border rounded-3xl p-4 ${showMobileChatRoom ? 'hidden md:flex' : 'flex'} flex-col justify-between shrink-0 shadow-2xl`}>
         <div className="space-y-6 overflow-y-auto pr-1">
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-gray-800">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-lord-gold" />
-              <h2 className="text-sm font-bold text-white">قنوات التواصل المؤسسي</h2>
+              <MessageSquare className="w-5 h-5 text-amber-400" />
+              <h2 className="text-sm font-bold text-white">قنوات التواصل والدردشة</h2>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -327,16 +444,16 @@ export default function ChatPage() {
                 onClick={() => {
                   refetchRooms();
                   refetchMessages();
-                  toast.success('تم تحديث القنوات والأعضاء من قاعدة البيانات 🔄');
+                  toast.success('تم تحديث القنوات والأعضاء 🔄');
                 }}
-                className="text-gray-400 hover:text-lord-gold p-1 rounded-lg transition-colors"
+                className="text-gray-400 hover:text-amber-400 p-1 rounded-lg transition-colors"
                 title="تحديث البيانات"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
               <span
-                className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`}
-                title={isConnected ? 'متصل بالخادم لحظياً (Socket.io)' : 'غير متصل بالخادم'}
+                className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-red-500'}`}
+                title={isConnected ? 'متصل بالخادم لحظياً' : 'غير متصل بالخادم'}
               />
             </div>
           </div>
@@ -345,44 +462,48 @@ export default function ChatPage() {
           <div>
             <div className="flex items-center justify-between mb-2 px-2">
               <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">
-                القنوات الرسمية المعتمدة (#)
+                القنوات الرسمية (#)
               </span>
               {currentUser?.accessRole === 'SUPER_ADMIN' && (
                 <button
                   type="button"
                   onClick={() => setIsCreateChannelModalOpen(true)}
-                  className="text-[10px] text-lord-gold hover:underline flex items-center gap-1 font-bold"
-                  title="إنشاء قناة تواصل جديدة"
+                  className="text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition-colors"
+                  title="إنشاء قناة جديدة"
                 >
                   <Plus className="w-3 h-3" />
-                  <span>قناة جديدة</span>
+                  قناة جديدة
                 </button>
               )}
             </div>
+
             <div className="space-y-1">
               {isLoadingRooms ? (
-                <div className="flex items-center justify-center p-4 text-xs text-gray-500">
-                  <Loader2 className="w-4 h-4 animate-spin ml-2 text-lord-gold" />
-                  جاري جلب القنوات...
-                </div>
+                <div className="text-xs text-gray-500 p-2">جاري تحميل القنوات...</div>
               ) : (
-                channels.map((ch) => (
+                channels.map((chan) => (
                   <button
-                    key={ch.id}
+                    key={chan.id}
                     type="button"
                     onClick={() => {
-                      setActiveChat({ type: 'channel', id: ch.id, name: ch.name });
+                      setActiveChat({
+                        type: 'channel',
+                        id: chan.id,
+                        name: chan.name
+                      });
+                      setReplyingToMessage(null);
+                      setEditingMessage(null);
                       setShowMobileChatRoom(true);
                     }}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-2xl text-xs transition-all ${
-                      activeChat.id === ch.id
-                        ? 'bg-lord-gold text-obsidian-primary font-bold shadow-gold-glow'
-                        : 'text-gray-300 hover:bg-obsidian-surface'
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-medium transition-all ${
+                      activeChat.type === 'channel' && activeChat.id === chan.id
+                        ? 'bg-gradient-to-r from-amber-500/20 to-amber-500/5 text-amber-400 border border-amber-500/30 font-bold shadow-md'
+                        : 'text-gray-400 hover:text-white hover:bg-obsidian-surface'
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <Hash className="w-4 h-4 shrink-0" />
-                      <span className="truncate">{ch.name}</span>
+                      <Hash className={`w-4 h-4 shrink-0 ${activeChat.id === chan.id ? 'text-amber-400' : 'text-gray-500'}`} />
+                      <span className="truncate">{chan.name}</span>
                     </div>
                   </button>
                 ))
@@ -390,99 +511,100 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Real Registered Members List (From MongoDB User Collection) */}
+          {/* Direct Messages List */}
           <div>
             <div className="flex items-center justify-between mb-2 px-2">
               <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">
-                الكادر الوظيفي الحقيقي ({allMembers.length})
+                المحادثات الخاصة (الكادر)
               </span>
-              <span className="text-[9px] text-emerald-400 font-mono">قاعدة البيانات Live</span>
+              <span className="text-[10px] text-gray-500 font-mono">
+                {allMembers.filter(m => String(m._id) !== String(currentUserId)).length}
+              </span>
             </div>
+
             <div className="space-y-1">
               {isLoadingRooms ? (
-                <div className="flex items-center justify-center p-4 text-xs text-gray-500">
-                  <Loader2 className="w-4 h-4 animate-spin ml-2 text-lord-gold" />
-                  جاري جلب الكادر...
-                </div>
-              ) : allMembers.length === 0 ? (
-                <div className="p-3 text-center text-xs text-gray-500 bg-obsidian-surface/40 rounded-xl">
-                  لا يوجد موظفون مسجلون حالياً
-                </div>
+                <div className="text-xs text-gray-500 p-2">جاري تحميل الكادر...</div>
               ) : (
-                allMembers.map((mem: any) => {
-                  const isCurrent = String(mem._id) === String(currentUserId);
-                  return (
-                    <button
-                      key={mem._id}
-                      type="button"
-                      onClick={() => handleSelectMember(mem)}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-2xl text-xs transition-all ${
-                        activeChat.memberId === mem._id
-                          ? 'bg-blue-600 text-white font-bold shadow-blue-glow'
-                          : 'text-gray-300 hover:bg-obsidian-surface'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        <div className="w-7 h-7 rounded-xl bg-obsidian-surface border border-gray-700 flex items-center justify-center shrink-0 font-bold text-xs text-lord-gold">
-                          {mem.avatarUrl ? (
-                            <img src={mem.avatarUrl} alt="" className="w-full h-full rounded-xl object-cover" />
-                          ) : (
-                            mem.fullName?.charAt(0) || '👤'
-                          )}
+                allMembers
+                  .filter((member) => String(member._id) !== String(currentUserId))
+                  .map((member) => {
+                    const sortedIds = [String(currentUserId), String(member._id)].sort();
+                    const dmRoomId = `dm_${sortedIds[0]}_${sortedIds[1]}`;
+                    const isSelected = activeChat.type === 'dm' && activeChat.id === dmRoomId;
+
+                    return (
+                      <button
+                        key={member._id}
+                        type="button"
+                        onClick={() => handleSelectMember(member)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-amber-500/20 to-amber-500/5 text-amber-400 border border-amber-500/30 font-bold shadow-md'
+                            : 'text-gray-400 hover:text-white hover:bg-obsidian-surface'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <div className="relative shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[11px] text-amber-400">
+                              {member.avatarUrl ? (
+                                <img src={member.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                member.fullName?.charAt(0) || 'U'
+                              )}
+                            </div>
+                            <span
+                              className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-black ${getStatusColor(
+                                (member as any).workStatus
+                              )}`}
+                            />
+                          </div>
+                          <div className="text-right truncate">
+                            <span className="block truncate text-xs">{member.fullName}</span>
+                            <span className="text-[9px] text-gray-500 block truncate">
+                              {getRoleArabicLabel(member.accessRole)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="truncate text-right">
-                          <span className="truncate block font-semibold">
-                            {mem.fullName} {isCurrent ? '(أنت)' : ''}
-                          </span>
-                          <span className="text-[9px] text-gray-400 font-mono block">
-                            {getRoleArabicLabel(mem.accessRole)}
-                          </span>
-                        </div>
-                      </div>
-                      <span
-                        className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(mem.workStatus)}`}
-                        title={`الحالة: ${mem.workStatus || 'غير محدد'}`}
-                      />
-                    </button>
-                  );
-                })
+                      </button>
+                    );
+                  })
               )}
             </div>
           </div>
         </div>
 
-        {/* Meeting Quick Stage Launch */}
+        {/* WebRTC Meeting Box */}
         <div className="p-3 bg-obsidian-surface rounded-2xl border border-gray-800 flex items-center justify-between mt-4">
           <div className="flex items-center gap-2">
             <Radio className="w-4 h-4 text-rose-500 animate-pulse" />
-            <span className="text-xs font-bold text-white">غرفة البث الحي WebRTC</span>
+            <span className="text-xs font-bold text-white">غرفة البث الحي</span>
           </div>
           <button
             type="button"
             onClick={() => router.push('/meeting')}
-            className="text-[11px] text-lord-gold font-bold hover:underline"
+            className="text-[11px] text-amber-400 font-bold hover:underline"
           >
-            الانضمام الآن 🎙️
+            الانضمام 🎙️
           </button>
         </div>
       </div>
 
-      {/* Active Chat Conversation Area */}
-      <div className={`flex-1 bg-obsidian-card border border-obsidian-border rounded-3xl ${!showMobileChatRoom ? 'hidden md:flex' : 'flex'} flex-col justify-between overflow-hidden shadow-2xl`}>
+      {/* Active Telegram-Style Chat Workspace */}
+      <div className={`flex-1 bg-obsidian-card border border-obsidian-border rounded-3xl ${!showMobileChatRoom ? 'hidden md:flex' : 'flex'} flex-col justify-between overflow-hidden shadow-2xl relative`}>
         {/* Chat Room Header */}
-        <div className="p-4 bg-obsidian-surface/80 border-b border-obsidian-border flex items-center justify-between">
+        <div className="p-4 bg-obsidian-surface/90 backdrop-blur-md border-b border-obsidian-border flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
-            {/* Mobile Back Button to Channels/Members List */}
             <button
               type="button"
               onClick={() => setShowMobileChatRoom(false)}
-              className="md:hidden p-2 rounded-xl bg-obsidian-primary text-lord-gold border border-gray-800 hover:bg-obsidian-card transition-colors flex items-center justify-center shrink-0"
-              title="الرجوع للقنوات والأعضاء"
+              className="md:hidden p-2 rounded-xl bg-obsidian-primary text-amber-400 border border-gray-800 hover:bg-obsidian-card transition-colors flex items-center justify-center shrink-0"
+              title="الرجوع"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
 
-            <div className="w-10 h-10 rounded-2xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-sm">
               {activeChat.type === 'channel' ? <Hash className="w-5 h-5" /> : <Users className="w-5 h-5" />}
             </div>
             <div className="truncate">
@@ -494,7 +616,7 @@ export default function ChatPage() {
               </h3>
               <p className="text-[11px] text-gray-400 truncate">
                 {activeChat.type === 'channel'
-                  ? 'قناة نقاش مؤسسية عامة ومحفوظة'
+                  ? 'قناة محادثة مشفرة ومحفوظة لحظياً'
                   : `محادثة ثنائية مباشرة • ${getRoleArabicLabel(activeChat.role)}`}
               </p>
             </div>
@@ -513,7 +635,7 @@ export default function ChatPage() {
                   setIsCallModalOpen(true);
                 }}
                 className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold"
-                title="إجراء مكالمة صوتية مباشرة داخل المنظومة"
+                title="إجراء مكالمة صوتية مباشرة"
               >
                 <Phone className="w-4 h-4 text-emerald-400" />
                 <span className="hidden sm:inline">اتصال صوتي</span>
@@ -523,30 +645,33 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => router.push('/meeting')}
-              className="p-2 rounded-xl bg-obsidian-primary text-gray-400 hover:text-lord-gold border border-gray-800 transition-colors flex items-center gap-1.5 text-xs font-semibold"
-              title="الانتقال إلى قاعة الاجتماع الحي"
+              className="p-2 rounded-xl bg-obsidian-primary text-gray-400 hover:text-amber-400 border border-gray-800 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+              title="غرفة البث المركزي"
             >
               <Video className="w-4 h-4 text-rose-500" />
-              <span className="hidden sm:inline">غرفة الاجتماع</span>
+              <span className="hidden sm:inline">غرفة البث</span>
             </button>
           </div>
         </div>
 
-        {/* Message Feed Loaded Strictly from MongoDB */}
-        <div className="flex-1 p-5 overflow-y-auto space-y-4">
+        {/* Telegram Messages Feed */}
+        <div
+          className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-3.5 bg-gradient-to-b from-[#0a0d14] via-[#090b10] to-[#07080c]"
+          onClick={() => setActiveMenuMessageId(null)}
+        >
           {isLoadingMessages ? (
             <div className="flex flex-col items-center justify-center h-full space-y-2 text-gray-400">
-              <Loader2 className="w-6 h-6 animate-spin text-lord-gold" />
-              <span className="text-xs">جاري تحميل سجل المحادثة من قاعدة البيانات...</span>
+              <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+              <span className="text-xs">جاري تحميل المحادثة لحظياً...</span>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-3 py-16">
-              <div className="w-14 h-14 rounded-3xl bg-obsidian-surface border border-gray-800 flex items-center justify-center text-lord-gold">
+              <div className="w-14 h-14 rounded-3xl bg-obsidian-surface border border-gray-800 flex items-center justify-center text-amber-400 shadow-md">
                 <MessageSquare className="w-7 h-7" />
               </div>
               <p className="text-sm font-bold text-white">لا توجد رسائل سابقة في هذه المحادثة</p>
               <p className="text-xs text-gray-400 max-w-sm">
-                ابدأ المحادثة الرسمية الآن، سيتم حفظ كل كلمة وتسجيل صوتي لحظياً في قاعدة البيانات.
+                ابدأ المحادثة الآن، يتم تشفير وحفظ الرسائل والموجات الصوتية لحظياً.
               </p>
             </div>
           ) : (
@@ -554,96 +679,203 @@ export default function ChatPage() {
               const senderObj = msg.senderId || {};
               const senderId = senderObj._id || senderObj;
               const isSelf = String(senderId) === String(currentUserId);
-              const senderName = senderObj.fullName || (isSelf ? 'أنت' : 'عضو في الفريق');
+              const senderName = senderObj.fullName || (isSelf ? 'أنت' : 'عضو');
               const senderRole = senderObj.accessRole || '';
               const timeString = msg.createdAt
                 ? new Date(msg.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })
                 : '';
+              const isRead = Boolean(msg.readBy && msg.readBy.length > 1);
 
               return (
                 <div
                   key={msg._id}
-                  className={`flex items-start gap-3 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}
+                  className={`group relative flex items-end gap-2.5 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}
                 >
-                  <div className="w-9 h-9 rounded-2xl bg-obsidian-surface border border-gray-800 flex items-center justify-center shrink-0 font-bold text-xs text-lord-gold shadow-md">
+                  {/* Sender Avatar */}
+                  <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 font-bold text-[11px] text-amber-400 shadow-sm overflow-hidden mb-1">
                     {senderObj.avatarUrl ? (
-                      <img src={senderObj.avatarUrl} alt="" className="w-full h-full rounded-2xl object-cover" />
+                      <img src={senderObj.avatarUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
                       senderName.charAt(0)
                     )}
                   </div>
 
-                  <div
-                    className={`max-w-[75%] p-4 rounded-3xl text-xs space-y-1.5 shadow-lg ${
-                      isSelf
-                        ? 'bg-gradient-to-r from-lord-gold to-yellow-600 text-obsidian-primary font-medium rounded-tr-none'
-                        : 'bg-obsidian-surface text-gray-200 border border-obsidian-border rounded-tl-none'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-4 border-b border-black/10 pb-1 mb-1">
-                      <span className={`font-bold ${isSelf ? 'text-obsidian-primary' : 'text-lord-gold'}`}>
-                        {senderName} {senderRole ? `(${getRoleArabicLabel(senderRole)})` : ''}
-                      </span>
-                      <span className={`text-[10px] ${isSelf ? 'text-obsidian-primary/80' : 'text-gray-500'}`}>
-                        {timeString}
-                      </span>
+                  {/* Bubble Container */}
+                  <div className="relative max-w-[85%] sm:max-w-[70%]">
+                    {/* Hover Action Bar (Quote Reply, Edit, Delete) */}
+                    <div
+                      className={`absolute top-[-14px] ${
+                        isSelf ? 'left-2' : 'right-2'
+                      } hidden group-hover:flex items-center gap-1 bg-[#151821] border border-slate-700/80 rounded-full px-2 py-0.5 shadow-xl z-20 transition-all`}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartReply(msg);
+                        }}
+                        className="text-gray-400 hover:text-amber-400 p-1 transition-colors"
+                        title="رد مقتبس (Quote Reply)"
+                      >
+                        <CornerUpLeft className="w-3.5 h-3.5" />
+                      </button>
+
+                      {isSelf && !msg.isDeleted && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(msg);
+                          }}
+                          className="text-gray-400 hover:text-sky-400 p-1 transition-colors"
+                          title="تعديل الرسالة"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      )}
+
+                      {(isSelf || currentUser?.accessRole === 'SUPER_ADMIN') && !msg.isDeleted && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMessage(msg._id);
+                          }}
+                          className="text-gray-400 hover:text-rose-400 p-1 transition-colors"
+                          title="حذف للجميع"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
 
-                    {msg.content && <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>}
-
-                    {/* Render Audio, Image, and Document Attachments */}
-                    {msg.attachments?.map((att: any, idx: number) => {
-                      const fileUrl = att.fileUrl || att.url;
-                      if (!fileUrl) return null;
-
-                      if (att.fileType === 'VOICE_NOTE' || att.fileType === 'AUDIO' || fileUrl.startsWith('data:audio')) {
-                        return (
-                          <div key={idx} className="flex items-center gap-3 pt-2">
-                            <audio src={fileUrl} controls className="h-8 max-w-[240px] rounded-lg" />
-                            {att.durationInSeconds && (
-                              <span className="text-[10px] font-mono font-bold">
-                                {att.durationInSeconds} ثانية 🎙️
-                              </span>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      if (att.fileType === 'IMAGE' || fileUrl.startsWith('data:image')) {
-                        return (
-                          <div key={idx} className="pt-2">
-                            <img
-                              src={fileUrl}
-                              alt={att.fileName || 'صورة'}
-                              className="max-w-xs max-h-64 rounded-2xl object-cover border border-white/10 shadow-lg cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => window.open(fileUrl, '_blank')}
-                            />
-                            {att.fileName && (
-                              <span className="text-[10px] text-gray-400 block mt-1">{att.fileName}</span>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      // Any other file or document
-                      return (
-                        <div key={idx} className="pt-2">
-                          <a
-                            href={fileUrl}
-                            download={att.fileName || 'file'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-black/40 border border-white/10 hover:border-lord-gold transition-colors text-white"
-                          >
-                            <FileText className="w-5 h-5 text-lord-gold shrink-0" />
-                            <div className="truncate text-right">
-                              <span className="text-xs font-bold block truncate">{att.fileName || 'ملف مرفق'}</span>
-                              <span className="text-[10px] text-gray-400 font-mono">تحميل المستند 💾</span>
-                            </div>
-                          </a>
+                    {/* Obsidian & Royal Gold Telegram Bubble */}
+                    <div
+                      className={`px-4 py-3 rounded-2xl text-xs shadow-xl transition-all ${
+                        isSelf
+                          ? 'bg-gradient-to-br from-[#1a1711] via-[#14120e] to-[#0c0e14] border border-amber-500/35 text-amber-50 rounded-tr-xs shadow-[0_4px_25px_rgba(245,158,11,0.06)]'
+                          : 'bg-[#121622]/95 border border-slate-800 text-slate-100 rounded-tl-xs'
+                      }`}
+                    >
+                      {/* Sender header in group channels */}
+                      {activeChat.type === 'channel' && !isSelf && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-amber-400 text-[11px]">
+                            {senderName}
+                          </span>
+                          {senderRole && (
+                            <span className="text-[9px] text-slate-400 font-normal">
+                              ({getRoleArabicLabel(senderRole)})
+                            </span>
+                          )}
                         </div>
-                      );
-                    })}
+                      )}
+
+                      {/* Quoted Message Card (Telegram-Style Quote) */}
+                      {msg.replyTo && (
+                        <div
+                          className={`mb-2 pr-2.5 py-1 pl-2 border-r-2 ${
+                            isSelf ? 'border-amber-400 bg-amber-500/10' : 'border-emerald-400 bg-emerald-500/10'
+                          } rounded-lg text-[11px] select-none`}
+                        >
+                          <div className={`font-bold ${isSelf ? 'text-amber-400' : 'text-emerald-400'} text-[10px]`}>
+                            {msg.replyTo.senderName || 'رسالة سابقة'}
+                          </div>
+                          <div className="text-slate-300 truncate max-w-[240px]">
+                            {msg.replyTo.content || 'مرفق أو تسجيل'}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Deleted message indicator */}
+                      {msg.isDeleted ? (
+                        <div className="flex items-center gap-1.5 text-slate-400 italic py-0.5">
+                          <span>🚫</span>
+                          <span>تم حذف هذه الرسالة</span>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Message Content */}
+                          {msg.content && (
+                            <p className="leading-relaxed whitespace-pre-wrap break-words text-[13px] text-slate-100">
+                              {msg.content}
+                            </p>
+                          )}
+
+                          {/* Render Attachments (Voice Waveform, Image, Document) */}
+                          {msg.attachments?.map((att: any, idx: number) => {
+                            const fileUrl = att.fileUrl || att.url;
+                            if (!fileUrl) return null;
+
+                            // Embedded Voice Waveform Player
+                            if (att.fileType === 'VOICE_NOTE' || att.fileType === 'AUDIO' || fileUrl.startsWith('data:audio')) {
+                              return (
+                                <div key={idx} className="mt-1.5 pt-1">
+                                  <TelegramAudioWaveform
+                                    audioUrl={fileUrl}
+                                    duration={att.durationInSeconds}
+                                    isSender={isSelf}
+                                  />
+                                </div>
+                              );
+                            }
+
+                            // Image Attachment
+                            if (att.fileType === 'IMAGE' || fileUrl.startsWith('data:image')) {
+                              return (
+                                <div key={idx} className="mt-2">
+                                  <img
+                                    src={fileUrl}
+                                    alt={att.fileName || 'صورة'}
+                                    className="max-w-xs max-h-64 rounded-xl object-cover border border-white/10 shadow-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => window.open(fileUrl, '_blank')}
+                                  />
+                                  {att.fileName && (
+                                    <span className="text-[10px] text-slate-400 block mt-1">{att.fileName}</span>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            // Document / Archive File
+                            return (
+                              <div key={idx} className="mt-2">
+                                <a
+                                  href={fileUrl}
+                                  download={att.fileName || 'file'}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2.5 p-2 rounded-xl bg-black/40 border border-white/10 hover:border-amber-400 transition-colors text-white"
+                                >
+                                  <FileText className="w-5 h-5 text-amber-400 shrink-0" />
+                                  <div className="truncate text-right">
+                                    <span className="text-xs font-bold block truncate">{att.fileName || 'مستند'}</span>
+                                    <span className="text-[10px] text-gray-400 font-mono">تحميل الملف 💾</span>
+                                  </div>
+                                </a>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
+
+                      {/* Bubble Footer: Timestamp, Edited Tag & Double Blue/Green Checks (Read Receipts) */}
+                      <div className="flex items-center justify-end gap-1.5 mt-1 pt-0.5 text-[10px] text-slate-400 font-mono select-none">
+                        {msg.isEdited && !msg.isDeleted && (
+                          <span className="text-amber-400/80 font-sans text-[9px]">(معدّلة)</span>
+                        )}
+                        <span>{timeString}</span>
+                        {isSelf && !msg.isDeleted && (
+                          <span title={isRead ? 'تمت القراءة (Read)' : 'تم الإرسال (Sent)'}>
+                            {isRead ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-sky-400 inline" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5 text-slate-500 inline" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
@@ -662,16 +894,65 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Attachment Preview Banner if File Selected */}
+        {/* Quote Reply Banner (Telegram-Style) */}
+        {replyingToMessage && (
+          <div className="p-2.5 bg-[#141824] border-t border-amber-500/40 flex items-center justify-between animate-fadeIn">
+            <div className="flex items-center gap-2.5 pr-1 border-r-2 border-amber-400">
+              <CornerUpLeft className="w-4 h-4 text-amber-400 shrink-0" />
+              <div className="truncate text-right">
+                <span className="text-xs font-bold text-amber-400 block truncate">
+                  الرد على: {replyingToMessage.senderName}
+                </span>
+                <span className="text-[11px] text-slate-300 block truncate max-w-md">
+                  {replyingToMessage.content}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyingToMessage(null)}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Editing Message Banner */}
+        {editingMessage && (
+          <div className="p-2.5 bg-[#141824] border-t border-sky-500/40 flex items-center justify-between animate-fadeIn">
+            <div className="flex items-center gap-2.5 pr-1 border-r-2 border-sky-400">
+              <Edit2 className="w-4 h-4 text-sky-400 shrink-0" />
+              <div className="truncate text-right">
+                <span className="text-xs font-bold text-sky-400 block">تعديل الرسالة</span>
+                <span className="text-[11px] text-slate-300 block truncate max-w-md">
+                  {editingMessage.originalContent}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingMessage(null);
+                setMessageInput('');
+              }}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Attachment Preview Banner */}
         {selectedAttachment && (
           <div className="p-2.5 bg-obsidian-surface border-t border-gray-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {selectedAttachment.previewUrl ? (
-                <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-lord-gold/50 shadow-md">
+                <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-amber-500/50 shadow-md">
                   <img src={selectedAttachment.previewUrl} alt="" className="w-full h-full object-cover" />
                 </div>
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-obsidian-card border border-lord-gold/50 flex items-center justify-center text-lord-gold">
+                <div className="w-12 h-12 rounded-xl bg-obsidian-card border border-amber-500/50 flex items-center justify-center text-amber-400">
                   <FileText className="w-6 h-6" />
                 </div>
               )}
@@ -691,12 +972,12 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Real Message Input Box */}
+        {/* Telegram Chat Input Bar */}
         <form
           onSubmit={handleSendMessage}
-          className="p-3 bg-obsidian-surface border-t border-obsidian-border flex items-center gap-2"
+          className="p-3 bg-obsidian-surface/95 backdrop-blur-md border-t border-obsidian-border flex items-center gap-2"
         >
-          {/* Hidden File Input for All Files */}
+          {/* Hidden File Input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -708,8 +989,8 @@ export default function ChatPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-2xl bg-obsidian-card text-gray-400 hover:text-lord-gold border border-gray-800 transition-all"
-            title="إرفاق صورة أو مستند أو ملف 📎"
+            className="p-2.5 rounded-2xl bg-obsidian-card text-gray-400 hover:text-amber-400 border border-gray-800 transition-all hover:scale-105"
+            title="إرفاق ملف أو مستند 📎"
           >
             <Paperclip className="w-4 h-4" />
           </button>
@@ -717,7 +998,7 @@ export default function ChatPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-2xl bg-obsidian-card text-gray-400 hover:text-lord-gold border border-gray-800 transition-all"
+            className="p-2.5 rounded-2xl bg-obsidian-card text-gray-400 hover:text-amber-400 border border-gray-800 transition-all hover:scale-105"
             title="إرفاق صورة 🖼️"
           >
             <ImageIcon className="w-4 h-4" />
@@ -726,10 +1007,10 @@ export default function ChatPage() {
           <button
             type="button"
             onClick={() => setShowVoiceRecorder(!showVoiceRecorder)}
-            className={`p-2.5 rounded-2xl border transition-all ${
+            className={`p-2.5 rounded-2xl border transition-all hover:scale-105 ${
               showVoiceRecorder
                 ? 'bg-red-500 text-white border-red-500'
-                : 'bg-obsidian-card text-gray-400 hover:text-lord-gold border-gray-800'
+                : 'bg-obsidian-card text-gray-400 hover:text-amber-400 border-gray-800'
             }`}
             title="تسجيل رسالة صوتية 🎙️"
           >
@@ -737,27 +1018,36 @@ export default function ChatPage() {
           </button>
 
           <input
+            ref={inputRef}
             type="text"
-            placeholder={`اكتب رسالة موجهة إلى ${activeChat.name}...`}
+            placeholder={
+              editingMessage
+                ? 'تعديل محتوى الرسالة...'
+                : replyingToMessage
+                ? `اكتب رداً على ${replyingToMessage.senderName}...`
+                : `اكتب رسالة إلى ${activeChat.name}...`
+            }
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             disabled={isSending}
-            className="flex-1 bg-obsidian-card border border-gray-800 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold transition-colors disabled:opacity-50"
+            className="flex-1 bg-obsidian-card border border-gray-800 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 transition-colors disabled:opacity-50"
           />
 
           <Button
             type="submit"
             variant="gold"
             size="md"
-            className="rounded-2xl shrink-0"
+            className="rounded-2xl shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
             disabled={isSending || (!messageInput.trim() && !selectedAttachment)}
           >
             {isSending ? (
               <Loader2 className="w-4 h-4 animate-spin ml-1" />
+            ) : editingMessage ? (
+              <Check className="w-4 h-4 ml-1" />
             ) : (
               <Send className="w-4 h-4 ml-1" />
             )}
-            <span className="hidden sm:inline">إرسال</span>
+            <span className="hidden sm:inline">{editingMessage ? 'تحديث' : 'إرسال'}</span>
           </Button>
         </form>
       </div>
@@ -781,11 +1071,11 @@ export default function ChatPage() {
       {/* Admin Channel Creation Modal */}
       {isCreateChannelModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="w-full max-w-md bg-obsidian-card border border-lord-gold/40 rounded-3xl p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-md bg-obsidian-card border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-800">
               <div className="flex items-center gap-2">
-                <Hash className="w-5 h-5 text-lord-gold" />
-                <h3 className="text-base font-bold text-white">إنشاء قناة تواصل مؤسسية جديدة</h3>
+                <Hash className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">إنشاء قناة تواصل جديدة</h3>
               </div>
               <button
                 type="button"
@@ -807,7 +1097,7 @@ export default function ChatPage() {
                   value={newChannelName}
                   onChange={(e) => setNewChannelName(e.target.value)}
                   placeholder="اسم القناة..."
-                  className="w-full bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold"
+                  className="w-full bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400"
                 />
               </div>
 
@@ -820,7 +1110,7 @@ export default function ChatPage() {
                   onChange={(e) => setNewChannelDesc(e.target.value)}
                   rows={2}
                   placeholder="وصف مختصر للقناة..."
-                  className="w-full bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold"
+                  className="w-full bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400"
                 />
               </div>
 
@@ -830,7 +1120,7 @@ export default function ChatPage() {
                   id="isPublicChan"
                   checked={newChannelIsPublic}
                   onChange={(e) => setNewChannelIsPublic(e.target.checked)}
-                  className="rounded border-gray-800 text-lord-gold focus:ring-lord-gold"
+                  className="rounded border-gray-800 text-amber-500 focus:ring-amber-400"
                 />
                 <label htmlFor="isPublicChan" className="text-xs text-gray-300 font-medium">
                   قناة عامة (متاحة لجميع موظفي المنظومة)

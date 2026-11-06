@@ -9,7 +9,14 @@ const ChatMessageSchema = new Schema<IChatMessageDocument>({
   senderId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   content: { type: String },
   attachments: [MediaAttachmentSchema],
-  readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }]
+  readBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  replyTo: {
+    _id: { type: Schema.Types.ObjectId, ref: 'ChatMessage' },
+    content: { type: String },
+    senderName: { type: String }
+  },
+  isEdited: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export const ChatMessage = model<IChatMessageDocument>('ChatMessage', ChatMessageSchema);

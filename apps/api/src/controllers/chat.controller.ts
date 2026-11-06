@@ -156,11 +156,24 @@ export class ChatController {
         return;
       }
 
-      const { chatRoomId, content, attachments } = req.body;
+      const { chatRoomId, content, attachments, replyToId } = req.body;
 
       if (!chatRoomId || (!content && (!attachments || attachments.length === 0))) {
         res.status(400).json({ success: false, error: 'محتوى الرسالة ومعرف الغرفة مطلوبان' });
         return;
+      }
+
+      // If replyToId provided, retrieve the quoted message details
+      let replyToData: any = undefined;
+      if (replyToId) {
+        const originalMsg = await ChatMessage.findById(replyToId).populate('senderId', 'fullName');
+        if (originalMsg) {
+          replyToData = {
+            _id: originalMsg._id,
+            content: originalMsg.content ? (originalMsg.content.length > 80 ? originalMsg.content.substring(0, 80) + '...' : originalMsg.content) : 'مرفق أو تسجيل صوتي',
+            senderName: (originalMsg.senderId as any)?.fullName || 'مستخدم'
+          };
+        }
       }
 
       // Sanitize attachments to guarantee valid Mongoose schema fields
@@ -190,7 +203,8 @@ export class ChatController {
         senderId: req.user._id,
         content: content || '',
         attachments: sanitizedAttachments,
-        readBy: [req.user._id]
+        readBy: [req.user._id],
+        replyTo: replyToData
       });
 
       const populatedMessage = await ChatMessage.findById(newMessage._id)
@@ -227,6 +241,118 @@ export class ChatController {
         success: true,
         data: populatedMessage
       });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Edit an existing message (author only)
+   */
+  public static async editMessage(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مسجل' });
+        return;
+      }
+
+      const { id } = req.params;
+      const { content } = req.body;
+
+      if (!content || !content.trim()) {
+        res.status(400).json({ success: false, error: 'محتوى الرسالة مطلوب' });
+        return;
+      }
+
+      const message = await ChatMessage.findById(id);
+      if (!message) {
+        res.status(404).json({ success: false, error: 'الرسالة غير موجودة' });
+        return;
+      }
+
+      if (message.senderId.toString() !== req.user._id.toString() && req.user.accessRole !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, error: 'غير مصرح بتعديل هذه الرسالة' });
+        return;
+      }
+
+      message.content = content.trim();
+      message.isEdited = true;
+      await message.save();
+
+      const populated = await ChatMessage.findById(message._id)
+        .populate('senderId', 'fullName email accessRole avatarUrl primaryDepartment');
+
+      // Real-time broadcast message edit to all room participants
+      SocketService.getIO()?.emit(`chat:${message.chatRoomId}:message_updated`, populated);
+
+      res.json({ success: true, data: populated });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Delete a message for everyone (author or Super Admin)
+   */
+  public static async deleteMessage(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مسجل' });
+        return;
+      }
+
+      const { id } = req.params;
+      const message = await ChatMessage.findById(id);
+      if (!message) {
+        res.status(404).json({ success: false, error: 'الرسالة غير موجودة' });
+        return;
+      }
+
+      if (message.senderId.toString() !== req.user._id.toString() && req.user.accessRole !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, error: 'غير مصرح بحذف هذه الرسالة' });
+        return;
+      }
+
+      message.content = '🚫 تم حذف هذه الرسالة';
+      message.attachments = [];
+      message.isDeleted = true;
+      await message.save();
+
+      SocketService.getIO()?.emit(`chat:${message.chatRoomId}:message_deleted`, {
+        messageId: message._id,
+        chatRoomId: message.chatRoomId
+      });
+
+      res.json({ success: true, message: 'تم حذف الرسالة بنجاح' });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Mark all messages in room as read by current user (Read Receipts)
+   */
+  public static async markRoomAsRead(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مسجل' });
+        return;
+      }
+
+      const { roomId } = req.params;
+      const currentUserId = req.user._id;
+
+      await ChatMessage.updateMany(
+        { chatRoomId: roomId, readBy: { $ne: currentUserId } },
+        { $addToSet: { readBy: currentUserId } }
+      );
+
+      SocketService.getIO()?.emit(`chat:${roomId}:read`, {
+        chatRoomId: roomId,
+        readByUserId: currentUserId
+      });
+
+      res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }

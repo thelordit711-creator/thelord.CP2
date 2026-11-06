@@ -107,6 +107,19 @@ export default function AdminDashboardPage() {
 
     // Listen to real-time status updates via Socket.io
     if (socket) {
+      const handleVaultRefresh = () => {
+        refetchVault();
+        refetchRequests();
+      };
+
+      socket.on('vault:updated', handleVaultRefresh);
+      socket.on('payout:new_order', handleVaultRefresh);
+      socket.on('payout:disbursed', handleVaultRefresh);
+      socket.on('payout:processing', handleVaultRefresh);
+      socket.on('stage:submitted', handleVaultRefresh);
+      socket.on('task:created', handleVaultRefresh);
+      socket.on('task:proposed', handleVaultRefresh);
+
       socket.on('STAFF_STATUS_CHANGED', (updatedStaff: any) => {
         setStaffList((prev) => {
           const index = prev.findIndex((s) => s._id === updatedStaff.userId || s.email === updatedStaff.email);
@@ -136,11 +149,18 @@ export default function AdminDashboardPage() {
         });
         toast.info(`تحديث حالة الموظف: ${updatedStaff.fullName} -> ${updatedStaff.workStatus}`);
       });
-    }
 
-    return () => {
-      socket?.off('STAFF_STATUS_CHANGED');
-    };
+      return () => {
+        socket.off('vault:updated', handleVaultRefresh);
+        socket.off('payout:new_order', handleVaultRefresh);
+        socket.off('payout:disbursed', handleVaultRefresh);
+        socket.off('payout:processing', handleVaultRefresh);
+        socket.off('stage:submitted', handleVaultRefresh);
+        socket.off('task:created', handleVaultRefresh);
+        socket.off('task:proposed', handleVaultRefresh);
+        socket.off('STAFF_STATUS_CHANGED');
+      };
+    }
   }, [socket, apiUrl]);
 
   const handleCreateInvite = async (e: React.FormEvent) => {

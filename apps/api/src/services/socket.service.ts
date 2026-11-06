@@ -19,28 +19,44 @@ export class SocketService {
     });
 
     this.io.on('connection', async (socket: Socket) => {
-      const userId = socket.handshake.query.userId as string;
-      const role = socket.handshake.query.role as string;
+      const handshakeUserId = (socket.handshake.query?.userId || socket.handshake.auth?.userId) as string;
+      const handshakeRole = (socket.handshake.query?.role || socket.handshake.auth?.role) as string;
+      let connectedUserId: string | null = handshakeUserId || null;
 
-      if (userId) {
-        this.userSocketMap.set(userId, socket.id);
-        socket.join(`room:user:${userId}`);
+      const registerUserSocket = async (uid: string, uRole?: string) => {
+        if (!uid) return;
+        connectedUserId = uid;
+        this.userSocketMap.set(uid, socket.id);
+        socket.join(`room:user:${uid}`);
+        
+        if (uRole === 'SUPER_ADMIN') {
+          socket.join('room:admin');
+        } else if (uRole === 'TREASURY') {
+          socket.join('room:treasury');
+        }
 
-        // Update user presence to ONLINE
-        await User.findByIdAndUpdate(userId, {
-          presenceStatus: 'ONLINE',
-          lastActiveAt: new Date()
-        });
+        try {
+          await User.findByIdAndUpdate(uid, {
+            presenceStatus: 'ONLINE',
+            lastActiveAt: new Date()
+          });
+          this.io?.emit('presence:update', { userId: uid, status: 'ONLINE' });
+        } catch (e) {
+          console.error('[Socket] Failed to update presence for', uid, e);
+        }
+      };
 
-        // Broadcast presence change
-        this.io?.emit('presence:update', { userId, status: 'ONLINE' });
+      if (handshakeUserId) {
+        await registerUserSocket(handshakeUserId, handshakeRole);
       }
 
-      if (role === 'SUPER_ADMIN') {
-        socket.join('room:admin');
-      } else if (role === 'TREASURY') {
-        socket.join('room:treasury');
-      }
+      // Dynamic join event for when user logs in or switches tabs
+      socket.on('user:join', async (data: { userId: string; role?: string }) => {
+        if (data?.userId) {
+          await registerUserSocket(data.userId, data.role);
+          socket.emit('user:joined', { userId: data.userId, socketId: socket.id });
+        }
+      });
 
       // WebRTC Live Meeting & Broadcast P2P Signaling
       socket.on('meeting:signal:join', (data: { userId: string; fullName: string; isHost?: boolean }) => {
@@ -117,13 +133,13 @@ export class SocketService {
       });
 
       socket.on('disconnect', async () => {
-        if (userId) {
-          this.userSocketMap.delete(userId);
-          await User.findByIdAndUpdate(userId, {
+        if (connectedUserId) {
+          this.userSocketMap.delete(connectedUserId);
+          await User.findByIdAndUpdate(connectedUserId, {
             presenceStatus: 'OFFLINE',
             lastActiveAt: new Date()
           });
-          this.io?.emit('presence:update', { userId, status: 'OFFLINE' });
+          this.io?.emit('presence:update', { userId: connectedUserId, status: 'OFFLINE' });
         }
       });
     });

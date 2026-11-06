@@ -381,7 +381,15 @@ export interface IChatMessage {
   content?: string;
   attachments: IMediaAttachment[];
   readBy: string[];
+  replyTo?: {
+    _id: string;
+    content?: string;
+    senderName?: string;
+  } | null;
+  isEdited?: boolean;
+  isDeleted?: boolean;
   createdAt: Date | string;
+  updatedAt?: Date | string;
 }
 
 export interface IMeetingParticipant {
