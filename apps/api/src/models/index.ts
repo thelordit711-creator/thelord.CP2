@@ -11,5 +11,6 @@ export * from './Channel.model';
 export * from './Project.model';
 export * from './DailyReport.model';
 export * from './AttendanceSession.model';
+export * from './SystemSettings.model';
 
 

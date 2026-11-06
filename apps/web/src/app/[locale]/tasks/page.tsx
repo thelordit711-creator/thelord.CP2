@@ -15,6 +15,7 @@ import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../components/voice/DirectVoiceRecorder';
 import { StageDeliverableBox } from '../../../components/tasks/StageDeliverableBox';
+import { ExecutionWorkspaceModal } from '../../../components/tasks/ExecutionWorkspaceModal';
 import {
   CheckSquare,
   Plus,
@@ -186,6 +187,7 @@ export default function TasksPage() {
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const [isExecutionWorkspaceOpen, setIsExecutionWorkspaceOpen] = useState(false);
 
   // New Task State
   const [taskTitle, setTaskTitle] = useState('');
@@ -1132,6 +1134,16 @@ export default function TasksPage() {
 
               <div className="flex items-center gap-2">
                 <Button
+                  variant="gold"
+                  size="sm"
+                  onClick={() => setIsExecutionWorkspaceOpen(true)}
+                  className="shadow-gold-glow flex items-center gap-1.5 rounded-xl font-bold"
+                >
+                  <Sparkles className="w-3.5 h-3.5 ml-1" />
+                  <span>مساحة التنفيذ الذكية ⚡</span>
+                </Button>
+
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleOpenEdit(selectedTask)}
@@ -1966,6 +1978,14 @@ export default function TasksPage() {
             </form>
           </div>
         </div>
+      )}
+      {/* Dedicated AI Execution Workspace & Export Modal */}
+      {isExecutionWorkspaceOpen && selectedTask && (
+        <ExecutionWorkspaceModal
+          task={selectedTask}
+          onClose={() => setIsExecutionWorkspaceOpen(false)}
+          onStageUpdated={() => refetch()}
+        />
       )}
     </div>
   );

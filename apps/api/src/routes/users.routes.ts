@@ -13,6 +13,16 @@ router.get('/me', UsersController.getMe);
 // Complete 5-step onboarding wizard
 router.post('/onboarding', UsersController.completeOnboarding);
 
+// Profile management
+router.patch('/profile', UsersController.updateProfile);
+
+// Automated Leaderboard & KPIs
+router.get('/leaderboard', UsersController.getLeaderboard);
+
+// System Settings
+router.get('/system-settings', UsersController.getSystemSettings);
+router.put('/system-settings', rbacGuard(['SUPER_ADMIN']), UsersController.updateSystemSettings);
+
 // Admin only: view all team members
 router.get('/admin/all', rbacGuard(['SUPER_ADMIN']), UsersController.getAllEmployees);
 router.get('/admin/:id', rbacGuard(['SUPER_ADMIN']), UsersController.getEmployeeDetails);

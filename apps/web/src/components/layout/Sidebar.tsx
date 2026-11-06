@@ -19,7 +19,11 @@ import {
   Sparkles,
   Activity,
   Layers,
-  Video
+  Video,
+  FolderKanban,
+  Trophy,
+  User,
+  Settings
 } from 'lucide-react';
 import { useSocket } from '../../providers/SocketProvider';
 import { AccessRole } from '@lord/shared-types';
@@ -112,6 +116,38 @@ export const Sidebar: React.FC = () => {
       icon: Bot,
       badge: 'Flash',
       allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
+    },
+    {
+      title: 'إدارة المشاريع (WBS)',
+      titleEn: 'Strategic Projects',
+      href: `/${locale}/projects`,
+      icon: FolderKanban,
+      badge: 'WBS',
+      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
+    },
+    {
+      title: 'لوحة الشرف والترتيب (KPIs)',
+      titleEn: 'Leaderboard & KPIs',
+      href: `/${locale}/leaderboard`,
+      icon: Trophy,
+      badge: 'شرف',
+      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE', 'TREASURY']
+    },
+    {
+      title: 'الملف الشخصي والمحافظ',
+      titleEn: 'My Digital Profile',
+      href: `/${locale}/profile`,
+      icon: User,
+      badge: 'هويتي',
+      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE', 'TREASURY']
+    },
+    {
+      title: 'إعدادات المنظومة والسياسات',
+      titleEn: 'System Settings',
+      href: `/${locale}/settings`,
+      icon: Settings,
+      badge: 'ضبط',
+      allowedRoles: ['SUPER_ADMIN']
     }
   ];
 

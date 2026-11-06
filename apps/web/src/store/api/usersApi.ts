@@ -22,6 +22,30 @@ export const usersApi = baseApi.injectEndpoints({
     getEmployeeById: builder.query<IApiResponse<IUser>, string>({
       query: (id) => `/users/admin/${id}`,
       providesTags: (result, error, id) => [{ type: 'User', id }]
+    }),
+    updateProfile: builder.mutation<IApiResponse<IUser>, Partial<IUser>>({
+      query: (data) => ({
+        url: '/users/profile',
+        method: 'PATCH',
+        body: data
+      }),
+      invalidatesTags: ['User']
+    }),
+    getLeaderboard: builder.query<IApiResponse<any[]>, void>({
+      query: () => '/users/leaderboard',
+      providesTags: ['User', 'Task']
+    }),
+    getSystemSettings: builder.query<IApiResponse<any>, void>({
+      query: () => '/users/system-settings',
+      providesTags: ['User']
+    }),
+    updateSystemSettings: builder.mutation<IApiResponse<any>, any>({
+      query: (data) => ({
+        url: '/users/system-settings',
+        method: 'PUT',
+        body: data
+      }),
+      invalidatesTags: ['User']
     })
   })
 });
@@ -30,6 +54,10 @@ export const {
   useGetMeQuery,
   useCompleteOnboardingMutation,
   useGetAllEmployeesQuery,
-  useGetEmployeeByIdQuery
+  useGetEmployeeByIdQuery,
+  useUpdateProfileMutation,
+  useGetLeaderboardQuery,
+  useGetSystemSettingsQuery,
+  useUpdateSystemSettingsMutation
 } = usersApi;
 

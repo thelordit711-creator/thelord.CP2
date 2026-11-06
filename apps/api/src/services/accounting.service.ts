@@ -152,6 +152,21 @@ export class AccountingService {
       // Deduct ONLY from Treasury Balance (do not deduct from General Budget, as it was already deducted upon funding)
       vault.treasuryBalance -= order.amount;
 
+      // Project Budget Hard Ceiling Enforcement
+      if (order.relatedTaskId) {
+        const { Project } = await import('../models/Project.model');
+        const project = await Project.findOne({ 'wbsMilestones.assignedTasks': order.relatedTaskId }).session(session);
+        if (project && project.allocatedBudget > 0) {
+          if (project.spentBudget + order.amount > project.allocatedBudget) {
+            throw new Error(
+              `المبلغ المطلوب صرفه (${order.amount} USDT) يتجاوز السقف المالي المتبقي لميزانية هذا المشروع (${(project.allocatedBudget - project.spentBudget)} USDT)!`
+            );
+          }
+          project.spentBudget += order.amount;
+          await project.save({ session });
+        }
+      }
+
       // Map category to vault accumulator
       switch (order.category as PayoutCategory) {
         case 'SALARY':
