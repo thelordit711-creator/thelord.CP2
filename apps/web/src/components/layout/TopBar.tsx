@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
@@ -22,7 +22,11 @@ import {
   ExternalLink,
   CheckCheck,
   Radio,
-  Layers
+  Layers,
+  Minimize2,
+  X,
+  Volume2,
+  Smartphone
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { toast } from 'sonner';
@@ -47,6 +51,12 @@ export const TopBar: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  // Floating Overlay & HUD states (Desktop PiP & Mobile HUD)
+  const [showMobileOverlay, setShowMobileOverlay] = useState(false);
+  const [isMobileOverlayMinimized, setIsMobileOverlayMinimized] = useState(false);
+  const [hasNativeNotificationPermission, setHasNativeNotificationPermission] = useState(false);
+  const pipWindowRef = useRef<any>(null);
+
   // Real MongoDB notifications via RTK Query
   const { data: notificationsData, refetch: refetchNotifications } = useGetMyNotificationsQuery();
   const [markAsRead] = useMarkAsReadMutation();
@@ -54,6 +64,37 @@ export const TopBar: React.FC = () => {
 
   const notificationsList: INotification[] = notificationsData?.data || [];
   const unreadCount = notificationsData?.meta?.unreadCount ?? notificationsList.filter(n => !n.readStatus).length;
+
+  // Register PWA Service Worker & Check Notification Permission
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('SW registration:', err);
+        });
+      }
+      if ('Notification' in window) {
+        setHasNativeNotificationPermission(window.Notification.permission === 'granted');
+      }
+    }
+  }, []);
+
+  // Request Native Notification Permission
+  const requestNotificationPermission = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const perm = await window.Notification.requestPermission();
+        if (perm === 'granted') {
+          setHasNativeNotificationPermission(true);
+          toast.success('تم تفعيل إشعارات الهاتف والنظام في الخلفية!');
+        } else {
+          toast.info('تم رفض الإذن بإشعارات النظام');
+        }
+      } catch (e) {
+        toast.error('تعذر طلب إذن الإشعارات');
+      }
+    }
+  };
 
   // Synthesized Executive Notification Chime (Zero-latency Web Audio API)
   const playNotificationChime = () => {
@@ -75,62 +116,87 @@ export const TopBar: React.FC = () => {
     } catch (e) { }
   };
 
-  // Document Picture-in-Picture Floating Overlay
+  // Document Picture-in-Picture Floating Overlay & Mobile HUD
   const openFloatingPIP = async () => {
+    // Check if Desktop Document Picture-in-Picture is supported
     if (typeof window !== 'undefined' && 'documentPictureInPicture' in window) {
       try {
+        if (pipWindowRef.current && !pipWindowRef.current.closed) {
+          pipWindowRef.current.focus();
+          toast.info('النافذة العائمة قيد التشغيل بالفعل');
+          return;
+        }
+
         const pipWindow = await (window as any).documentPictureInPicture.requestWindow({
-          width: 340,
-          height: 480
+          width: 360,
+          height: 520
+        });
+
+        pipWindowRef.current = pipWindow;
+        pipWindow.addEventListener('pagehide', () => {
+          pipWindowRef.current = null;
         });
 
         document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
           pipWindow.document.head.appendChild(node.cloneNode(true));
         });
 
-        pipWindow.document.title = 'THE LORD OF CRYPTO — Live Floating Panel';
-        pipWindow.document.body.className = 'bg-[#0b0e14] text-white p-4 font-sans select-none overflow-y-auto';
+        pipWindow.document.title = 'THE LORD OF CRYPTO — Live Executive HUD';
+        pipWindow.document.body.className = 'bg-[#07090E] text-white p-0 m-0 font-sans select-none overflow-y-auto';
 
         const container = pipWindow.document.createElement('div');
         container.innerHTML = `
-          <div style="font-family: system-ui, sans-serif; direction: rtl; padding: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1f2937; padding-bottom: 10px; margin-bottom: 12px;">
+          <div style="font-family: system-ui, -apple-system, sans-serif; direction: rtl; background: #07090E; min-height: 100vh; padding: 14px; box-sizing: border-box; color: #fff;">
+            <!-- Header -->
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(212, 175, 55, 0.25); padding-bottom: 12px; margin-bottom: 12px;">
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 18px;">🦁</span>
-                <span style="font-weight: 900; font-size: 13px; color: #f59e0b;">THE LORD C.P</span>
+                <div style="width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #d4af37 0%, #b89020 100%); display: flex; align-items: center; justify-content: center; font-size: 15px; box-shadow: 0 0 10px rgba(212,175,55,0.4);">
+                  🦁
+                </div>
+                <div>
+                  <div style="font-weight: 900; font-size: 12px; color: #D4AF37; letter-spacing: 0.5px;">THE LORD ERP • HUD</div>
+                  <div style="font-size: 9px; color: #10b981; display: flex; align-items: center; gap: 4px;">
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981;"></span>
+                    متصل لحظياً • Live Sync
+                  </div>
+                </div>
               </div>
-              <span style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 6px; border-radius: 9999px;">عائم نشط PIP</span>
+              <span style="font-size: 10px; background: rgba(212, 175, 55, 0.15); color: #f59e0b; border: 1px solid rgba(212, 175, 55, 0.3); padding: 3px 8px; border-radius: 9999px; font-weight: bold;">
+                PIP عائم
+              </span>
             </div>
+
+            <!-- Notifications List -->
             <div id="pip-notifications-list" style="display: flex; flex-direction: column; gap: 8px;">
               ${notificationsList.length === 0
-            ? '<div style="text-align: center; color: #6b7280; font-size: 11px; padding: 20px;">لا توجد تنبيهات حالية</div>'
-            : notificationsList.slice(0, 8).map(n => `
-                    <div style="background: rgba(17, 24, 39, 0.8); border: 1px solid #374151; padding: 10px; border-radius: 12px; font-size: 11px;">
-                      <div style="font-weight: bold; color: ${n.readStatus ? '#9ca3af' : '#fbbf24'}; margin-bottom: 4px;">${n.title}</div>
-                      <div style="color: #d1d5db; line-height: 1.4;">${n.message}</div>
-                      <div style="font-size: 9px; color: #6b7280; margin-top: 6px;">${new Date(n.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })}</div>
+                ? '<div style="text-align: center; color: #6b7280; font-size: 11px; padding: 40px 10px;">لا توجد تنبيهات حالية</div>'
+                : notificationsList.slice(0, 15).map(n => `
+                    <div style="background: rgba(16, 20, 30, 0.85); border: 1px solid ${n.readStatus ? 'rgba(255,255,255,0.08)' : 'rgba(212, 175, 55, 0.4)'}; padding: 10px; border-radius: 10px; font-size: 11px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-weight: bold; color: ${n.readStatus ? '#9ca3af' : '#fbbf24'};">${n.title}</span>
+                        <span style="font-size: 9px; color: #6b7280;">${new Date(n.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <div style="color: #d1d5db; line-height: 1.4; font-size: 10.5px;">${n.message}</div>
                     </div>
                   `).join('')
-          }
+              }
             </div>
           </div>
         `;
         pipWindow.document.body.appendChild(container);
         toast.success('تم تفعيل الشاشة العائمة المصغرة خارج المتصفح (Always-on-top PIP)!');
       } catch (err) {
-        toast.error('تعذر تفعيل نافذة PiP: ' + (err as Error).message);
+        // Fallback to Mobile Overlay HUD
+        setShowMobileOverlay(true);
+        setIsMobileOverlayMinimized(false);
+        requestNotificationPermission();
       }
     } else {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        const perm = await window.Notification.requestPermission();
-        if (perm === 'granted') {
-          toast.success('تم تفعيل إشعارات سطح المكتب بنجاح!');
-        } else {
-          toast.info('تم رفض إذن إشعارات سطح المكتب');
-        }
-      } else {
-        toast.info('ميزة PIP غير مدعومة في هذا المتصفح');
-      }
+      // Mobile Browser / Devices without Document PiP
+      setShowMobileOverlay(true);
+      setIsMobileOverlayMinimized(false);
+      requestNotificationPermission();
+      toast.success('تم تفعيل الشاشة العائمة للهاتف المحمول!');
     }
   };
 
@@ -145,11 +211,40 @@ export const TopBar: React.FC = () => {
         duration: 8000
       });
 
-      if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'granted') {
+      // Post message to Service Worker for background native alert
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SHOW_NOTIFICATION',
+          title: notification.title,
+          body: notification.message,
+          url: window.location.href
+        });
+      } else if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'granted') {
         new window.Notification(notification.title, {
           body: notification.message,
           icon: '/favicon.ico'
         });
+      }
+
+      // Prepend dynamically to Desktop PiP window
+      if (pipWindowRef.current && !pipWindowRef.current.closed) {
+        try {
+          const list = pipWindowRef.current.document.getElementById('pip-notifications-list');
+          if (list) {
+            const newCard = pipWindowRef.current.document.createElement('div');
+            newCard.style.cssText = 'background: rgba(20, 26, 40, 0.95); border: 1px solid #d4af37; padding: 10px; border-radius: 10px; font-size: 11px; margin-bottom: 8px; box-shadow: 0 0 12px rgba(212,175,55,0.4);';
+            newCard.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-weight: bold; color: #fbbf24;">⚡ ${notification.title}</span>
+                <span style="font-size: 9px; color: #10b981; font-weight: bold;">الآن</span>
+              </div>
+              <div style="color: #ffffff; line-height: 1.4; font-size: 10.5px;">${notification.message}</div>
+            `;
+            list.insertBefore(newCard, list.firstChild);
+          }
+        } catch (e) {
+          console.warn('PiP update error:', e);
+        }
       }
     };
 
@@ -390,15 +485,16 @@ export const TopBar: React.FC = () => {
             <span className="font-bold">{locale === 'ar' ? 'EN' : 'عربي'}</span>
           </button>
 
-          {/* Floating Picture-in-Picture Button */}
+          {/* Floating Overlay & PIP Button (Visible on mobile & desktop) */}
           <button
             type="button"
             onClick={openFloatingPIP}
-            className="hidden sm:flex items-center gap-1.5 p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold hover:border-lord-gold/40 transition-all text-xs"
-            title="تفعيل النافذة العائمة المصغرة خارج النظام (Document PIP)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#17130c] via-[#10131c] to-[#0c0e15] border border-lord-gold/40 text-amber-400 hover:text-lord-gold hover:border-lord-gold hover:shadow-[0_0_15px_rgba(212,175,55,0.25)] transition-all text-xs shadow-sm"
+            title="تفعيل الشاشة العائمة المصغرة والإشعارات اللحظية (Mobile Floating HUD & PIP)"
           >
-            <ExternalLink className="w-3.5 h-3.5 text-lord-gold" />
-            <span className="font-bold text-[11px]">عائم PIP</span>
+            <ExternalLink className="w-3.5 h-3.5 text-lord-gold animate-pulse" />
+            <span className="font-bold text-[11px] hidden sm:inline">النافذة العائمة</span>
+            <span className="font-bold text-[10px] sm:hidden">عائم</span>
           </button>
 
           {/* Notifications Bell */}
@@ -491,6 +587,147 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Mobile Floating Overlay HUD (For Mobile & PWA real-time supervisory) */}
+      {showMobileOverlay && (
+        <>
+          {isMobileOverlayMinimized ? (
+            /* Minimized Floating Gold Lion Orb */
+            <div
+              className="fixed bottom-24 right-4 z-[99999] cursor-pointer group select-none animate-in fade-in zoom-in duration-200"
+              onClick={() => setIsMobileOverlayMinimized(false)}
+              title="فتح اللوحة العائمة المصغرة (THE LORD HUD)"
+            >
+              <div className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-[#07090E] via-[#161a26] to-[#251e10] border-2 border-lord-gold shadow-[0_0_20px_rgba(212,175,55,0.5)] transition-transform hover:scale-105 active:scale-95">
+                <span className="text-xl">🦁</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-status-danger text-white text-[10px] font-black flex items-center justify-center shadow-lg border-2 border-obsidian-primary animate-pulse">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+                <span className="absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#07090E]" />
+              </div>
+            </div>
+          ) : (
+            /* Expanded Luxury Glass Floating Panel */
+            <div className="fixed bottom-20 right-3 sm:bottom-6 sm:right-6 z-[99999] w-[94vw] max-w-[360px] bg-[#07090E]/95 backdrop-blur-2xl border-2 border-lord-gold/60 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_25px_rgba(212,175,55,0.25)] p-3 text-white animate-in fade-in slide-in-from-bottom-5 duration-200 select-none">
+              {/* HUD Top Bar */}
+              <div className="flex items-center justify-between border-b border-lord-gold/30 pb-2.5 mb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-lord-gold to-amber-700 flex items-center justify-center shadow-md">
+                    <span className="text-sm">🦁</span>
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-lord-gold tracking-wide">THE LORD • لوحة عائمة</div>
+                    <div className="text-[9px] text-emerald-400 flex items-center gap-1 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+                      تحديث لحظي نشط
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileOverlayMinimized(true)}
+                    className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                    title="تصغير اللوحة لأيقونة عائمة"
+                  >
+                    <Minimize2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileOverlay(false)}
+                    className="p-1 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all"
+                    title="إغلاق اللوحة"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Permission Banner if Not Granted */}
+              {!hasNativeNotificationPermission && (
+                <div className="mb-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
+                  <div className="text-[10px] text-amber-200 leading-tight">
+                    تفعيل إشعارات الهاتف عند إغلاق التطبيق (PWA)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={requestNotificationPermission}
+                    className="px-2 py-1 rounded-lg bg-amber-500 text-black text-[10px] font-bold hover:bg-amber-400 transition-all whitespace-nowrap shadow-sm"
+                  >
+                    تفعيل الآن 🔔
+                  </button>
+                </div>
+              )}
+
+              {/* Action Controls */}
+              <div className="flex items-center justify-between gap-2 px-1 mb-2 text-[10px]">
+                <span className="text-gray-400">التنبيهات المباشرة ({notificationsList.length})</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={playNotificationChime}
+                    className="text-gray-300 hover:text-lord-gold flex items-center gap-1 transition-all"
+                    title="تجربة صوت التنبيه"
+                  >
+                    <Volume2 className="w-3 h-3 text-lord-gold" />
+                    <span>فحص الصوت</span>
+                  </button>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await markAllAsRead().unwrap();
+                        toast.info('تم تحديد جميع الإشعارات كمقروءة');
+                      }}
+                      className="text-lord-gold hover:underline font-bold"
+                    >
+                      تحديد الكل كمقروء
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Notifications Scroll Container */}
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1 text-right divide-y divide-gray-800/60">
+                {notificationsList.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500 text-xs">
+                    <Bell className="w-6 h-6 mx-auto mb-1 opacity-30 text-lord-gold" />
+                    <span>لا توجد تنبيهات واردة حالياً</span>
+                  </div>
+                ) : (
+                  notificationsList.slice(0, 10).map((n) => (
+                    <div
+                      key={n._id}
+                      className={`pt-2 pb-1 transition-all ${n.readStatus ? 'opacity-70' : 'bg-lord-gold/5 rounded-lg px-2 border border-lord-gold/20'}`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className={`text-[11px] font-bold truncate ${n.readStatus ? 'text-gray-300' : 'text-lord-gold'}`}>
+                          {n.title}
+                        </span>
+                        <span className="text-[9px] text-gray-500 whitespace-nowrap">
+                          {new Date(n.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-gray-300 leading-snug break-words">
+                        {n.message}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Footer info */}
+              <div className="mt-2.5 pt-2 border-t border-gray-800 flex items-center justify-between text-[9px] text-gray-500">
+                <span>👑 الرقابة الملكية اللحظية</span>
+                <span>تزامن تلقائي بدون إعادة تحميل</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </header>
   );
 };
