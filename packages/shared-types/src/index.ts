@@ -292,6 +292,12 @@ export interface ITask {
   overallProgressPercent: number;
   financialRequirement: IFinancialRequirement;
   directReports: IDirectReport[];
+  isBountyTask?: boolean;
+  bountyRewardAmount?: number;
+  bountyClaimType?: 'OPEN_COMPETITIVE' | 'DEDICATED';
+  claimedBy?: string | Partial<IUser>;
+  claimedAt?: Date | string;
+  bountyPayoutStatus?: 'UNCLAIMED' | 'IN_PROGRESS' | 'SUBMITTED_FOR_PAYOUT' | 'DISBURSED';
   status: TaskStatus;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -429,6 +435,9 @@ export interface ICreateTaskDto {
   targetDepartment?: PrimaryDepartment | 'ALL_DEPARTMENTS';
   isDailyRecurring?: boolean;
   dailyRecurrenceTime?: string;
+  isBountyTask?: boolean;
+  bountyRewardAmount?: number;
+  bountyClaimType?: 'OPEN_COMPETITIVE' | 'DEDICATED';
   assignedTo: string[];
   priority: PriorityLevel;
   dueDate?: string;
@@ -499,4 +508,107 @@ export interface IManageLedgerDto {
   baseSalary?: number;
   payoutDayOfMonth?: number;
 }
+
+export type NotificationType =
+  | 'TASK_ASSIGNED'
+  | 'STAGE_SUBMITTED'
+  | 'STAGE_APPROVED'
+  | 'STAGE_REVISION'
+  | 'CHAT_MESSAGE'
+  | 'PROJECT_UPDATE'
+  | 'FINANCIAL_UPDATE'
+  | 'DAILY_REPORT_REMINDER'
+  | 'OVERDUE_TASK'
+  | 'LIVE_MEETING_INVITE'
+  | 'GENERAL_ANNOUNCEMENT';
+
+export interface INotification {
+  _id: string;
+  recipientId: string | Partial<IUser>;
+  senderId?: string | Partial<IUser>;
+  title: string;
+  message: string;
+  type: NotificationType;
+  relatedEntityId?: string;
+  relatedUrl?: string;
+  readStatus: boolean;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface IChannel {
+  _id: string;
+  channelId: string;
+  name: string;
+  description?: string;
+  isOfficial: boolean;
+  createdBy: string | Partial<IUser>;
+  members?: string[];
+  isPublic: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface ICreateChannelDto {
+  name: string;
+  description?: string;
+  members?: string[];
+  isPublic?: boolean;
+}
+
+export interface IProject {
+  _id: string;
+  title: string;
+  code: string;
+  description: string;
+  objectives: string[];
+  requirements: string[];
+  toolsAndResources: string[];
+  allocatedBudget: number;
+  spentBudget: number;
+  startDate: Date | string;
+  targetEndDate: Date | string;
+  status: 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+  createdBy: string | Partial<IUser>;
+  teamMembers: string[];
+  wbsMilestones: Array<{
+    title: string;
+    description?: string;
+    dueDate?: Date | string;
+    isCompleted: boolean;
+    assignedTasks: string[];
+  }>;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface IDailyReport {
+  _id: string;
+  employeeId: string | Partial<IUser>;
+  reportDate: string;
+  summary: string;
+  completedTasks: string[];
+  ongoingTasks: string[];
+  blockersAndChallenges?: string;
+  workHoursLogged: number;
+  aiAuditAnalysis?: string;
+  status: 'SUBMITTED' | 'REVIEWED_BY_AI' | 'ACKNOWLEDGED_BY_ADMIN';
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface IAttendanceSession {
+  _id: string;
+  employeeId: string | Partial<IUser>;
+  checkInTime: Date | string;
+  checkOutTime?: Date | string;
+  totalDurationMinutes?: number;
+  status: 'ACTIVE' | 'CLOSED';
+  dateStr: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+
 

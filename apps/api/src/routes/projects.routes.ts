@@ -1,0 +1,15 @@
+import { Router } from 'express';
+import { ProjectsController } from '../controllers/projects.controller';
+import { verifyKindeJWT } from '../middlewares/verifyKindeJWT';
+
+const router = Router();
+router.use(verifyKindeJWT);
+
+router.get('/', ProjectsController.getAllProjects);
+router.get('/:id', ProjectsController.getProjectById);
+router.post('/', ProjectsController.createProject);
+router.put('/:id', ProjectsController.updateProject);
+router.post('/:id/decompose-milestone', ProjectsController.decomposeMilestoneToTasks);
+
+export default router;
+

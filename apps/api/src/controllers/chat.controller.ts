@@ -2,35 +2,123 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { ChatMessage } from '../models/ChatMessage.model';
 import { User } from '../models/User.model';
+import { Channel } from '../models/Channel.model';
 import { SocketService } from '../services/socket.service';
 
-const CHANNELS = [
-  { id: 'general', name: 'النقاش-العام-والتوجيهات', desc: 'التنسيق العام بين كافة أقسام المؤسسة' },
-  { id: 'trading', name: 'صفقات-التداول-والتحليل', desc: 'مناقشة تحليلات SMC وصفقات VIP اليومية' },
-  { id: 'marketing', name: 'حملات-التسويق-والإعلانات', desc: 'إعلانات تليجرام الرسمية وتبادل القنوات' },
-  { id: 'development', name: 'تطوير-البوتات-والأنظمة', desc: 'برمجة بوتات التداول وأنظمة الـ ERP' },
-  { id: 'treasury', name: 'الخزينة-وحوالات-الصندوق', desc: 'متابعة الصرف المالي وإشعارات التحويل' }
+const DEFAULT_OFFICIAL_CHANNELS = [
+  { channelId: 'general', name: 'النقاش-العام-والتوجيهات', description: 'التنسيق العام بين كافة أقسام المؤسسة', isOfficial: true, isPublic: true },
+  { channelId: 'trading', name: 'صفقات-التداول-والتحليل', description: 'مناقشة تحليلات SMC وصفقات VIP اليومية', isOfficial: true, isPublic: true },
+  { channelId: 'marketing', name: 'حملات-التسويق-والإعلانات', description: 'إعلانات تليجرام الرسمية وتبادل القنوات', isOfficial: true, isPublic: true },
+  { channelId: 'development', name: 'تطوير-البوتات-والأنظمة', description: 'برمجة بوتات التداول وأنظمة الـ ERP', isOfficial: true, isPublic: true },
+  { channelId: 'treasury', name: 'الخزينة-وحوالات-الصندوق', description: 'متابعة الصرف المالي وإشعارات التحويل', isOfficial: true, isPublic: true }
 ];
 
 export class ChatController {
   /**
-   * Get all active channels and all real members strictly from MongoDB database
+   * Get all active channels (from MongoDB) and all real members strictly from MongoDB database
    */
   public static async getRoomsAndMembers(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      // Fetch only REAL users from MongoDB
+      const currentUserId = req.user?._id;
+
+      // 1. Ensure default channels exist in MongoDB
+      const channelCount = await Channel.countDocuments();
+      if (channelCount === 0 && currentUserId) {
+        for (const ch of DEFAULT_OFFICIAL_CHANNELS) {
+          await Channel.create({
+            ...ch,
+            createdBy: currentUserId
+          });
+        }
+      }
+
+      // 2. Fetch accessible channels from MongoDB
+      const channelsFromDb = await Channel.find({
+        $or: [
+          { isPublic: true },
+          { createdBy: currentUserId },
+          { members: currentUserId }
+        ]
+      }).sort({ isOfficial: -1, createdAt: 1 });
+
+      const channelsFormatted = channelsFromDb.map(c => ({
+        id: c.channelId,
+        name: c.name,
+        desc: c.description || '',
+        isOfficial: c.isOfficial,
+        isPublic: c.isPublic
+      }));
+
+      // 3. Fetch only REAL users from MongoDB
       const realUsers = await User.find({})
         .select('_id fullName email accessRole primaryDepartment jobTitles workStatus presenceStatus lastActiveAt avatarUrl')
         .sort({ accessRole: 1, createdAt: 1 });
 
       res.json({
         success: true,
-        channels: CHANNELS,
+        channels: channelsFormatted.length > 0 ? channelsFormatted : DEFAULT_OFFICIAL_CHANNELS.map(c => ({ id: c.channelId, name: c.name, desc: c.description, isOfficial: true, isPublic: true })),
         members: realUsers,
         data: {
-          channels: CHANNELS,
+          channels: channelsFormatted.length > 0 ? channelsFormatted : DEFAULT_OFFICIAL_CHANNELS.map(c => ({ id: c.channelId, name: c.name, desc: c.description, isOfficial: true, isPublic: true })),
           members: realUsers
         }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Super Admin / Manager: Create a new custom channel and invite members
+   */
+  public static async createChannel(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مسجل' });
+        return;
+      }
+
+      const { name, description, isPublic = true, members = [] } = req.body;
+      if (!name || !name.trim()) {
+        res.status(400).json({ success: false, error: 'اسم القناة مطلوب' });
+        return;
+      }
+
+      const channelId = name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, '-')
+        .replace(/^-+|-+$/g, '') || `channel_${Date.now()}`;
+
+      const existing = await Channel.findOne({ channelId });
+      if (existing) {
+        res.status(400).json({ success: false, error: 'توجد قناة بنفس هذا الاسم بالفعل' });
+        return;
+      }
+
+      const newChannel = await Channel.create({
+        channelId,
+        name: name.trim(),
+        description: description?.trim() || '',
+        isOfficial: req.user.accessRole === 'SUPER_ADMIN',
+        createdBy: req.user._id,
+        members: Array.isArray(members) ? members : [],
+        isPublic: Boolean(isPublic)
+      });
+
+      // Broadcast channel creation to all connected clients
+      SocketService.broadcast('channel:created', {
+        id: newChannel.channelId,
+        name: newChannel.name,
+        desc: newChannel.description,
+        isOfficial: newChannel.isOfficial,
+        isPublic: newChannel.isPublic
+      });
+
+      res.status(201).json({
+        success: true,
+        data: newChannel,
+        message: 'تم إنشاء القناة بنجاح'
       });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
@@ -115,6 +203,25 @@ export class ChatController {
         senderName: req.user.fullName,
         content: content?.substring(0, 60)
       });
+
+      // If direct message (DM), dispatch notification to the recipient
+      if (chatRoomId.startsWith('dm_') && req.user) {
+        const currentId = req.user._id.toString();
+        const parts = chatRoomId.replace('dm_', '').split('_');
+        const recipientUserId = parts.find((p: string) => p !== currentId);
+        if (recipientUserId) {
+          SocketService.dispatchNotification({
+            recipientId: recipientUserId,
+            senderId: currentId,
+            title: `💬 رسالة خاصة من ${req.user.fullName}`,
+            message: content?.substring(0, 80) || (sanitizedAttachments.length ? '📎 أرسل ملفاً/تسجيلاً جديداً' : 'رسالة جديدة'),
+            type: 'CHAT_MESSAGE',
+            relatedEntityId: chatRoomId,
+            relatedUrl: '/chat',
+            priority: 'HIGH'
+          });
+        }
+      }
 
       res.status(201).json({
         success: true,

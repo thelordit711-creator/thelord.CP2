@@ -202,6 +202,43 @@ export class AuthController {
 
       await user.save();
 
+      // Attendance Session Tracking (Automatic Check-in / Check-out)
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { AttendanceSession } = await import('../models/AttendanceSession.model');
+
+        if (workStatus === 'WORKING' || workStatus === 'LOGGED_IN') {
+          const activeSession = await AttendanceSession.findOne({
+            employeeId: user._id,
+            status: 'ACTIVE'
+          });
+          if (!activeSession) {
+            await AttendanceSession.create({
+              employeeId: user._id,
+              checkInTime: new Date(),
+              status: 'ACTIVE',
+              dateStr: todayStr
+            });
+          }
+        } else if (workStatus === 'LOGGED_OUT') {
+          const activeSession = await AttendanceSession.findOne({
+            employeeId: user._id,
+            status: 'ACTIVE'
+          });
+          if (activeSession) {
+            activeSession.checkOutTime = new Date();
+            activeSession.status = 'CLOSED';
+            const checkInMs = new Date(activeSession.checkInTime).getTime();
+            const checkOutMs = new Date(activeSession.checkOutTime).getTime();
+            const duration = Math.round((checkOutMs - checkInMs) / (1000 * 60));
+            activeSession.totalDurationMinutes = Math.max(0, duration);
+            await activeSession.save();
+          }
+        }
+      } catch (attErr) {
+        console.error('Attendance tracking error:', attErr);
+      }
+
       // Emit live real-time update
       SocketService.getIO()?.emit('STAFF_STATUS_CHANGED', {
         userId: user._id,

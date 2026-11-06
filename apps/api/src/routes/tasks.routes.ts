@@ -31,5 +31,8 @@ router.patch('/:id/stages/:order/review', rbacGuard(['SUPER_ADMIN']), TasksContr
 // Direct report
 router.post('/:id/reports', rbacGuard(['EMPLOYEE', 'SUPER_ADMIN']), TasksController.addDirectReport);
 
+// Claim open bounty task
+router.post('/:id/claim-bounty', rbacGuard(['EMPLOYEE', 'SUPER_ADMIN']), TasksController.claimBounty);
+
 export default router;
 

@@ -1,6 +1,8 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { User } from '../models/User.model';
+import { Notification } from '../models/Notification.model';
+import { NotificationType } from '@lord/shared-types';
 
 export class SocketService {
   private static io: SocketIOServer | null = null;
@@ -74,6 +76,40 @@ export class SocketService {
         });
       });
 
+      // 1-to-1 WebRTC Direct Audio Call Signaling
+      socket.on('call:invite', (data: { toUserId: string; caller: { _id: string; fullName: string; avatarUrl?: string } }) => {
+        this.io?.to(`room:user:${data.toUserId}`).emit('call:incoming', {
+          caller: data.caller,
+          callerSocketId: socket.id
+        });
+      });
+
+      socket.on('call:accept', (data: { toUserId: string; acceptor: { _id: string; fullName: string } }) => {
+        this.io?.to(`room:user:${data.toUserId}`).emit('call:accepted', {
+          acceptor: data.acceptor,
+          acceptorSocketId: socket.id
+        });
+      });
+
+      socket.on('call:reject', (data: { toUserId: string; reason?: string }) => {
+        this.io?.to(`room:user:${data.toUserId}`).emit('call:rejected', {
+          reason: data.reason || 'المستخدم مشغول حالياً'
+        });
+      });
+
+      socket.on('call:signal', (data: { toUserId: string; signal: any }) => {
+        this.io?.to(`room:user:${data.toUserId}`).emit('call:signal', {
+          fromSocketId: socket.id,
+          signal: data.signal
+        });
+      });
+
+      socket.on('call:end', (data: { toUserId: string }) => {
+        this.io?.to(`room:user:${data.toUserId}`).emit('call:ended', {
+          fromSocketId: socket.id
+        });
+      });
+
       socket.on('disconnecting', () => {
         socket.to('room:meeting:central').emit('meeting:signal:user-left', {
           socketId: socket.id
@@ -117,6 +153,41 @@ export class SocketService {
 
   public static broadcast(event: string, payload: unknown): void {
     this.io?.emit(event, payload);
+  }
+
+  /**
+   * Persists notification to MongoDB and emits to recipient in real time
+   */
+  public static async dispatchNotification(params: {
+    recipientId: string;
+    senderId?: string;
+    title: string;
+    message: string;
+    type: NotificationType;
+    relatedEntityId?: string;
+    relatedUrl?: string;
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  }) {
+    try {
+      const doc = await Notification.create({
+        recipientId: params.recipientId,
+        senderId: params.senderId,
+        title: params.title,
+        message: params.message,
+        type: params.type,
+        relatedEntityId: params.relatedEntityId,
+        relatedUrl: params.relatedUrl,
+        priority: params.priority || 'MEDIUM'
+      });
+
+      const populated = await Notification.findById(doc._id).populate('senderId', 'fullName email avatarUrl');
+
+      this.io?.to(`room:user:${params.recipientId}`).emit('notification:new', populated);
+      return populated;
+    } catch (err) {
+      console.error('Failed to dispatch notification:', err);
+      return null;
+    }
   }
 }
 

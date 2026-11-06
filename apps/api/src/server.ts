@@ -12,6 +12,7 @@ dotenv.config();
 
 import { connectDatabase } from './config/database';
 import { SocketService } from './services/socket.service';
+import { CronService } from './services/cron.service';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -23,6 +24,8 @@ import uploadRoutes from './routes/upload.routes';
 import aiRoutes from './routes/ai.routes';
 import chatRoutes from './routes/chat.routes';
 import meetingRoutes from './routes/meeting.routes';
+import notificationsRoutes from './routes/notifications.routes';
+import projectsRoutes from './routes/projects.routes';
 
 const app = express();
 const server = http.createServer(app);
@@ -103,6 +106,8 @@ app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/meetings', meetingRoutes);
+app.use('/api/v1/notifications', notificationsRoutes);
+app.use('/api/v1/projects', projectsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -118,6 +123,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 async function startServer() {
   await connectDatabase();
+  CronService.init();
   if (!process.env.VERCEL) {
     server.listen(PORT, HOST, () => {
       console.log(`🦁 THE LORD OF CRYPTO C.P API running on http://${HOST}:${PORT}`);

@@ -34,6 +34,14 @@ export const chatApi = baseApi.injectEndpoints({
         body: data
       }),
       invalidatesTags: (result, error, { chatRoomId }) => [{ type: 'ChatMessage', id: chatRoomId }]
+    }),
+    createChannel: builder.mutation<IApiResponse<any>, { name: string; description?: string; isPublic?: boolean; members?: string[] }>({
+      query: (data) => ({
+        url: '/chat/channels',
+        method: 'POST',
+        body: data
+      }),
+      invalidatesTags: ['ChatMessage']
     })
   })
 });
@@ -41,5 +49,6 @@ export const chatApi = baseApi.injectEndpoints({
 export const {
   useGetRoomsAndMembersQuery,
   useGetMessagesQuery,
-  useSendMessageMutation
+  useSendMessageMutation,
+  useCreateChannelMutation
 } = chatApi;

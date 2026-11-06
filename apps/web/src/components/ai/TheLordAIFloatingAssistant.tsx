@@ -12,6 +12,82 @@ export const TheLordAIFloatingAssistant: React.FC = () => {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Draggable State & Persistence
+  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 24, y: 300 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number; moved: boolean }>({
+    startX: 0,
+    startY: 0,
+    initialX: 24,
+    initialY: 300,
+    moved: false
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lord_ai_btn_coords');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          const maxX = window.innerWidth - 80;
+          const maxY = window.innerHeight - 80;
+          setPosition({
+            x: Math.min(Math.max(12, parsed.x), maxX),
+            y: Math.min(Math.max(12, parsed.y), maxY)
+          });
+        } catch (e) {}
+      } else {
+        // default position bottom-left
+        setPosition({ x: 24, y: Math.max(100, window.innerHeight - 100) });
+      }
+    }
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: position.x,
+      initialY: position.y,
+      moved: false
+    };
+    setIsDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const deltaX = e.clientX - dragRef.current.startX;
+    const deltaY = e.clientY - dragRef.current.startY;
+
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+      dragRef.current.moved = true;
+    }
+
+    const maxX = window.innerWidth - 80;
+    const maxY = window.innerHeight - 80;
+    const newX = Math.min(Math.max(12, dragRef.current.initialX + deltaX), maxX);
+    const newY = Math.min(Math.max(12, dragRef.current.initialY + deltaY), maxY);
+
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch (e) {}
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lord_ai_btn_coords', JSON.stringify(position));
+    }
+
+    if (!dragRef.current.moved) {
+      setIsOpen((prev) => !prev);
+    }
+  };
+
   const [chatLog, setChatLog] = useState<Array<{ sender: 'user' | 'bot'; text: string; time: string }>>([
     {
       sender: 'bot',
@@ -75,33 +151,46 @@ export const TheLordAIFloatingAssistant: React.FC = () => {
 
   return (
     <>
-      {/* Floating Toggle Button (Sleek Obsidian & Gold Orb) */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 left-6 z-50 p-2.5 sm:px-4 sm:py-3 rounded-full bg-obsidian-card/90 border border-lord-gold/60 text-white shadow-2xl backdrop-blur-xl hover:border-lord-gold hover:shadow-gold-glow active:scale-95 transition-all duration-300 flex items-center gap-2.5 group"
-        title="TheLordAI Enterprise Assistant"
+      {/* Draggable Semi-Transparent Floating Orb */}
+      <div
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          touchAction: 'none'
+        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        className="fixed z-50 select-none p-2 sm:px-3.5 sm:py-2.5 rounded-full bg-obsidian-card/40 border border-lord-gold/30 text-white shadow-2xl backdrop-blur-md hover:border-lord-gold hover:bg-obsidian-card/80 opacity-75 hover:opacity-100 cursor-grab active:cursor-grabbing active:scale-95 transition-all duration-200 flex items-center gap-2 group"
+        title="اسحب لتحريك الشعار إلى أي مكان، أو انقر للمحادثة مع TheLordAI"
       >
-        <div className="relative flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full bg-lord-gold/20 border border-lord-gold flex items-center justify-center text-lord-gold group-hover:scale-110 transition-transform">
-            <Sparkles className="w-4 h-4 animate-pulse text-lord-gold" />
+        <div className="relative flex items-center justify-center pointer-events-none">
+          <div className="w-7 h-7 rounded-full bg-lord-gold/20 border border-lord-gold/70 flex items-center justify-center text-lord-gold group-hover:scale-110 transition-transform">
+            <Sparkles className="w-3.5 h-3.5 animate-pulse text-lord-gold" />
           </div>
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 border-2 border-black animate-ping" />
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 border-2 border-black" />
+          <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 border border-black animate-ping" />
+          <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 border border-black" />
         </div>
 
-        <div className="hidden sm:flex flex-col text-right">
+        <div className="hidden sm:flex flex-col text-right pointer-events-none">
           <span className="text-xs font-black tracking-wider text-lord-gold flex items-center gap-1">
             <span>TheLordAI</span>
-            <span className="text-[9px] bg-lord-gold/20 text-lord-gold px-1.5 py-0.2 rounded font-mono font-bold">2.5</span>
+            <span className="text-[9px] bg-lord-gold/20 text-lord-gold px-1 py-0.2 rounded font-mono font-bold">2.5</span>
           </span>
-          <span className="text-[9px] text-gray-400 font-mono">المساعد المؤسسي</span>
+          <span className="text-[8px] text-gray-400 font-mono">اسحب للتحريك ✦</span>
         </div>
-      </button>
+      </div>
 
       {/* Slide-over Executive Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 left-6 z-50 w-[410px] max-w-[calc(100vw-3rem)] h-[580px] bg-obsidian-surface/95 border-2 border-lord-gold/40 rounded-3xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-2xl animate-fadeIn">
+        <div
+          style={{
+            left: `${Math.min(Math.max(12, position.x), typeof window !== 'undefined' ? window.innerWidth - 420 : 24)}px`,
+            bottom: position.y > 450 ? '80px' : 'auto',
+            top: position.y <= 450 ? `${Math.min(position.y + 50, typeof window !== 'undefined' ? window.innerHeight - 590 : 80)}px` : 'auto'
+          }}
+          className="fixed z-50 w-[410px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[85vh] bg-obsidian-surface/95 border-2 border-lord-gold/40 rounded-3xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-2xl animate-fadeIn"
+        >
           {/* Executive Header */}
           <div className="p-4 bg-obsidian-card/90 border-b border-obsidian-border flex items-center justify-between">
             <div className="flex items-center gap-3">

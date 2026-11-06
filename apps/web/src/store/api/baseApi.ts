@@ -17,7 +17,7 @@ export const baseApi = createApi({
       return headers;
     }
   }),
-  tagTypes: ['User', 'Task', 'PayoutOrder', 'CompanyVault', 'EmployeeLedger', 'ChatMessage', 'MeetingRoom'],
+  tagTypes: ['User', 'Task', 'PayoutOrder', 'CompanyVault', 'EmployeeLedger', 'ChatMessage', 'MeetingRoom', 'Notification'],
   endpoints: () => ({})
 });
 

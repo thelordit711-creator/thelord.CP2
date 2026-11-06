@@ -116,6 +116,22 @@ const TaskSchema = new Schema<ITaskDocument>({
     createdAt: { type: Date, default: Date.now }
   }],
 
+  // Bounty & Reward Tasks
+  isBountyTask: { type: Boolean, default: false, index: true },
+  bountyRewardAmount: { type: Number, default: 0 },
+  bountyClaimType: {
+    type: String,
+    enum: ['OPEN_COMPETITIVE', 'DEDICATED'],
+    default: 'OPEN_COMPETITIVE'
+  },
+  claimedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  claimedAt: { type: Date },
+  bountyPayoutStatus: {
+    type: String,
+    enum: ['UNCLAIMED', 'IN_PROGRESS', 'SUBMITTED_FOR_PAYOUT', 'DISBURSED'],
+    default: 'UNCLAIMED'
+  },
+
   status: {
     type: String,
     enum: ['PENDING_ADMIN_REVIEW', 'TODO', 'IN_PROGRESS', 'COMPLETED', 'REJECTED'],

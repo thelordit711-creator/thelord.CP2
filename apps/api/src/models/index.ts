@@ -6,4 +6,10 @@ export * from './EmployeeLedger.model';
 export * from './ChatMessage.model';
 export * from './MeetingRoom.model';
 export * from './Invitation.model';
+export * from './Notification.model';
+export * from './Channel.model';
+export * from './Project.model';
+export * from './DailyReport.model';
+export * from './AttendanceSession.model';
+
 

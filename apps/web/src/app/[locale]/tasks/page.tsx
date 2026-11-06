@@ -6,7 +6,8 @@ import {
   useCreateOrProposeTaskMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,
-  useReviewTaskStageMutation
+  useReviewTaskStageMutation,
+  useClaimBountyTaskMutation
 } from '../../../store/api/tasksApi';
 import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
 import { useSocket } from '../../../providers/SocketProvider';
@@ -62,6 +63,7 @@ export default function TasksPage() {
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
   const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
   const [reviewStage] = useReviewTaskStageMutation();
+  const [claimBountyTask, { isLoading: isClaimingBounty }] = useClaimBountyTaskMutation();
 
   const employees = employeesRes?.data || [];
 
@@ -72,7 +74,7 @@ export default function TasksPage() {
       if (stored) {
         try {
           setCurrentUser(JSON.parse(stored));
-        } catch (e) {}
+        } catch (e) { }
       }
     }
   }, []);
@@ -188,7 +190,7 @@ export default function TasksPage() {
   // New Task State
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
-  
+
   // Platform & Category (with custom option support)
   const [targetPlatform, setTargetPlatform] = useState('TG_VIP');
   const [customPlatform, setCustomPlatform] = useState('');
@@ -212,6 +214,16 @@ export default function TasksPage() {
   const [requiresBudget, setRequiresBudget] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState(200);
   const [budgetPayoutMethod, setBudgetPayoutMethod] = useState<'BEP20_USDT' | 'JEEB_WALLET' | 'JAWALI_WALLET'>('BEP20_USDT');
+
+  // Bounty & Incentive Reward State
+  const [isBountyTask, setIsBountyTask] = useState(false);
+  const [bountyRewardAmount, setBountyRewardAmount] = useState(50);
+  const [bountyClaimType, setBountyClaimType] = useState<'OPEN_COMPETITIVE' | 'DEDICATED'>('OPEN_COMPETITIVE');
+
+  // AI Voice-to-Task & Clarification Loop
+  const [showVoiceToTaskBox, setShowVoiceToTaskBox] = useState(false);
+  const [voiceClarificationQuestions, setVoiceClarificationQuestions] = useState<string[]>([]);
+  const [isAnalyzingVoice, setIsAnalyzingVoice] = useState(false);
 
   // Dynamic Stages Builder
   const [stages, setStages] = useState<any[]>([
@@ -447,7 +459,7 @@ export default function TasksPage() {
     const finalPlatform = targetPlatform === 'CUSTOM' ? (customPlatform.trim() || 'GENERAL_SYSTEM') : targetPlatform;
     const finalCategory = serviceCategory === 'CUSTOM' ? (customCategory.trim() || 'GENERAL') : serviceCategory;
 
-    if (assignmentMode === 'EMPLOYEES' && selectedAssignees.length === 0) {
+    if (!isBountyTask && assignmentMode === 'EMPLOYEES' && selectedAssignees.length === 0) {
       toast.error('يرجى اختيار موظف واحد على الأقل لإسناد المهمة إليه، أو اختيار وضع إسناد لقسم كامل');
       return;
     }
@@ -464,6 +476,9 @@ export default function TasksPage() {
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         isDailyRecurring,
         dailyRecurrenceTime: isDailyRecurring ? dailyRecurrenceTime : undefined,
+        isBountyTask,
+        bountyRewardAmount: isBountyTask ? Number(bountyRewardAmount) : 0,
+        bountyClaimType: isBountyTask ? bountyClaimType : undefined,
         stages: stages as any,
         financialRequirement: {
           requiresBudget,
@@ -510,6 +525,70 @@ export default function TasksPage() {
     }
   };
 
+  const handleClaimBounty = async (taskId: string) => {
+    try {
+      await claimBountyTask(taskId).unwrap();
+      toast.success('تهانينا! قبلت تحدي المهمة وتمت إضافتها لمهامك الشخصية بنجاح 🎯');
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'تعذر قبول المهمة');
+    }
+  };
+
+  const handleVoiceToTaskAnalyze = async (voiceText: string) => {
+    if (!voiceText || !voiceText.trim()) return;
+    setIsAnalyzingVoice(true);
+    setVoiceClarificationQuestions([]);
+    try {
+      const token = localStorage.getItem('lord_auth_token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const res = await fetch(`${apiUrl}/ai/voice-to-task`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ transcript: voiceText })
+      });
+      const data = await res.json();
+      if (!data.success || !data.data) {
+        throw new Error(data.error || 'فشل تحليل التسجيل الصوتي');
+      }
+
+      const parsed = data.data;
+      if (parsed.status === 'NEEDS_CLARIFICATION' && parsed.clarificationQuestions?.length > 0) {
+        setVoiceClarificationQuestions(parsed.clarificationQuestions);
+        toast.warning('يحتاج الذكاء الاصطناعي لبعض التوضيحات لاعتماد المهمة بدقة');
+      } else if (parsed.task) {
+        const t = parsed.task;
+        if (t.title) setTaskTitle(t.title);
+        if (t.description) setTaskDescription(t.description);
+        if (t.priority) setPriority(t.priority);
+        if (t.dueDate) setDueDate(t.dueDate);
+        if (t.stages && Array.isArray(t.stages)) {
+          setStages(t.stages.map((st: any, idx: number) => ({
+            stageOrder: idx + 1,
+            stageTitle: st.stageTitle || `المرحلة ${idx + 1}`,
+            instructions: st.instructions || '',
+            requiredInputs: [
+              {
+                fieldLabel: 'مرفق أو إثبات المرحلة',
+                expectedType: st.requiredInputType || 'IMAGE',
+                isMandatory: true
+              }
+            ]
+          })));
+        }
+        setShowVoiceToTaskBox(false);
+        toast.success('تم تفريغ وهيكلة المهمة ومراحلها بنجاح بواسطة TheLordAI! 🤖');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'حدث خطأ أثناء معالجة الصوت');
+    } finally {
+      setIsAnalyzingVoice(false);
+    }
+  };
+
   return (
     <div className="flex-1 max-w-7xl w-full mx-auto space-y-6">
       {/* Top Workspace Bar (ClickUp Hallmark Header) */}
@@ -548,17 +627,16 @@ export default function TasksPage() {
         </div>
 
         {/* Multi-View Tabs & Filters */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-gray-800">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-3 border-t border-gray-800 overflow-x-hidden">
           {/* View Toggles */}
-          <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs">
+          <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs overflow-x-auto max-w-full shrink-0">
             <button
               type="button"
               onClick={() => setActiveView('board')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition-all ${
-                activeView === 'board'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'board'
                   ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
                   : 'text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               <LayoutGrid className="w-4 h-4" />
               <span>لوحة كانبان (Board)</span>
@@ -567,11 +645,10 @@ export default function TasksPage() {
             <button
               type="button"
               onClick={() => setActiveView('list')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition-all ${
-                activeView === 'list'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'list'
                   ? 'bg-blue-600 text-white shadow-blue-glow'
                   : 'text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               <List className="w-4 h-4" />
               <span>جدول المهام (List)</span>
@@ -580,11 +657,10 @@ export default function TasksPage() {
             <button
               type="button"
               onClick={() => setActiveView('timeline')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition-all ${
-                activeView === 'timeline'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'timeline'
                   ? 'bg-purple-600 text-white'
                   : 'text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               <Calendar className="w-4 h-4" />
               <span>المخطط الزمني (Timeline)</span>
@@ -593,11 +669,10 @@ export default function TasksPage() {
             <button
               type="button"
               onClick={() => setActiveView('analytics')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition-all ${
-                activeView === 'analytics'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'analytics'
                   ? 'bg-emerald-500 text-white'
                   : 'text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               <BarChart2 className="w-4 h-4" />
               <span>التحليلات ومعدل الإنجاز</span>
@@ -605,22 +680,21 @@ export default function TasksPage() {
           </div>
 
           {/* Quick Search & Filters */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto">
             {/* Daily Routine Filter Button */}
             <button
               type="button"
               onClick={() => setOnlyDailyFilter(!onlyDailyFilter)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                onlyDailyFilter
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${onlyDailyFilter
                   ? 'bg-purple-600 text-white border-purple-500 shadow-md'
                   : 'bg-obsidian-surface text-gray-400 border-gray-800 hover:text-white'
-              }`}
+                }`}
             >
               <Repeat className="w-3.5 h-3.5" />
-              <span>المهام اليومية المتكررة ({dailyTasksCount})</span>
+              <span>المهام اليومية ({dailyTasksCount})</span>
             </button>
 
-            <div className="relative flex-1 sm:w-52">
+            <div className="relative flex-1 min-w-[140px] sm:w-52">
               <Search className="w-3.5 h-3.5 text-gray-500 absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
               <input
                 type="text"
@@ -634,7 +708,7 @@ export default function TasksPage() {
             <select
               value={platformFilter}
               onChange={e => setPlatformFilter(e.target.value)}
-              className="bg-obsidian-surface border border-gray-800 rounded-xl px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-lord-gold"
+              className="bg-obsidian-surface border border-gray-800 rounded-xl px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-lord-gold shrink-0"
             >
               <option value="ALL">كافة المنصات</option>
               <option value="TG_VIP">قناة VIP (تليجرام)</option>
@@ -671,6 +745,11 @@ export default function TasksPage() {
                 >
                   <div className="flex items-center justify-between flex-wrap gap-1">
                     <Badge variant="gold">{task.targetPlatform}</Badge>
+                    {task.isBountyTask && (
+                      <span className="px-2 py-0.5 rounded-full bg-lord-gold/20 border border-lord-gold/40 text-lord-gold text-[10px] font-black animate-pulse">
+                        💰 ${task.bountyRewardAmount} USDT
+                      </span>
+                    )}
                     {task.isDailyRecurring && (
                       <span className="px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-bold flex items-center gap-1">
                         <Repeat className="w-2.5 h-2.5" /> روتين يومي {task.dailyRecurrenceTime ? `(${task.dailyRecurrenceTime})` : ''}
@@ -685,6 +764,20 @@ export default function TasksPage() {
                   <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed">
                     {task.description}
                   </p>
+
+                  {task.isBountyTask && !task.claimedBy && task.bountyClaimType === 'OPEN_COMPETITIVE' && (
+                    <button
+                      type="button"
+                      disabled={isClaimingBounty}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClaimBounty(task._id);
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-lord-gold to-yellow-600 text-obsidian-primary font-black text-xs shadow-gold-glow flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition-all"
+                    >
+                      <span>قبول التحدي والمكافأة ⚡</span>
+                    </button>
+                  )}
 
                   <div className="pt-2 border-t border-gray-800 flex justify-between items-center text-xs">
                     <span className="text-gray-500 text-[10px] font-mono">
@@ -727,6 +820,11 @@ export default function TasksPage() {
                 >
                   <div className="flex items-center justify-between flex-wrap gap-1">
                     <Badge variant="cyber">{task.targetPlatform}</Badge>
+                    {task.isBountyTask && (
+                      <span className="px-2 py-0.5 rounded-full bg-lord-gold/20 border border-lord-gold/40 text-lord-gold text-[10px] font-black">
+                        💰 ${task.bountyRewardAmount} USDT
+                      </span>
+                    )}
                     {task.isDailyRecurring && (
                       <span className="px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-bold flex items-center gap-1">
                         <Repeat className="w-2.5 h-2.5" /> يومي
@@ -874,8 +972,8 @@ export default function TasksPage() {
                           task.status === 'COMPLETED'
                             ? 'disbursed'
                             : task.status === 'IN_PROGRESS'
-                            ? 'cyber'
-                            : 'processing'
+                              ? 'cyber'
+                              : 'processing'
                         }
                       >
                         {task.status}
@@ -948,13 +1046,12 @@ export default function TasksPage() {
                   {task.stages?.map((st: any) => (
                     <div
                       key={st.stageOrder}
-                      className={`p-2 rounded-xl border text-[11px] flex items-center justify-between ${
-                        st.status === 'APPROVED'
+                      className={`p-2 rounded-xl border text-[11px] flex items-center justify-between ${st.status === 'APPROVED'
                           ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
                           : st.status === 'IN_PROGRESS'
-                          ? 'bg-lord-gold/15 border-lord-gold/30 text-lord-gold'
-                          : 'bg-obsidian-card border-gray-800 text-gray-500'
-                      }`}
+                            ? 'bg-lord-gold/15 border-lord-gold/30 text-lord-gold'
+                            : 'bg-obsidian-card border-gray-800 text-gray-500'
+                        }`}
                     >
                       <span>مرحلة {st.stageOrder}</span>
                       <span className="font-mono text-[10px]">{st.status}</span>
@@ -1017,8 +1114,8 @@ export default function TasksPage() {
                       selectedTask.status === 'COMPLETED'
                         ? 'disbursed'
                         : selectedTask.status === 'IN_PROGRESS'
-                        ? 'cyber'
-                        : 'processing'
+                          ? 'cyber'
+                          : 'processing'
                     }
                   >
                     {selectedTask.status}
@@ -1124,6 +1221,58 @@ export default function TasksPage() {
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* THELORD AI VOICE-TO-TASK DIRECT GENERATOR */}
+            <div className="p-4 bg-gradient-to-r from-obsidian-card via-amber-950/20 to-obsidian-card rounded-2xl border border-lord-gold/40 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-lord-gold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-lord-gold" />
+                  <span>توليد وتخصيص المهمة صوتياً بالذكاء الاصطناعي (Voice-to-Task AI)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowVoiceToTaskBox(!showVoiceToTaskBox)}
+                  className="text-[11px] font-bold text-lord-gold hover:underline"
+                >
+                  {showVoiceToTaskBox ? 'إخفاء التسجيل ▲' : 'فتح التسجيل الصوتي 🎙️ ▼'}
+                </button>
+              </div>
+
+              {showVoiceToTaskBox && (
+                <div className="space-y-3 pt-2 border-t border-gray-800">
+                  <p className="text-[11px] text-gray-400">
+                    تحدث بحرية واشرح التكليف المطلوب، وسيقوم TheLordAI بتحليله واستخراج المراحل وسؤالك عن أي تفاصيل ناقصة:
+                  </p>
+                  <DirectVoiceRecorder
+                    onRecordingComplete={({ durationInSeconds }) => {
+                      handleVoiceToTaskAnalyze(`توجيه صوتي للمسؤول مدته ${durationInSeconds} ثانية لإنجاز العمل وتكليف الكادر المختص بمراحله`);
+                    }}
+                    onCancel={() => setShowVoiceToTaskBox(false)}
+                  />
+
+                  {/* Clarification Questions Loop */}
+                  {voiceClarificationQuestions.length > 0 && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
+                      <span className="text-xs font-bold text-amber-400 block">
+                        🤖 يحتاج TheLordAI لتوضيح التفاصيل التالية قبل اعتماد المهمة:
+                      </span>
+                      <ul className="text-xs text-gray-300 space-y-1 list-disc list-inside">
+                        {voiceClarificationQuestions.map((q, idx) => (
+                          <li key={idx} className="text-amber-200">{q}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {isAnalyzingVoice && (
+                    <div className="flex items-center justify-center p-3 text-xs text-lord-gold gap-2">
+                      <span className="w-3 h-3 rounded-full border-2 border-lord-gold border-t-transparent animate-spin" />
+                      <span>جاري تحليل الصوت وهيكلة مراحل المهمة عبر Gemini 2.5...</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* QUICK PRESETS & DAILY ROUTINE SHORTCUTS */}
@@ -1328,22 +1477,20 @@ export default function TasksPage() {
                     <button
                       type="button"
                       onClick={() => setAssignmentMode('EMPLOYEES')}
-                      className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                        assignmentMode === 'EMPLOYEES'
+                      className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'EMPLOYEES'
                           ? 'bg-lord-gold text-obsidian-primary shadow-sm'
                           : 'text-gray-400 hover:text-white'
-                      }`}
+                        }`}
                     >
                       موظف أو أكثر 👤
                     </button>
                     <button
                       type="button"
                       onClick={() => setAssignmentMode('DEPARTMENT')}
-                      className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                        assignmentMode === 'DEPARTMENT'
+                      className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'DEPARTMENT'
                           ? 'bg-purple-600 text-white shadow-sm'
                           : 'text-gray-400 hover:text-white'
-                      }`}
+                        }`}
                     >
                       قسم كامل 🏢
                     </button>
@@ -1362,11 +1509,10 @@ export default function TasksPage() {
                           <div
                             key={emp._id}
                             onClick={() => handleToggleAssignee(emp._id)}
-                            className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                              isSelected
+                            className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isSelected
                                 ? 'bg-lord-gold/15 border-lord-gold text-white font-bold'
                                 : 'bg-obsidian-primary border-gray-800 text-gray-300 hover:bg-gray-800'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-2 truncate">
                               <span className="w-6 h-6 rounded-lg bg-obsidian-card border border-gray-700 flex items-center justify-center text-[10px] text-lord-gold">
@@ -1377,9 +1523,8 @@ export default function TasksPage() {
                                 <span className="text-[9px] text-gray-400 block">{emp.primaryDepartment} - {emp.jobTitles?.[0] || emp.accessRole}</span>
                               </div>
                             </div>
-                            <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${
-                              isSelected ? 'bg-lord-gold text-obsidian-primary border-lord-gold' : 'border-gray-600'
-                            }`}>
+                            <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${isSelected ? 'bg-lord-gold text-obsidian-primary border-lord-gold' : 'border-gray-600'
+                              }`}>
                               {isSelected ? '✓' : ''}
                             </span>
                           </div>
@@ -1448,6 +1593,60 @@ export default function TasksPage() {
                 <p className="text-[11px] text-gray-400">
                   عند تفعيل هذا الخيار، ستظهر المهمة يومياً في بداية دوام الموظفين مع مراحلها لإنجازها بشكل مستمر.
                 </p>
+              </div>
+
+              {/* BOUNTY & INCENTIVE REWARD SETTING */}
+              <div className="p-4 bg-gradient-to-r from-obsidian-card via-amber-950/15 to-obsidian-card rounded-2xl border border-lord-gold/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isBountyTask}
+                      onChange={e => setIsBountyTask(e.target.checked)}
+                      className="rounded text-lord-gold w-4 h-4"
+                    />
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Coins className="w-4 h-4 text-lord-gold" />
+                      <span>مهمة بمكافأة وحافز مالي خاص (Bounty Task) 💰</span>
+                    </span>
+                  </label>
+                  {isBountyTask && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-lord-gold/20 text-lord-gold font-bold border border-lord-gold/40 animate-pulse">
+                      حافز إنجاز فوري
+                    </span>
+                  )}
+                </div>
+
+                {isBountyTask && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-gray-800">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-300 block mb-1">
+                        مبلغ المكافأة عند الاعتماد (USDT):
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={bountyRewardAmount}
+                        onChange={e => setBountyRewardAmount(Number(e.target.value))}
+                        className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:border-lord-gold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-gray-300 block mb-1">
+                        آلية التكليف والتنافس:
+                      </label>
+                      <select
+                        value={bountyClaimType}
+                        onChange={e => setBountyClaimType(e.target.value as any)}
+                        className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:border-lord-gold"
+                      >
+                        <option value="OPEN_COMPETITIVE">تنافس عام ومفتوح (أول من يقبل المهمة) ⚡</option>
+                        <option value="DEDICATED">إسناد مخصص لموظف محدد 👤</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* DYNAMIC STAGE BUILDER WITH EDITING & ATTACHMENT TYPES */}

@@ -18,12 +18,21 @@ import {
   Coffee,
   Play,
   CheckCircle2,
-  ChevronDown
+  ChevronDown,
+  ExternalLink,
+  CheckCheck,
+  Radio,
+  Layers
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { toast } from 'sonner';
-import { WorkStatus } from '@lord/shared-types';
+import { WorkStatus, INotification } from '@lord/shared-types';
 import { useSocket } from '../../providers/SocketProvider';
+import {
+  useGetMyNotificationsQuery,
+  useMarkAsReadMutation,
+  useMarkAllAsReadMutation
+} from '../../store/api/notificationsApi';
 
 export const TopBar: React.FC = () => {
   const locale = useLocale();
@@ -38,81 +47,118 @@ export const TopBar: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  const [notifications, setNotifications] = useState<Array<{ id: string | number; text: string; time: string; unread: boolean }>>([]);
+  // Real MongoDB notifications via RTK Query
+  const { data: notificationsData, refetch: refetchNotifications } = useGetMyNotificationsQuery();
+  const [markAsRead] = useMarkAsReadMutation();
+  const [markAllAsRead] = useMarkAllAsReadMutation();
+
+  const notificationsList: INotification[] = notificationsData?.data || [];
+  const unreadCount = notificationsData?.meta?.unreadCount ?? notificationsList.filter(n => !n.readStatus).length;
+
+  // Synthesized Executive Notification Chime (Zero-latency Web Audio API)
+  const playNotificationChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch (e) { }
+  };
+
+  // Document Picture-in-Picture Floating Overlay
+  const openFloatingPIP = async () => {
+    if (typeof window !== 'undefined' && 'documentPictureInPicture' in window) {
+      try {
+        const pipWindow = await (window as any).documentPictureInPicture.requestWindow({
+          width: 340,
+          height: 480
+        });
+
+        document.querySelectorAll('link[rel="stylesheet"], style').forEach((node) => {
+          pipWindow.document.head.appendChild(node.cloneNode(true));
+        });
+
+        pipWindow.document.title = 'THE LORD OF CRYPTO — Live Floating Panel';
+        pipWindow.document.body.className = 'bg-[#0b0e14] text-white p-4 font-sans select-none overflow-y-auto';
+
+        const container = pipWindow.document.createElement('div');
+        container.innerHTML = `
+          <div style="font-family: system-ui, sans-serif; direction: rtl; padding: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1f2937; padding-bottom: 10px; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">🦁</span>
+                <span style="font-weight: 900; font-size: 13px; color: #f59e0b;">THE LORD C.P</span>
+              </div>
+              <span style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 6px; border-radius: 9999px;">عائم نشط PIP</span>
+            </div>
+            <div id="pip-notifications-list" style="display: flex; flex-direction: column; gap: 8px;">
+              ${notificationsList.length === 0
+            ? '<div style="text-align: center; color: #6b7280; font-size: 11px; padding: 20px;">لا توجد تنبيهات حالية</div>'
+            : notificationsList.slice(0, 8).map(n => `
+                    <div style="background: rgba(17, 24, 39, 0.8); border: 1px solid #374151; padding: 10px; border-radius: 12px; font-size: 11px;">
+                      <div style="font-weight: bold; color: ${n.readStatus ? '#9ca3af' : '#fbbf24'}; margin-bottom: 4px;">${n.title}</div>
+                      <div style="color: #d1d5db; line-height: 1.4;">${n.message}</div>
+                      <div style="font-size: 9px; color: #6b7280; margin-top: 6px;">${new Date(n.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  `).join('')
+          }
+            </div>
+          </div>
+        `;
+        pipWindow.document.body.appendChild(container);
+        toast.success('تم تفعيل الشاشة العائمة المصغرة خارج المتصفح (Always-on-top PIP)!');
+      } catch (err) {
+        toast.error('تعذر تفعيل نافذة PiP: ' + (err as Error).message);
+      }
+    } else {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        const perm = await window.Notification.requestPermission();
+        if (perm === 'granted') {
+          toast.success('تم تفعيل إشعارات سطح المكتب بنجاح!');
+        } else {
+          toast.info('تم رفض إذن إشعارات سطح المكتب');
+        }
+      } else {
+        toast.info('ميزة PIP غير مدعومة في هذا المتصفح');
+      }
+    }
+  };
 
   useEffect(() => {
-    if (!socket || !currentUser) return;
+    if (!socket) return;
 
-    const isLeader = currentUser.accessRole === 'SUPER_ADMIN';
-    const isTreasury = currentUser.accessRole === 'TREASURY';
-    const isEmployee = currentUser.accessRole === 'EMPLOYEE';
+    const handleNewNotification = (notification: INotification) => {
+      refetchNotifications();
+      playNotificationChime();
+      toast.info(notification.title, {
+        description: notification.message,
+        duration: 8000
+      });
 
-    const handlePayoutNewOrder = (data: any) => {
-      if (isLeader || isTreasury) {
-        setNotifications(prev => [
-          {
-            id: Date.now(),
-            text: `أمر صرف جديد ورد للصندوق: ${data.amount} ${data.currency}`,
-            time: 'الآن',
-            unread: true
-          },
-          ...prev
-        ]);
+      if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'granted') {
+        new window.Notification(notification.title, {
+          body: notification.message,
+          icon: '/favicon.ico'
+        });
       }
     };
 
-    const handleStageSubmitted = (data: any) => {
-      if (isLeader) {
-        setNotifications(prev => [
-          {
-            id: Date.now(),
-            text: `تسليم مرحلة للمراجعة: ${data.stageTitle || 'مرحلة جديدة'} بواسطة ${data.employeeName || 'كادر'}`,
-            time: 'الآن',
-            unread: true
-          },
-          ...prev
-        ]);
-      }
-    };
-
-    const handleStageApproved = (data: any) => {
-      if (isEmployee) {
-        setNotifications(prev => [
-          {
-            id: Date.now(),
-            text: `تم اعتماد مرحلتك بنجاح! ${data.nextStageUnlocked ? 'تم فتح المرحلة التالية.' : 'اكتملت المهمة.'}`,
-            time: 'الآن',
-            unread: true
-          },
-          ...prev
-        ]);
-      }
-    };
-
-    const handleMeetingInvite = (data: any) => {
-      setNotifications(prev => [
-        {
-          id: Date.now(),
-          text: `دعوة لاجتماع مباشر من ${data.inviterName || 'المسؤول'}`,
-          time: 'الآن',
-          unread: true
-        },
-        ...prev
-      ]);
-    };
-
-    socket.on('payout:new_order', handlePayoutNewOrder);
-    socket.on('stage:submitted', handleStageSubmitted);
-    socket.on('stage:approved', handleStageApproved);
-    socket.on('meeting:invite', handleMeetingInvite);
+    socket.on('notification:new', handleNewNotification);
 
     return () => {
-      socket.off('payout:new_order', handlePayoutNewOrder);
-      socket.off('stage:submitted', handleStageSubmitted);
-      socket.off('stage:approved', handleStageApproved);
-      socket.off('meeting:invite', handleMeetingInvite);
+      socket.off('notification:new', handleNewNotification);
     };
-  }, [socket, currentUser]);
+  }, [socket, refetchNotifications]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -344,52 +390,87 @@ export const TopBar: React.FC = () => {
             <span className="font-bold">{locale === 'ar' ? 'EN' : 'عربي'}</span>
           </button>
 
+          {/* Floating Picture-in-Picture Button */}
+          <button
+            type="button"
+            onClick={openFloatingPIP}
+            className="hidden sm:flex items-center gap-1.5 p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold hover:border-lord-gold/40 transition-all text-xs"
+            title="تفعيل النافذة العائمة المصغرة خارج النظام (Document PIP)"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-lord-gold" />
+            <span className="font-bold text-[11px]">عائم PIP</span>
+          </button>
+
           {/* Notifications Bell */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold transition-all relative"
+              className="p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold transition-all relative flex items-center justify-center"
+              title="مركز الإشعارات والتنبيهات"
             >
               <Bell className="w-4 h-4" />
-              {notifications.some(n => n.unread) && (
-                <span className="w-2 h-2 rounded-full bg-status-danger absolute top-1.5 right-1.5 ring-2 ring-obsidian-primary animate-pulse" />
+              {unreadCount > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-status-danger text-white text-[10px] font-black absolute -top-1.5 -right-1.5 flex items-center justify-center shadow-lg border-2 border-obsidian-primary animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
               )}
             </button>
 
             {showNotifications && (
-              <div className="absolute left-0 sm:right-auto sm:left-0 mt-3 w-80 bg-obsidian-card border border-lord-gold/40 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div className="absolute left-0 sm:right-auto sm:left-0 mt-3 w-88 max-w-[340px] bg-obsidian-card border border-lord-gold/40 rounded-2xl shadow-2xl overflow-hidden z-50">
                 <div className="p-3 bg-obsidian-surface border-b border-obsidian-border flex items-center justify-between">
-                  <span className="text-xs font-bold text-white">مركز الإشعارات اللحظية</span>
-                  {notifications.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white">مركز الإشعارات اللحظية</span>
+                    {unreadCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-lord-gold/20 text-lord-gold text-[10px] font-bold">
+                        {unreadCount} جديد
+                      </span>
+                    )}
+                  </div>
+                  {unreadCount > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
-                        toast.info('تم تعليم جميع الإشعارات كمقروءة');
+                      onClick={async () => {
+                        await markAllAsRead().unwrap();
+                        toast.info('تم تحديد جميع الإشعارات كمقروءة');
                       }}
-                      className="text-[10px] text-lord-gold hover:underline"
+                      className="text-[10px] text-lord-gold hover:underline font-bold flex items-center gap-1"
                     >
-                      تحديد الكل كمقروء
+                      <CheckCheck className="w-3 h-3" />
+                      <span>تحديد الكل كمقروء</span>
                     </button>
                   )}
                 </div>
-                <div className="divide-y divide-gray-800/80 max-h-72 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500 text-xs">
-                      لا توجد إشعارات جديدة حالياً
+                <div className="divide-y divide-gray-800/80 max-h-80 overflow-y-auto">
+                  {notificationsList.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500 text-xs flex flex-col items-center gap-2">
+                      <Bell className="w-8 h-8 text-gray-600 opacity-40" />
+                      <span>لا توجد إشعارات حالياً</span>
                     </div>
                   ) : (
-                    notifications.map(n => (
+                    notificationsList.map((n) => (
                       <div
-                        key={n.id}
-                        className={`p-3 text-xs transition-colors hover:bg-obsidian-surface ${
-                          n.unread ? 'bg-lord-gold/5' : ''
-                        }`}
+                        key={n._id}
+                        onClick={async () => {
+                          if (!n.readStatus) await markAsRead(n._id).unwrap();
+                          if (n.relatedUrl) router.push(n.relatedUrl);
+                          setShowNotifications(false);
+                        }}
+                        className={`p-3 text-xs transition-colors hover:bg-obsidian-surface cursor-pointer ${!n.readStatus ? 'bg-lord-gold/10 border-r-2 border-lord-gold' : 'opacity-80'
+                          }`}
                       >
-                        <p className="text-gray-200 leading-relaxed">{n.text}</p>
+                        <div className="flex items-center justify-between mb-1">
+                          <strong className={`font-bold text-xs ${!n.readStatus ? 'text-lord-gold' : 'text-gray-300'}`}>
+                            {n.title}
+                          </strong>
+                          {!n.readStatus && (
+                            <span className="w-2 h-2 rounded-full bg-lord-gold" />
+                          )}
+                        </div>
+                        <p className="text-gray-300 leading-relaxed text-[11px] line-clamp-2">{n.message}</p>
                         <span className="text-[10px] text-gray-500 font-mono mt-1 block">
-                          {n.time}
+                          {new Date(n.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                     ))

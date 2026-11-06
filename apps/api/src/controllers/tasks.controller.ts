@@ -25,7 +25,7 @@ export class TasksController {
       }));
 
       // If employee proposal, assign to self or colleague
-      let assignedTo = isProposed 
+      let assignedTo = isProposed
         ? (body.executionType === 'SELF' ? [req.user?._id] : (body.assignedTo || []))
         : (body.assignedTo && body.assignedTo.length > 0 ? body.assignedTo : []);
 
@@ -61,6 +61,10 @@ export class TasksController {
         stages,
         currentStageIndex: 0,
         overallProgressPercent: 0,
+        isBountyTask: Boolean(body.isBountyTask),
+        bountyRewardAmount: body.bountyRewardAmount ? Number(body.bountyRewardAmount) : 0,
+        bountyClaimType: body.bountyClaimType || 'OPEN_COMPETITIVE',
+        bountyPayoutStatus: body.isBountyTask ? 'UNCLAIMED' : undefined,
         financialRequirement: {
           requiresBudget: body.financialRequirement?.requiresBudget || false,
           amount: body.financialRequirement?.amount || 0,
@@ -94,6 +98,16 @@ export class TasksController {
             taskId: task._id,
             title: task.title,
             assignedByName: req.user?.fullName || 'القائد الأعلى'
+          });
+          SocketService.dispatchNotification({
+            recipientId: empId.toString(),
+            senderId: req.user?._id?.toString(),
+            title: '📋 مهمة جديدة أُسندت إليك',
+            message: `أُسندت إليك مهمة: "${task.title}" من قِبل ${req.user?.fullName || 'الإدارة'}`,
+            type: 'TASK_ASSIGNED',
+            relatedEntityId: task._id.toString(),
+            relatedUrl: '/workspace',
+            priority: task.priority === 'CRITICAL' ? 'URGENT' : task.priority === 'HIGH' ? 'HIGH' : 'MEDIUM'
           });
         });
       }
@@ -220,6 +234,21 @@ export class TasksController {
       });
       SocketService.broadcast('task:updated', task);
 
+      // Persist notification for all administrators
+      const admins = await User.find({ accessRole: 'SUPER_ADMIN' }).select('_id');
+      admins.forEach(admin => {
+        SocketService.dispatchNotification({
+          recipientId: admin._id.toString(),
+          senderId: req.user?._id?.toString(),
+          title: '⚡ تسليم مرحلة للمراجعة والاعتماد',
+          message: `الموظف ${req.user?.fullName || ''} سلّم مخرجات المرحلة ${stageOrder} ("${stage.stageTitle}") في مهمة "${task.title}"`,
+          type: 'STAGE_SUBMITTED',
+          relatedEntityId: task._id.toString(),
+          relatedUrl: '/tasks',
+          priority: 'HIGH'
+        });
+      });
+
       res.json({
         success: true,
         message: 'Stage submitted for admin review',
@@ -281,6 +310,16 @@ export class TasksController {
             stageOrder,
             nextStageUnlocked: stageIndex + 1 < task.stages.length
           });
+          SocketService.dispatchNotification({
+            recipientId: empId.toString(),
+            senderId: req.user?._id?.toString(),
+            title: '✓ تم اعتماد المرحلة بنجاح',
+            message: `اعتمد المسؤول المرحلة ${stageOrder} في مهمة "${task.title}" ${stageIndex + 1 < task.stages.length ? 'وتم فتح المرحلة التالية لك!' : 'واكتملت المهمة 100%! 🦁'}`,
+            type: 'STAGE_APPROVED',
+            relatedEntityId: task._id.toString(),
+            relatedUrl: '/workspace',
+            priority: 'MEDIUM'
+          });
         });
         SocketService.broadcast('task:updated', task);
 
@@ -294,6 +333,16 @@ export class TasksController {
             taskId: task._id,
             stageOrder,
             feedback: body.note
+          });
+          SocketService.dispatchNotification({
+            recipientId: empId.toString(),
+            senderId: req.user?._id?.toString(),
+            title: '⚠️ مطلوب تعديل مرحلة في المهمة',
+            message: `طلب المسؤول تعديلاً في مهمة "${task.title}": "${body.note || 'يرجى مراجعة وتعديل مخرجات المرحلة'}"`,
+            type: 'STAGE_REVISION',
+            relatedEntityId: task._id.toString(),
+            relatedUrl: '/workspace',
+            priority: 'HIGH'
           });
         });
         SocketService.broadcast('task:updated', task);
@@ -432,6 +481,73 @@ export class TasksController {
       res.json({
         success: true,
         message: 'تم حذف المهمة بنجاح'
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 9. Claim Open Bounty Task
+  public static async claimBounty(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مسجل' });
+        return;
+      }
+
+      const { id } = req.params;
+      const task = await Task.findById(id);
+
+      if (!task) {
+        res.status(404).json({ success: false, error: 'المهمة غير موجودة' });
+        return;
+      }
+
+      if (!task.isBountyTask) {
+        res.status(400).json({ success: false, error: 'هذه المهمة ليست مهمة مكافأة أو تنافس' });
+        return;
+      }
+
+      if (task.claimedBy && task.claimedBy.toString() !== req.user._id.toString()) {
+        res.status(400).json({ success: false, error: 'عذراً! تم قبول هذه المهمة مسبقاً من قِبل زميل آخر' });
+        return;
+      }
+
+      task.claimedBy = req.user._id;
+      task.claimedAt = new Date();
+      task.bountyPayoutStatus = 'IN_PROGRESS';
+      task.status = 'IN_PROGRESS';
+      if (!task.assignedTo.map(String).includes(req.user._id.toString())) {
+        task.assignedTo.push(req.user._id);
+      }
+
+      if (task.stages.length > 0 && task.stages[0].status === 'LOCKED') {
+        task.stages[0].status = 'IN_PROGRESS';
+      }
+
+      await task.save();
+
+      const updated = await Task.findById(id)
+        .populate('assignedTo', 'fullName email avatarUrl jobTitles')
+        .populate('claimedBy', 'fullName email avatarUrl');
+
+      SocketService.broadcast('task:updated', updated);
+
+      // Notify admin
+      await SocketService.dispatchNotification({
+        recipientId: task.createdBy.toString(),
+        senderId: req.user._id.toString(),
+        title: '🎯 قبول مهمة بمكافأة',
+        message: `الموظف [${req.user.fullName}] قبل تحدي المهمة [${task.title}] بمكافأة قدرها ${task.bountyRewardAmount}$!`,
+        type: 'TASK_ASSIGNED',
+        relatedEntityId: task._id.toString(),
+        priority: 'HIGH'
+      });
+
+      res.json({
+        success: true,
+        data: updated,
+        message: 'تهانينا! تم قبول المهمة وإضافتها إلى قائمة مهامك بنجاح! 🚀'
       });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });

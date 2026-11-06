@@ -18,13 +18,22 @@ import {
   Loader2,
   Radio,
   X,
-  FileText
+  FileText,
+  ChevronRight,
+  ArrowRight,
+  Plus
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../components/voice/DirectVoiceRecorder';
+import { AudioCallModal } from '../../../components/chat/AudioCallModal';
 import { useSocket } from '../../../providers/SocketProvider';
-import { useGetRoomsAndMembersQuery, useGetMessagesQuery, useSendMessageMutation } from '../../../store/api/chatApi';
+import {
+  useGetRoomsAndMembersQuery,
+  useGetMessagesQuery,
+  useSendMessageMutation,
+  useCreateChannelMutation
+} from '../../../store/api/chatApi';
 import { useGetMeQuery } from '../../../store/api/usersApi';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -44,6 +53,18 @@ export default function ChatPage() {
   const channels = roomsData?.channels || [];
   const allMembers = roomsData?.members || [];
 
+  // 1-to-1 Audio Call States
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [targetCallUser, setTargetCallUser] = useState<{ _id: string; fullName: string } | null>(null);
+  const [incomingCallData, setIncomingCallData] = useState<any>(null);
+
+  // Admin Channel Creation States
+  const [isCreateChannelModalOpen, setIsCreateChannelModalOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+  const [newChannelDesc, setNewChannelDesc] = useState('');
+  const [newChannelIsPublic, setNewChannelIsPublic] = useState(true);
+  const [createChannel, { isLoading: isCreatingChannel }] = useCreateChannelMutation();
+
   // Active chat state
   const [activeChat, setActiveChat] = useState<{
     type: 'channel' | 'dm';
@@ -58,6 +79,7 @@ export default function ChatPage() {
     name: 'النقاش-العام-والتوجيهات'
   });
 
+  const [showMobileChatRoom, setShowMobileChatRoom] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState<{
@@ -124,6 +146,52 @@ export default function ChatPage() {
     };
   }, [socket, activeChat.id, refetchMessages]);
 
+  // 5. Real-time Socket.io listener for incoming WebRTC audio calls and channel creation
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleIncomingCall = (data: any) => {
+      setIncomingCallData(data);
+      setIsCallModalOpen(true);
+    };
+
+    const handleChannelCreated = (newCh: any) => {
+      refetchRooms();
+      toast.info(`📢 تم إنشاء قناة رسمية جديدة: #${newCh.name}`);
+    };
+
+    socket.on('call:incoming', handleIncomingCall);
+    socket.on('channel:created', handleChannelCreated);
+
+    return () => {
+      socket.off('call:incoming', handleIncomingCall);
+      socket.off('channel:created', handleChannelCreated);
+    };
+  }, [socket, refetchRooms]);
+
+  const handleCreateChannelSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChannelName.trim()) {
+      toast.error('يرجى إدخال اسم القناة');
+      return;
+    }
+    try {
+      await createChannel({
+        name: newChannelName.trim(),
+        description: newChannelDesc.trim(),
+        isPublic: newChannelIsPublic
+      }).unwrap();
+
+      toast.success('تم إنشاء القناة وإتاحتها للأعضاء بنجاح! 🚀');
+      setNewChannelName('');
+      setNewChannelDesc('');
+      setIsCreateChannelModalOpen(false);
+      refetchRooms();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'حدث خطأ أثناء إنشاء القناة');
+    }
+  };
+
   // Handle switching to a direct message thread
   const handleSelectMember = (member: any) => {
     if (!currentUserId) {
@@ -142,6 +210,7 @@ export default function ChatPage() {
       role: member.accessRole,
       department: member.primaryDepartment
     });
+    setShowMobileChatRoom(true);
   };
 
   // Handle sending a real text, image, or document message to MongoDB
@@ -244,7 +313,7 @@ export default function ChatPage() {
   return (
     <div className="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col md:flex-row gap-4 h-[calc(100vh-100px)]">
       {/* Channels & Team Directory Sidebar */}
-      <div className="w-full md:w-80 bg-obsidian-card border border-obsidian-border rounded-3xl p-4 flex flex-col justify-between shrink-0 shadow-2xl">
+      <div className={`w-full md:w-80 bg-obsidian-card border border-obsidian-border rounded-3xl p-4 ${showMobileChatRoom ? 'hidden md:flex' : 'flex'} flex-col justify-between shrink-0 shadow-2xl`}>
         <div className="space-y-6 overflow-y-auto pr-1">
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-gray-800">
@@ -274,9 +343,22 @@ export default function ChatPage() {
 
           {/* Official Channels List */}
           <div>
-            <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase block mb-2 px-2">
-              القنوات الرسمية المعتمدة (#)
-            </span>
+            <div className="flex items-center justify-between mb-2 px-2">
+              <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase">
+                القنوات الرسمية المعتمدة (#)
+              </span>
+              {currentUser?.accessRole === 'SUPER_ADMIN' && (
+                <button
+                  type="button"
+                  onClick={() => setIsCreateChannelModalOpen(true)}
+                  className="text-[10px] text-lord-gold hover:underline flex items-center gap-1 font-bold"
+                  title="إنشاء قناة تواصل جديدة"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>قناة جديدة</span>
+                </button>
+              )}
+            </div>
             <div className="space-y-1">
               {isLoadingRooms ? (
                 <div className="flex items-center justify-center p-4 text-xs text-gray-500">
@@ -288,7 +370,10 @@ export default function ChatPage() {
                   <button
                     key={ch.id}
                     type="button"
-                    onClick={() => setActiveChat({ type: 'channel', id: ch.id, name: ch.name })}
+                    onClick={() => {
+                      setActiveChat({ type: 'channel', id: ch.id, name: ch.name });
+                      setShowMobileChatRoom(true);
+                    }}
                     className={`w-full flex items-center justify-between p-2.5 rounded-2xl text-xs transition-all ${
                       activeChat.id === ch.id
                         ? 'bg-lord-gold text-obsidian-primary font-bold shadow-gold-glow'
@@ -383,21 +468,31 @@ export default function ChatPage() {
       </div>
 
       {/* Active Chat Conversation Area */}
-      <div className="flex-1 bg-obsidian-card border border-obsidian-border rounded-3xl flex flex-col justify-between overflow-hidden shadow-2xl">
+      <div className={`flex-1 bg-obsidian-card border border-obsidian-border rounded-3xl ${!showMobileChatRoom ? 'hidden md:flex' : 'flex'} flex-col justify-between overflow-hidden shadow-2xl`}>
         {/* Chat Room Header */}
         <div className="p-4 bg-obsidian-surface/80 border-b border-obsidian-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
+            {/* Mobile Back Button to Channels/Members List */}
+            <button
+              type="button"
+              onClick={() => setShowMobileChatRoom(false)}
+              className="md:hidden p-2 rounded-xl bg-obsidian-primary text-lord-gold border border-gray-800 hover:bg-obsidian-card transition-colors flex items-center justify-center shrink-0"
+              title="الرجوع للقنوات والأعضاء"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <div className="w-10 h-10 rounded-2xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold shrink-0">
               {activeChat.type === 'channel' ? <Hash className="w-5 h-5" /> : <Users className="w-5 h-5" />}
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>{activeChat.name}</span>
-                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  MongoDB Cloud Verified
+            <div className="truncate">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 truncate">
+                <span className="truncate">{activeChat.name}</span>
+                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shrink-0">
+                  Live
                 </span>
               </h3>
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-gray-400 truncate">
                 {activeChat.type === 'channel'
                   ? 'قناة نقاش مؤسسية عامة ومحفوظة'
                   : `محادثة ثنائية مباشرة • ${getRoleArabicLabel(activeChat.role)}`}
@@ -406,6 +501,25 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {activeChat.type === 'dm' && activeChat.memberId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTargetCallUser({
+                    _id: activeChat.memberId!,
+                    fullName: activeChat.name
+                  });
+                  setIncomingCallData(null);
+                  setIsCallModalOpen(true);
+                }}
+                className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                title="إجراء مكالمة صوتية مباشرة داخل المنظومة"
+              >
+                <Phone className="w-4 h-4 text-emerald-400" />
+                <span className="hidden sm:inline">اتصال صوتي</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => router.push('/meeting')}
@@ -647,6 +761,105 @@ export default function ChatPage() {
           </Button>
         </form>
       </div>
+
+      {/* 1-to-1 WebRTC Direct Audio Call Modal */}
+      {isCallModalOpen && (
+        <AudioCallModal
+          socket={socket}
+          currentUserId={currentUserId}
+          currentUserName={currentUser?.fullName || 'أنت'}
+          targetUser={targetCallUser}
+          incomingCall={incomingCallData}
+          onClose={() => {
+            setIsCallModalOpen(false);
+            setTargetCallUser(null);
+            setIncomingCallData(null);
+          }}
+        />
+      )}
+
+      {/* Admin Channel Creation Modal */}
+      {isCreateChannelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="w-full max-w-md bg-obsidian-card border border-lord-gold/40 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-800">
+              <div className="flex items-center gap-2">
+                <Hash className="w-5 h-5 text-lord-gold" />
+                <h3 className="text-base font-bold text-white">إنشاء قناة تواصل مؤسسية جديدة</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateChannelModalOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateChannelSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1">
+                  اسم القناة (مثل: إدارة-المخاطر، تداول-الفيوتشرز)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newChannelName}
+                  onChange={(e) => setNewChannelName(e.target.value)}
+                  placeholder="اسم القناة..."
+                  className="w-full bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1">
+                  وصف القناة والهدف منها
+                </label>
+                <textarea
+                  value={newChannelDesc}
+                  onChange={(e) => setNewChannelDesc(e.target.value)}
+                  rows={2}
+                  placeholder="وصف مختصر للقناة..."
+                  className="w-full bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="isPublicChan"
+                  checked={newChannelIsPublic}
+                  onChange={(e) => setNewChannelIsPublic(e.target.checked)}
+                  className="rounded border-gray-800 text-lord-gold focus:ring-lord-gold"
+                />
+                <label htmlFor="isPublicChan" className="text-xs text-gray-300 font-medium">
+                  قناة عامة (متاحة لجميع موظفي المنظومة)
+                </label>
+              </div>
+
+              <div className="pt-3 border-t border-gray-800 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCreateChannelModalOpen(false)}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="submit"
+                  variant="gold"
+                  size="sm"
+                  disabled={isCreatingChannel}
+                  className="rounded-xl shadow-gold-glow font-bold"
+                >
+                  {isCreatingChannel ? 'جاري الإنشاء...' : 'إنشاء القناة 🚀'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

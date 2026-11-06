@@ -57,6 +57,13 @@ export const tasksApi = baseApi.injectEndpoints({
         body
       }),
       invalidatesTags: (result, error, { taskId }) => [{ type: 'Task', id: taskId }]
+    }),
+    claimBountyTask: builder.mutation<IApiResponse<ITask>, string>({
+      query: (taskId) => ({
+        url: `/tasks/${taskId}/claim-bounty`,
+        method: 'POST'
+      }),
+      invalidatesTags: (result, error, taskId) => ['Task', { type: 'Task', id: taskId }]
     })
   })
 });
@@ -69,6 +76,7 @@ export const {
   useDeleteTaskMutation,
   useSubmitTaskStageMutation,
   useReviewTaskStageMutation,
-  useAddDirectReportMutation
+  useAddDirectReportMutation,
+  useClaimBountyTaskMutation
 } = tasksApi;
 
