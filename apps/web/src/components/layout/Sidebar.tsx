@@ -123,7 +123,7 @@ export const Sidebar: React.FC = () => {
       href: `/${locale}/projects`,
       icon: FolderKanban,
       badge: 'WBS',
-      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
+      allowedRoles: ['SUPER_ADMIN']
     },
     {
       title: 'لوحة الشرف والترتيب (KPIs)',

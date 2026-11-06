@@ -126,6 +126,94 @@ export class ChatController {
   }
 
   /**
+   * Get members of a specific channel
+   */
+  public static async getChannelMembers(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { channelId } = req.params;
+      const channel = await Channel.findOne({ channelId }).populate('members', '_id fullName email accessRole primaryDepartment avatarUrl workStatus');
+      if (!channel) {
+        res.status(404).json({ success: false, error: 'القناة غير موجودة' });
+        return;
+      }
+      res.json({
+        success: true,
+        data: {
+          channelId: channel.channelId,
+          name: channel.name,
+          members: channel.members,
+          isPublic: channel.isPublic
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Add members to channel (Super Admin only)
+   */
+  public static async addChannelMember(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || req.user.accessRole !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, error: 'غير مصرح. مخصص للإدارة فقط' });
+        return;
+      }
+      const { channelId } = req.params;
+      const { userIds } = req.body;
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        res.status(400).json({ success: false, error: 'قائمة المعرفات مطلوبة' });
+        return;
+      }
+      const channel = await Channel.findOneAndUpdate(
+        { channelId },
+        { $addToSet: { members: { $each: userIds } } },
+        { new: true }
+      ).populate('members', '_id fullName email accessRole primaryDepartment avatarUrl workStatus');
+
+      if (!channel) {
+        res.status(404).json({ success: false, error: 'القناة غير موجودة' });
+        return;
+      }
+
+      SocketService.broadcast('channel:updated', { channelId: channel.channelId });
+
+      res.json({ success: true, data: channel, message: 'تمت إضافة الأعضاء للقناة بنجاح' });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Remove member from channel (Super Admin only)
+   */
+  public static async removeChannelMember(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || req.user.accessRole !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, error: 'غير مصرح. مخصص للإدارة فقط' });
+        return;
+      }
+      const { channelId, userId } = req.params;
+      const channel = await Channel.findOneAndUpdate(
+        { channelId },
+        { $pull: { members: userId } },
+        { new: true }
+      ).populate('members', '_id fullName email accessRole primaryDepartment avatarUrl workStatus');
+
+      if (!channel) {
+        res.status(404).json({ success: false, error: 'القناة غير موجودة' });
+        return;
+      }
+
+      SocketService.broadcast('channel:updated', { channelId: channel.channelId });
+
+      res.json({ success: true, data: channel, message: 'تم إزالة العضو من القناة' });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
    * Get messages for a channel or DM strictly from MongoDB
    */
   public static async getMessages(req: AuthenticatedRequest, res: Response): Promise<void> {

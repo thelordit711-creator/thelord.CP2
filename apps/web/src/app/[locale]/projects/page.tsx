@@ -29,10 +29,22 @@ export default function ProjectsPage() {
   const { data: employeesRes } = useGetAllEmployeesQuery();
   const employees = employeesRes?.data || [];
 
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createMode, setCreateMode] = useState<'AI' | 'MANUAL'>('AI');
+  const [selectedProjectPlan, setSelectedProjectPlan] = useState<any | null>(null);
+  const [isDecomposingAll, setIsDecomposingAll] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('lord_current_user');
+        if (stored) setCurrentUser(JSON.parse(stored));
+      } catch (e) {}
+    }
+  }, []);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -211,8 +223,49 @@ export default function ProjectsPage() {
     }
   };
 
+  // Convert ALL milestones in project to tasks in one click
+  const handleDecomposeAll = async (projectId: string) => {
+    setIsDecomposingAll(true);
+    try {
+      const token = localStorage.getItem('lord_auth_token');
+      const res = await fetch(`${apiUrl}/projects/${projectId}/decompose-all`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'فشل تحويل خطة المشروع');
+
+      toast.success(data.message || 'تم تحويل خطة المشروع بالكامل إلى مهام تنفيذية وتوزيعها على الكادر! 🚀');
+      fetchProjects();
+      if (selectedProjectPlan && selectedProjectPlan._id === projectId) {
+        setSelectedProjectPlan(data.data.project);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'حدث خطأ أثناء تحويل الخطة');
+    } finally {
+      setIsDecomposingAll(false);
+    }
+  };
+
   const totalAllocated = projects.reduce((acc, p) => acc + (p.allocatedBudget || 0), 0);
   const totalSpent = projects.reduce((acc, p) => acc + (p.spentBudget || 0), 0);
+
+  if (currentUser && currentUser.accessRole !== 'SUPER_ADMIN') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+        <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+          <FolderKanban className="w-8 h-8" />
+        </div>
+        <h2 className="text-lg font-bold text-white">مساحة مخصصة للإدارة العليا والقيادة التنفيذية</h2>
+        <p className="text-xs text-gray-400 max-w-md">
+          إدارة المشاريع الاستراتيجية وتفكيك معالم WBS متاحة للمسؤول التنفيذي فقط. يمكنك استعراض مهامك المسندة إليك عبر مساحة العمل أو لوحة المهام.
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -309,7 +362,26 @@ export default function ProjectsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProjectPlan(project)}
+                      className="px-3 py-1.5 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1.5 shadow-md"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-lord-gold" />
+                      <span>عرض خطة المشروع 📋</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isDecomposingAll}
+                      onClick={() => handleDecomposeAll(project._id)}
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-lord-gold to-yellow-600 text-obsidian-primary text-xs font-black shadow-gold-glow hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>تحويل الخطة لمهام 🚀</span>
+                    </button>
+
                     <Badge variant={project.status === 'COMPLETED' ? 'cyber' : 'gold'}>
                       {project.status === 'ACTIVE' ? 'نشط قيد التنفيذ ⚡' : project.status}
                     </Badge>
@@ -534,6 +606,150 @@ export default function ProjectsPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* DETAILED PROJECT PLAN & WBS BREAKDOWN MODAL */}
+      {/* ============================================================== */}
+      {selectedProjectPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
+          <div className="bg-obsidian-surface border-2 border-lord-gold/60 rounded-3xl max-w-4xl w-full p-6 md:p-8 shadow-2xl max-h-[92vh] overflow-y-auto space-y-6">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-gray-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-lord-gold/20 border border-lord-gold/40 text-lord-gold font-mono font-black text-xs">
+                    {selectedProjectPlan.code}
+                  </span>
+                  <Badge variant={selectedProjectPlan.status === 'COMPLETED' ? 'cyber' : 'gold'}>
+                    {selectedProjectPlan.status}
+                  </Badge>
+                  <span className="text-xs text-gray-400 font-mono">
+                    الميزانية: ${selectedProjectPlan.allocatedBudget?.toLocaleString()} USDT
+                  </span>
+                </div>
+                <h2 className="text-xl font-black text-white">{selectedProjectPlan.title}</h2>
+                <p className="text-xs text-gray-400 mt-1">{selectedProjectPlan.description}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isDecomposingAll}
+                  onClick={() => handleDecomposeAll(selectedProjectPlan._id)}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-lord-gold to-yellow-600 text-obsidian-primary font-black text-xs shadow-gold-glow hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>تحويل الخطة كاملة إلى مهام 🚀</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedProjectPlan(null)}
+                  className="p-2 rounded-xl bg-obsidian-card hover:bg-gray-800 text-gray-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Plan Sections Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              {/* Objectives */}
+              <div className="p-4 bg-obsidian-card rounded-2xl border border-gray-800 space-y-2">
+                <span className="font-bold text-lord-gold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-lord-gold" />
+                  <span>الأهداف الاستراتيجية:</span>
+                </span>
+                <ul className="text-gray-300 space-y-1.5 list-disc list-inside">
+                  {(selectedProjectPlan.objectives || ['تحقيق النمو التشغيلي']).map((item: string, idx: number) => (
+                    <li key={idx} className="leading-relaxed">{item}</li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Requirements */}
+              <div className="p-4 bg-obsidian-card rounded-2xl border border-gray-800 space-y-2">
+                <span className="font-bold text-blue-400 flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-blue-400" />
+                  <span>المتطلبات الأساسية:</span>
+                </span>
+                <ul className="text-gray-300 space-y-1.5 list-disc list-inside">
+                  {(selectedProjectPlan.requirements || ['مراجعة المخرجات الفنية']).map((item: string, idx: number) => (
+                    <li key={idx} className="leading-relaxed">{item}</li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Tools & Resources */}
+              <div className="p-4 bg-obsidian-card rounded-2xl border border-gray-800 space-y-2">
+                <span className="font-bold text-purple-400 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-purple-400" />
+                  <span>الوسائل والأدوات التقنية:</span>
+                </span>
+                <ul className="text-gray-300 space-y-1.5 list-disc list-inside">
+                  {(selectedProjectPlan.toolsAndResources || ['TheLord Cloud Core']).map((item: string, idx: number) => (
+                    <li key={idx} className="leading-relaxed">{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* WBS Milestones Execution Table */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between border-b border-gray-800 pb-2">
+                <span className="text-sm font-bold text-white flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-lord-gold" />
+                  <span>جدول معالم خطة المشروع وتوزيع المهام (WBS Milestones):</span>
+                </span>
+                <span className="text-xs text-gray-400 font-mono">
+                  {selectedProjectPlan.wbsMilestones?.filter((m: any) => m.assignedTasks?.length > 0).length} من {selectedProjectPlan.wbsMilestones?.length || 0} معالم محولة لمهام
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {(selectedProjectPlan.wbsMilestones || []).map((milestone: any, mIdx: number) => {
+                  const isDecomposed = milestone.assignedTasks?.length > 0;
+                  return (
+                    <div
+                      key={mIdx}
+                      className="p-4 rounded-2xl bg-obsidian-card border border-gray-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded bg-slate-800 text-lord-gold font-mono text-[10px] font-bold">
+                            المعلم #{mIdx + 1}
+                          </span>
+                          <h4 className="text-xs font-bold text-white">{milestone.title}</h4>
+                        </div>
+                        <p className="text-[11px] text-gray-400 leading-relaxed">{milestone.description}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isDecomposed ? (
+                          <span className="px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>مهمة تنفيذية نشطة في المحرك</span>
+                          </span>
+                        ) : (
+                          <Button
+                            variant="gold"
+                            size="sm"
+                            onClick={() => handleDecomposeMilestone(selectedProjectPlan._id, mIdx)}
+                            className="text-xs font-bold rounded-xl flex items-center gap-1"
+                          >
+                            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                            <span>تحويل لمهمة الآن</span>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

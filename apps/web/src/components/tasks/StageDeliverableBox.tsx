@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSubmitTaskStageMutation, useReviewTaskStageMutation } from '../../store/api/tasksApi';
+import { ImageLightboxModal } from '../ui/ImageLightboxModal';
 
 interface StageDeliverableBoxProps {
   taskId: string;
@@ -69,6 +70,7 @@ export const StageDeliverableBox: React.FC<StageDeliverableBoxProps> = ({
   // Admin Review Feedback State
   const [adminNote, setAdminNote] = useState('');
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt?: string } | null>(null);
 
   // File Upload Helper
   const handleFileUpload = async (file: File, fieldLabel?: string) => {
@@ -330,18 +332,18 @@ export const StageDeliverableBox: React.FC<StageDeliverableBoxProps> = ({
                     ) : inp.employeeSubmission?.mediaAttachment ? (
                       <div className="flex items-center gap-2">
                         {inp.employeeSubmission.mediaAttachment.fileType === 'IMAGE' ? (
-                          <a
-                            href={inp.employeeSubmission.mediaAttachment.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block"
+                          <button
+                            type="button"
+                            onClick={() => setLightboxImage({ url: inp.employeeSubmission!.mediaAttachment!.fileUrl, alt: inp.employeeSubmission!.mediaAttachment!.fileName })}
+                            className="block text-right cursor-zoom-in"
+                            title="انقر لتكبير ومعاينة الصورة"
                           >
                             <img
                               src={inp.employeeSubmission.mediaAttachment.fileUrl}
                               alt="مرفق"
-                              className="w-16 h-16 object-cover rounded-lg border border-gray-700 hover:scale-105 transition-all"
+                              className="w-16 h-16 object-cover rounded-lg border border-gray-700 hover:border-amber-400 hover:scale-105 transition-all shadow-md"
                             />
-                          </a>
+                          </button>
                         ) : (
                           <a
                             href={inp.employeeSubmission.mediaAttachment.fileUrl}
@@ -593,6 +595,15 @@ export const StageDeliverableBox: React.FC<StageDeliverableBoxProps> = ({
           </div>
         )}
       </div>
+
+      {/* Global Image Lightbox Modal */}
+      {lightboxImage && (
+        <ImageLightboxModal
+          imageUrl={lightboxImage.url}
+          imageAlt={lightboxImage.alt}
+          onClose={() => setLightboxImage(null)}
+        />
+      )}
     </div>
   );
 };

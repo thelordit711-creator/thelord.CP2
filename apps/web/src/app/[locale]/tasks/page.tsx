@@ -603,14 +603,16 @@ export default function TasksPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl md:text-2xl font-black text-white">
-                  محرك المهام والمراحل المتطورة
+                  {isAdmin ? 'لوحة مراقبة وإدارة المهام وتدقيق المراحل' : 'قائمة المهام المسندة والتنفيذ'}
                 </h1>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-lord-gold/15 text-lord-gold border border-lord-gold/30 font-bold">
-                  ClickUp Enterprise 3.0
+                  {isAdmin ? 'إشراف ومراجعة المدير' : 'مهام الكادر الوظيفي'}
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
-                تخصيص كامل للمراحل، إسناد فردي وجماعي للأقسام، مهام روتينية يومية، وتحديد مواعيد التسليم بدقة
+                {isAdmin
+                  ? 'مراقبة سير أعمال الكادر، فحص المخرجات والمرفقات، اعتماد المراحل لفتح التالية، والتحكم بالصلاحيات'
+                  : 'استعراض المهام المسندة إليك، تنفيذ متطلبات كل مرحلة، ورفع المخرجات لاعتمادها من قِبل المسؤول'}
               </p>
             </div>
           </div>
@@ -620,10 +622,10 @@ export default function TasksPage() {
               variant="gold"
               size="md"
               onClick={() => setIsCreateModalOpen(true)}
-              className="rounded-2xl shadow-gold-glow flex items-center gap-2"
+              className="rounded-2xl shadow-gold-glow flex items-center gap-2 font-bold"
             >
               <Plus className="w-4 h-4 ml-1" />
-              <span>مهمة ومراحل جديدة +</span>
+              <span>{isAdmin ? 'إنشاء مهمة وبناء مراحلها +' : 'اقتراح مهمة جديدة للإدارة 💡'}</span>
             </Button>
           </div>
         </div>
@@ -767,6 +769,26 @@ export default function TasksPage() {
                     {task.description}
                   </p>
 
+                  {/* Assigned Employee Badge */}
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <span className="text-[10px] text-gray-400">المسند إليه:</span>
+                    {task.assignedTo && task.assignedTo.length > 0 ? (
+                      <div className="flex items-center gap-1.5 bg-obsidian-card px-2 py-0.5 rounded-full border border-gray-700">
+                        <span className="w-4 h-4 rounded-full bg-lord-gold/20 text-lord-gold font-bold text-[9px] flex items-center justify-center shrink-0">
+                          {(task.assignedTo[0] as any)?.fullName?.charAt(0) || 'U'}
+                        </span>
+                        <span className="text-white font-bold truncate max-w-[130px]">
+                          {(task.assignedTo[0] as any)?.fullName}
+                        </span>
+                        {task.assignedTo.length > 1 && (
+                          <span className="text-[9px] text-gray-400 font-mono">+{task.assignedTo.length - 1}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 font-mono">غير مسندة (مفتوحة)</span>
+                    )}
+                  </div>
+
                   {task.isBountyTask && !task.claimedBy && task.bountyClaimType === 'OPEN_COMPETITIVE' && (
                     <button
                       type="button"
@@ -838,6 +860,26 @@ export default function TasksPage() {
                     {task.title}
                   </h4>
 
+                  {/* Assigned Employee Badge */}
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <span className="text-[10px] text-gray-400">المسند إليه:</span>
+                    {task.assignedTo && task.assignedTo.length > 0 ? (
+                      <div className="flex items-center gap-1.5 bg-obsidian-card px-2 py-0.5 rounded-full border border-gray-700">
+                        <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 font-bold text-[9px] flex items-center justify-center shrink-0">
+                          {(task.assignedTo[0] as any)?.fullName?.charAt(0) || 'U'}
+                        </span>
+                        <span className="text-white font-bold truncate max-w-[130px]">
+                          {(task.assignedTo[0] as any)?.fullName}
+                        </span>
+                        {task.assignedTo.length > 1 && (
+                          <span className="text-[9px] text-gray-400 font-mono">+{task.assignedTo.length - 1}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 font-mono">غير مسندة</span>
+                    )}
+                  </div>
+
                   <div className="space-y-1.5 pt-1">
                     <div className="flex justify-between text-[10px] text-gray-400">
                       <span>إنجاز المراحل:</span>
@@ -883,6 +925,23 @@ export default function TasksPage() {
                     {task.title}
                   </h4>
 
+                  {/* Assigned Employee Badge */}
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <span className="text-[10px] text-gray-400">المسند إليه:</span>
+                    {task.assignedTo && task.assignedTo.length > 0 ? (
+                      <div className="flex items-center gap-1.5 bg-obsidian-card px-2 py-0.5 rounded-full border border-gray-700">
+                        <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 font-bold text-[9px] flex items-center justify-center shrink-0">
+                          {(task.assignedTo[0] as any)?.fullName?.charAt(0) || 'U'}
+                        </span>
+                        <span className="text-white font-bold truncate max-w-[130px]">
+                          {(task.assignedTo[0] as any)?.fullName}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 font-mono">غير مسندة</span>
+                    )}
+                  </div>
+
                   <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed">
                     تم رفع المرفقات الإلزامية بانتظار اعتماد المسؤول لفتح المرحلة التالية.
                   </p>
@@ -921,6 +980,18 @@ export default function TasksPage() {
                   </div>
 
                   <h4 className="text-xs font-bold text-white leading-snug">{task.title}</h4>
+
+                  {/* Assigned Employee Badge */}
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <span className="text-[10px] text-gray-400">المسند إليه:</span>
+                    {task.assignedTo && task.assignedTo.length > 0 ? (
+                      <span className="text-[11px] font-bold text-emerald-300">
+                        {(task.assignedTo[0] as any)?.fullName}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-gray-500">غير مسندة</span>
+                    )}
+                  </div>
                   <div className="w-full bg-emerald-500/20 h-1.5 rounded-full overflow-hidden">
                     <div className="bg-emerald-500 h-full w-full rounded-full" />
                   </div>
@@ -939,6 +1010,7 @@ export default function TasksPage() {
               <thead className="bg-obsidian-surface border-b border-gray-800 text-gray-400 font-semibold">
                 <tr>
                   <th className="py-3.5 px-4">عنوان المهمة</th>
+                  <th className="py-3.5 px-4">الموظف المسند إليه</th>
                   <th className="py-3.5 px-4">المنصة</th>
                   <th className="py-3.5 px-4">الحالة</th>
                   <th className="py-3.5 px-4">المراحل الإلزامية</th>
@@ -964,6 +1036,18 @@ export default function TasksPage() {
                         )}
                       </div>
                       <span className="text-[11px] text-gray-400 line-clamp-1">{task.description}</span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {task.assignedTo && task.assignedTo.length > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center text-lord-gold font-bold text-[10px] shrink-0">
+                            {(task.assignedTo[0] as any)?.fullName?.charAt(0) || 'U'}
+                          </div>
+                          <span className="text-white font-bold">{(task.assignedTo[0] as any)?.fullName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500 font-mono text-[11px]">غير مسندة</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-4">
                       <Badge variant="gold">{task.targetPlatform}</Badge>
@@ -1143,26 +1227,30 @@ export default function TasksPage() {
                   <span>مساحة التنفيذ الذكية ⚡</span>
                 </Button>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleOpenEdit(selectedTask)}
-                  className="text-lord-gold border-lord-gold/40 hover:bg-lord-gold/10 flex items-center gap-1.5 rounded-xl"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>تعديل</span>
-                </Button>
+                {isAdmin && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenEdit(selectedTask)}
+                      className="text-lord-gold border-lord-gold/40 hover:bg-lord-gold/10 flex items-center gap-1.5 rounded-xl font-bold"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>تعديل</span>
+                    </Button>
 
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleDeleteTask(selectedTask._id, selectedTask.title)}
-                  disabled={isDeleting}
-                  className="flex items-center gap-1.5 rounded-xl"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>حذف</span>
-                </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleDeleteTask(selectedTask._id, selectedTask.title)}
+                      disabled={isDeleting}
+                      className="flex items-center gap-1.5 rounded-xl font-bold"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>حذف</span>
+                    </Button>
+                  </>
+                )}
 
                 <button
                   type="button"
@@ -1198,7 +1286,7 @@ export default function TasksPage() {
                     key={stage.stageOrder}
                     taskId={selectedTask._id}
                     stage={stage}
-                    canSubmit={true}
+                    canSubmit={!isAdmin && (selectedTask.assignedTo?.some((e: any) => String(e._id || e) === String(currentUser?._id)) ?? false)}
                     isAdmin={isAdmin}
                     onRefresh={async () => {
                       const res = await refetch();

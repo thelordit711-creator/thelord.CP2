@@ -34,6 +34,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../components/voice/DirectVoiceRecorder';
 import { AudioCallModal } from '../../../components/chat/AudioCallModal';
 import { TelegramAudioWaveform } from '../../../components/chat/TelegramAudioWaveform';
+import { ImageLightboxModal } from '../../../components/ui/ImageLightboxModal';
 import { useSocket } from '../../../providers/SocketProvider';
 import {
   useGetRoomsAndMembersQuery,
@@ -42,7 +43,10 @@ import {
   useEditMessageMutation,
   useDeleteMessageMutation,
   useMarkRoomAsReadMutation,
-  useCreateChannelMutation
+  useCreateChannelMutation,
+  useGetChannelMembersQuery,
+  useAddChannelMembersMutation,
+  useRemoveChannelMemberMutation
 } from '../../../store/api/chatApi';
 import { useGetMeQuery } from '../../../store/api/usersApi';
 import { toast } from 'sonner';
@@ -74,6 +78,7 @@ export default function ChatPage() {
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDesc, setNewChannelDesc] = useState('');
   const [newChannelIsPublic, setNewChannelIsPublic] = useState(true);
+  const [newChannelSelectedMembers, setNewChannelSelectedMembers] = useState<string[]>([]);
   const [createChannel, { isLoading: isCreatingChannel }] = useCreateChannelMutation();
 
   // Active chat state
@@ -89,6 +94,17 @@ export default function ChatPage() {
     id: 'general',
     name: 'النقاش-العام-والتوجيهات'
   });
+
+  // Channel Members Management & Lightbox States
+  const [isManageMembersModalOpen, setIsManageMembersModalOpen] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [selectedUserToAdd, setSelectedUserToAdd] = useState<string>('');
+
+  const { data: channelMembersData, refetch: refetchChannelMembers } = useGetChannelMembersQuery(activeChat.id, {
+    skip: activeChat.type !== 'channel' || !activeChat.id
+  });
+  const [addChannelMembers, { isLoading: isAddingMember }] = useAddChannelMembersMutation();
+  const [removeChannelMember, { isLoading: isRemovingMember }] = useRemoveChannelMemberMutation();
 
   const [showMobileChatRoom, setShowMobileChatRoom] = useState(false);
   const [messageInput, setMessageInput] = useState('');
@@ -236,12 +252,14 @@ export default function ChatPage() {
       await createChannel({
         name: newChannelName.trim(),
         description: newChannelDesc.trim(),
-        isPublic: newChannelIsPublic
+        isPublic: newChannelIsPublic,
+        members: newChannelSelectedMembers
       }).unwrap();
 
       toast.success('تم إنشاء القناة وإتاحتها للأعضاء بنجاح! 🚀');
       setNewChannelName('');
       setNewChannelDesc('');
+      setNewChannelSelectedMembers([]);
       setIsCreateChannelModalOpen(false);
       refetchRooms();
     } catch (err: any) {
@@ -303,6 +321,38 @@ export default function ChatPage() {
       refetchMessages();
     } catch (err: any) {
       toast.error(err?.data?.error || 'فشل حذف الرسالة');
+    }
+  };
+
+  const handleAddMemberToActiveChannel = async () => {
+    if (!selectedUserToAdd) {
+      toast.error('يرجى اختيار عضو لإضافته');
+      return;
+    }
+    try {
+      await addChannelMembers({
+        channelId: activeChat.id,
+        userIds: [selectedUserToAdd]
+      }).unwrap();
+      toast.success('تمت إضافة العضو إلى القناة بنجاح! 👥');
+      setSelectedUserToAdd('');
+      refetchChannelMembers();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل إضافة العضو');
+    }
+  };
+
+  const handleRemoveMemberFromActiveChannel = async (userId: string, memberName: string) => {
+    if (!confirm(`هل أنت متأكد من إزالة ${memberName} من هذه القناة؟`)) return;
+    try {
+      await removeChannelMember({
+        channelId: activeChat.id,
+        userId
+      }).unwrap();
+      toast.success('تم إزالة العضو من القناة');
+      refetchChannelMembers();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل إزالة العضو');
     }
   };
 
@@ -623,6 +673,18 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {activeChat.type === 'channel' && currentUser?.accessRole === 'SUPER_ADMIN' && (
+              <button
+                type="button"
+                onClick={() => setIsManageMembersModalOpen(true)}
+                className="p-2 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                title="إدارة وتحديد أعضاء القناة"
+              >
+                <Users className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline">أعضاء القناة</span>
+              </button>
+            )}
+
             {activeChat.type === 'dm' && activeChat.memberId && (
               <button
                 type="button"
@@ -827,8 +889,9 @@ export default function ChatPage() {
                                   <img
                                     src={fileUrl}
                                     alt={att.fileName || 'صورة'}
-                                    className="max-w-xs max-h-64 rounded-xl object-cover border border-white/10 shadow-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                    onClick={() => window.open(fileUrl, '_blank')}
+                                    className="max-w-xs max-h-64 rounded-xl object-cover border border-white/10 shadow-lg cursor-zoom-in hover:opacity-90 hover:scale-[1.01] transition-all"
+                                    onClick={() => setPreviewImageUrl(fileUrl)}
+                                    title="انقر لتكبير ومعاينة الصورة"
                                   />
                                   {att.fileName && (
                                     <span className="text-[10px] text-slate-400 block mt-1">{att.fileName}</span>
@@ -1127,6 +1190,59 @@ export default function ChatPage() {
                 </label>
               </div>
 
+              {/* Channel Members Selector */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-300">
+                    تحديد أعضاء القناة المدعوين:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newChannelSelectedMembers.length === allMembers.length) {
+                        setNewChannelSelectedMembers([]);
+                      } else {
+                        setNewChannelSelectedMembers(allMembers.map(m => m._id));
+                      }
+                    }}
+                    className="text-[10px] text-amber-400 hover:underline"
+                  >
+                    {newChannelSelectedMembers.length === allMembers.length ? 'إلغاء تحديد الكل' : 'تحديد جميع الأعضاء'}
+                  </button>
+                </div>
+
+                <div className="max-h-36 overflow-y-auto space-y-1.5 p-2 bg-obsidian-surface rounded-xl border border-gray-800">
+                  {allMembers.map((member) => {
+                    const isChecked = newChannelSelectedMembers.includes(member._id);
+                    return (
+                      <label
+                        key={member._id}
+                        className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                          isChecked ? 'bg-amber-500/15 text-white' : 'text-gray-400 hover:bg-gray-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setNewChannelSelectedMembers(prev => prev.filter(id => id !== member._id));
+                              } else {
+                                setNewChannelSelectedMembers(prev => [...prev, member._id]);
+                              }
+                            }}
+                            className="rounded border-gray-700 text-amber-500 focus:ring-amber-400"
+                          />
+                          <span>{member.fullName}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-500">{member.primaryDepartment || member.accessRole}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="pt-3 border-t border-gray-800 flex justify-end gap-2">
                 <Button
                   type="button"
@@ -1149,6 +1265,117 @@ export default function ChatPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* CHANNEL MEMBERS MANAGEMENT MODAL (POST-CREATION) */}
+      {/* ============================================================== */}
+      {isManageMembersModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="w-full max-w-lg bg-obsidian-card border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-800">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">إدارة وتحديد أعضاء القناة (#{activeChat.name})</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsManageMembersModalOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Add New Member Section */}
+            <div className="p-3.5 bg-obsidian-surface rounded-2xl border border-gray-800 space-y-2">
+              <label className="text-xs font-bold text-amber-400 block">إضافة عضو جديد للقناة:</label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedUserToAdd}
+                  onChange={(e) => setSelectedUserToAdd(e.target.value)}
+                  className="flex-1 bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                >
+                  <option value="">اختر موظفاً لإضافته...</option>
+                  {allMembers
+                    .filter((m) => {
+                      const currentMembers = channelMembersData?.data?.members || [];
+                      return !currentMembers.some((cm: any) => cm._id === m._id || cm === m._id);
+                    })
+                    .map((m) => (
+                      <option key={m._id} value={m._id}>
+                        {m.fullName} ({m.primaryDepartment || m.accessRole})
+                      </option>
+                    ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="gold"
+                  size="sm"
+                  disabled={isAddingMember || !selectedUserToAdd}
+                  onClick={handleAddMemberToActiveChannel}
+                  className="rounded-xl font-bold shrink-0"
+                >
+                  {isAddingMember ? 'جاري الإضافة...' : 'إضافة +'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Current Members List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-gray-400 font-bold px-1">
+                <span>الأعضاء الحاليون في القناة:</span>
+                <span className="font-mono">{channelMembersData?.data?.members?.length || 0} عضو</span>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                {(channelMembersData?.data?.members || []).map((m: any) => {
+                  const mId = m._id || m;
+                  const isCurrent = String(mId) === String(currentUserId);
+
+                  return (
+                    <div
+                      key={mId}
+                      className="flex items-center justify-between p-2.5 rounded-2xl bg-obsidian-surface border border-gray-800"
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-amber-400 shrink-0">
+                          {m.fullName?.charAt(0) || 'U'}
+                        </div>
+                        <div className="truncate text-right">
+                          <span className="text-xs font-bold text-white block truncate">{m.fullName || mId}</span>
+                          <span className="text-[10px] text-gray-400 block truncate">
+                            {getRoleArabicLabel(m.accessRole)} • {m.primaryDepartment || 'عام'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {!isCurrent && (
+                        <button
+                          type="button"
+                          disabled={isRemovingMember}
+                          onClick={() => handleRemoveMemberFromActiveChannel(mId, m.fullName || 'العضو')}
+                          className="p-1.5 rounded-xl hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+                          title="إزالة من القناة"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Image Lightbox Modal */}
+      {previewImageUrl && (
+        <ImageLightboxModal
+          imageUrl={previewImageUrl}
+          onClose={() => setPreviewImageUrl(null)}
+        />
       )}
     </div>
   );

@@ -10,6 +10,7 @@ router.get('/:id', ProjectsController.getProjectById);
 router.post('/', ProjectsController.createProject);
 router.put('/:id', ProjectsController.updateProject);
 router.post('/:id/decompose-milestone', ProjectsController.decomposeMilestoneToTasks);
+router.post('/:id/decompose-all', ProjectsController.decomposeAllMilestones);
 
 export default router;
 

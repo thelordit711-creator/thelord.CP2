@@ -262,6 +262,11 @@ export class TasksController {
   // 5. Admin reviews a stage
   public static async reviewStage(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
+      if (req.user?.accessRole !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, error: 'صلاحية اعتماد ومراجعة المراحل ونقلها مخصصة للإدارة فقط' });
+        return;
+      }
+
       const { id, order } = req.params;
       const stageOrder = parseInt(order, 10);
       const body = req.body as IReviewStageDto;

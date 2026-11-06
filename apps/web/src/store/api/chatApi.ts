@@ -64,6 +64,31 @@ export const chatApi = baseApi.injectEndpoints({
         body: data
       }),
       invalidatesTags: ['ChatMessage']
+    }),
+    getChannelMembers: builder.query<IApiResponse<any>, string>({
+      query: (channelId) => `/chat/channels/${channelId}/members`,
+      providesTags: (result, error, channelId) => [{ type: 'ChatMessage', id: `members_${channelId}` }]
+    }),
+    addChannelMembers: builder.mutation<IApiResponse<any>, { channelId: string; userIds: string[] }>({
+      query: ({ channelId, userIds }) => ({
+        url: `/chat/channels/${channelId}/members`,
+        method: 'POST',
+        body: { userIds }
+      }),
+      invalidatesTags: (result, error, { channelId }) => [
+        { type: 'ChatMessage', id: `members_${channelId}` },
+        'ChatMessage'
+      ]
+    }),
+    removeChannelMember: builder.mutation<IApiResponse<any>, { channelId: string; userId: string }>({
+      query: ({ channelId, userId }) => ({
+        url: `/chat/channels/${channelId}/members/${userId}`,
+        method: 'DELETE'
+      }),
+      invalidatesTags: (result, error, { channelId }) => [
+        { type: 'ChatMessage', id: `members_${channelId}` },
+        'ChatMessage'
+      ]
     })
   })
 });
@@ -75,5 +100,8 @@ export const {
   useEditMessageMutation,
   useDeleteMessageMutation,
   useMarkRoomAsReadMutation,
-  useCreateChannelMutation
+  useCreateChannelMutation,
+  useGetChannelMembersQuery,
+  useAddChannelMembersMutation,
+  useRemoveChannelMemberMutation
 } = chatApi;

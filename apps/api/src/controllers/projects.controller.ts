@@ -209,5 +209,76 @@ export class ProjectsController {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
   }
+
+  /**
+   * Convert ALL Project WBS milestones into tasks at once
+   */
+  public static async decomposeAllMilestones(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user || req.user.accessRole !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, error: 'غير مصرح. مخصص للإدارة فقط' });
+        return;
+      }
+
+      const { id } = req.params;
+      const project = await Project.findById(id);
+      if (!project) {
+        res.status(404).json({ success: false, error: 'المشروع غير موجود' });
+        return;
+      }
+
+      const createdTasks: any[] = [];
+
+      for (let i = 0; i < project.wbsMilestones.length; i++) {
+        const milestone = project.wbsMilestones[i];
+        if (milestone.assignedTasks && milestone.assignedTasks.length > 0) {
+          continue; // Already converted
+        }
+
+        const newTask = await Task.create({
+          title: `${project.code} - المعلم ${i + 1}: ${milestone.title}`,
+          description: milestone.description || `مهمة تنفيذية لخطة مشروع [${project.title}]`,
+          targetPlatform: 'INTERNAL_ERP',
+          serviceCategory: 'GENERAL',
+          priority: 'HIGH',
+          dueDate: milestone.dueDate || project.targetEndDate,
+          assignedTo: project.teamMembers,
+          createdBy: req.user._id,
+          stages: [
+            {
+              stageOrder: 1,
+              stageTitle: `المرحلة 1: إعداد وتنفيذ ${milestone.title}`,
+              instructions: milestone.description || 'تنفيذ العمل بدقة ورفع الإثباتات',
+              status: 'PENDING',
+              requiredInputs: [
+                {
+                  fieldLabel: 'مستند أو تقرير الإنجاز',
+                  expectedType: 'FILE',
+                  isMandatory: true
+                }
+              ]
+            }
+          ]
+        });
+
+        milestone.assignedTasks.push(newTask._id as any);
+        createdTasks.push(newTask);
+        SocketService.broadcast('task:created', newTask);
+      }
+
+      await project.save();
+
+      res.json({
+        success: true,
+        data: {
+          createdTasksCount: createdTasks.length,
+          project
+        },
+        message: `تم تحويل ${createdTasks.length} معلماً من خطة المشروع إلى مهام تنفيذية وتوزيعها على الكادر بنجاح!`
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
 }
 
