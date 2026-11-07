@@ -80,10 +80,10 @@ export const BottomNav: React.FC = () => {
   return (
     <>
       {/* Floating Bottom Nav Capsule with All 8 Sections */}
-      <div className="md:hidden fixed bottom-3 inset-x-2 sm:inset-x-4 z-40 max-w-2xl mx-auto pointer-events-none select-none">
-        <nav className="pointer-events-auto bg-[#07090E]/95 backdrop-blur-2xl border border-lord-gold/40 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(212,175,55,0.18)] px-1.5 py-1.5 transition-all">
-          {/* Scrollable / Flexible Row containing all 8 sections */}
-          <div className="flex items-center justify-between sm:justify-around gap-1 overflow-x-auto no-scrollbar scroll-smooth px-1">
+      <div className="md:hidden fixed bottom-2 inset-x-1.5 sm:inset-x-3 z-40 max-w-2xl mx-auto pointer-events-none select-none">
+        <nav className="pointer-events-auto bg-[#07090E]/95 backdrop-blur-2xl border border-lord-gold/40 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(212,175,55,0.18)] px-1 py-1 transition-all">
+          {/* Proportional Grid Row containing all 8 sections so NONE are cut off */}
+          <div className="flex items-center justify-between gap-0.5 px-0.5">
             {visibleItems.map((item, idx) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || (item.href !== `/${locale}` && pathname.startsWith(item.href));
@@ -91,27 +91,26 @@ export const BottomNav: React.FC = () => {
                 <Link
                   key={idx}
                   href={item.href}
-                  className={`relative flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 shrink-0 min-w-[50px] sm:min-w-[62px] ${
-                    isActive
-                      ? 'text-lord-gold font-bold bg-gradient-to-b from-lord-gold/20 to-transparent shadow-[inset_0_1px_1px_rgba(212,175,55,0.4)] scale-105'
+                  className={`relative flex-1 min-w-0 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all duration-200 ${isActive
+                      ? 'text-lord-gold font-bold bg-gradient-to-b from-lord-gold/25 to-transparent shadow-[inset_0_1px_1px_rgba(212,175,55,0.4)] scale-105'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                  }`}
+                    }`}
                   title={item.title}
                 >
                   <div className="relative">
-                    <Icon className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]' : ''}`} />
+                    <Icon className={`w-4 h-4 transition-transform duration-200 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(212,175,55,0.6)] text-lord-gold' : ''}`} />
                     {item.hasBadge && unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-status-danger text-white text-[9px] font-black flex items-center justify-center shadow-md animate-pulse">
+                      <span className="absolute -top-1 -right-1 min-w-[12px] h-[12px] px-0.5 rounded-full bg-status-danger text-white text-[8px] font-black flex items-center justify-center shadow-md animate-pulse">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </span>
                     )}
                   </div>
-                  <span className={`text-[9px] sm:text-[10px] tracking-tight mt-1 truncate max-w-[58px] ${isActive ? 'text-lord-gold font-black' : 'font-medium'}`}>
+                  <span className={`text-[8px] sm:text-[9px] tracking-tighter mt-0.5 truncate max-w-full block ${isActive ? 'text-lord-gold font-black' : 'font-medium'}`}>
                     {item.title}
                   </span>
 
                   {isActive && (
-                    <span className="absolute -bottom-1 w-4 h-0.5 rounded-full bg-lord-gold shadow-[0_0_6px_#D4AF37]" />
+                    <span className="absolute -bottom-0.5 w-3.5 h-0.5 rounded-full bg-lord-gold shadow-[0_0_6px_#D4AF37]" />
                   )}
                 </Link>
               );
@@ -121,11 +120,11 @@ export const BottomNav: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsMoreMenuOpen(true)}
-              className="relative flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 shrink-0 min-w-[45px] text-gray-400 hover:text-lord-gold hover:bg-white/5 border-r border-gray-800 pr-2.5 mr-0.5"
+              className="flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-200 text-gray-400 hover:text-lord-gold hover:bg-white/5 border-r border-gray-800 shrink-0"
               title="عرض كافة الأقسام في شبكة سريعة"
             >
-              <Grid className="w-4 h-4 text-lord-gold/80" />
-              <span className="text-[9px] text-lord-gold/90 font-mono mt-1 font-bold">
+              <Grid className="w-3.5 h-3.5 text-lord-gold/90" />
+              <span className="text-[7.5px] text-lord-gold/90 font-mono mt-0.5 font-bold">
                 {visibleItems.length}
               </span>
             </button>
@@ -177,11 +176,10 @@ export const BottomNav: React.FC = () => {
                     key={idx}
                     href={item.href}
                     onClick={() => setIsMoreMenuOpen(false)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${
-                      isActive
+                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all ${isActive
                         ? 'bg-gradient-to-br from-lord-gold/25 via-lord-gold/10 to-transparent border-lord-gold text-lord-gold shadow-[0_0_15px_rgba(212,175,55,0.3)] font-bold scale-[1.02]'
                         : 'bg-obsidian-card border-gray-800 text-gray-300 hover:border-gray-700 hover:text-white'
-                    }`}
+                      }`}
                   >
                     <div className="relative mb-1.5">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isActive ? 'bg-lord-gold text-black shadow-md' : 'bg-obsidian-surface text-gray-300 border border-gray-800'}`}>

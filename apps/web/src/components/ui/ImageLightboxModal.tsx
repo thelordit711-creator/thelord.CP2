@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, Download, ExternalLink } from 'lucide-react';
 
 interface ImageLightboxModalProps {
@@ -15,6 +16,11 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
   onClose
 }) => {
   const [scale, setScale] = useState(1);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,10 +56,12 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
     link.click();
   };
 
-  return (
+  if (!imageUrl || !mounted) return null;
+
+  return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fadeIn select-none"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fadeIn select-none"
     >
       {/* Top Floating Control Bar */}
       <div
@@ -115,7 +123,8 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
           className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-slate-700"
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

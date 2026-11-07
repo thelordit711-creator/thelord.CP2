@@ -481,7 +481,7 @@ export default function ChatPage() {
     <div className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 flex flex-col md:flex-row gap-3 sm:gap-4 h-[calc(100dvh-150px)] md:h-[calc(100vh-105px)] select-none">
       {/* Channels & Team Directory Sidebar */}
       <div className={`w-full md:w-80 bg-obsidian-card border border-obsidian-border rounded-3xl p-3 sm:p-4 ${showMobileChatRoom ? 'hidden md:flex' : 'flex'} flex-col justify-between shrink-0 shadow-2xl overflow-hidden`}>
-        <div className="space-y-4 overflow-y-auto pr-1">
+        <div className="space-y-4 overflow-y-auto pr-1 pb-10">
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-gray-800">
             <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Sparkles,
   FileText,
@@ -43,6 +44,15 @@ export const ExecutionWorkspaceModal: React.FC<ExecutionWorkspaceModalProps> = (
   const [inputPrompt, setInputPrompt] = useState('');
   const [isCopilotThinking, setIsCopilotThinking] = useState(false);
   const [generatedDraft, setGeneratedDraft] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   // Send message to Gemini for this specific task
   const handleSendCopilotMessage = async (e?: React.FormEvent) => {
@@ -185,9 +195,9 @@ export const ExecutionWorkspaceModal: React.FC<ExecutionWorkspaceModalProps> = (
     window.print();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
-      <div className="bg-obsidian-surface border-2 border-lord-gold/60 rounded-3xl w-full max-w-6xl h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
+      <div className="bg-obsidian-surface border-2 border-lord-gold/60 rounded-3xl w-full max-w-6xl h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
         {/* Workspace Top Bar */}
         <div className="p-4 md:px-6 bg-obsidian-card border-b border-gray-800 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-3">
@@ -370,4 +380,6 @@ export const ExecutionWorkspaceModal: React.FC<ExecutionWorkspaceModalProps> = (
       </div>
     </div>
   );
+
+  return mounted ? createPortal(modalContent, document.body) : null;
 };

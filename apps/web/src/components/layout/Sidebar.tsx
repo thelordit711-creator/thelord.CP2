@@ -170,20 +170,24 @@ export const Sidebar: React.FC = () => {
         <div
           className={`border-b border-obsidian-border transition-all ${
             collapsed
-              ? 'p-3 flex flex-col items-center gap-2 justify-center'
+              ? 'py-4 px-2 flex flex-col items-center justify-center gap-3'
               : 'p-4 sm:p-5 flex items-center justify-between'
           }`}
         >
           <Link
             href={`/${locale}`}
-            className={`flex items-center gap-3 ${collapsed ? 'justify-center w-full' : 'overflow-hidden min-w-0'}`}
-            title="THE LORD OF CRYPTO"
+            className={`flex items-center gap-3 ${collapsed ? 'justify-center' : 'overflow-hidden min-w-0'}`}
+            title="THE LORD SYSTEM"
           >
-            <div className="relative shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] flex items-center justify-center">
+            <div
+              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, maxWidth: 44, maxHeight: 44 }}
+              className="relative shrink-0 rounded-full overflow-hidden border-2 border-lord-gold/60 shadow-gold-glow flex items-center justify-center bg-obsidian-surface"
+            >
               <img
                 src="/logo.png"
-                alt="THE LORD OF CRYPTO"
-                className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-full object-cover shadow-gold-glow shrink-0 border border-lord-gold/50 hover:scale-105 transition-transform"
+                alt="THE LORD SYSTEM"
+                style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, objectFit: 'cover' }}
+                className="rounded-full shrink-0"
               />
             </div>
             {!collapsed && (
@@ -191,16 +195,14 @@ export const Sidebar: React.FC = () => {
                 <span className="text-sm font-black text-white tracking-wider truncate flex items-center gap-1.5">
                   THE LORD <span className="text-lord-gold">C.P</span>
                 </span>
-                <span className="text-[10px] text-lord-gold/80 font-mono truncate">TRADING & LEARNING</span>
+                <span className="text-[10px] text-lord-gold/80 font-mono truncate">ENTERPRISE & OPERATIONS</span>
               </div>
             )}
           </Link>
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className={`p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-obsidian-surface transition-colors border border-transparent hover:border-gray-800 shrink-0 ${
-              collapsed ? 'mt-1' : ''
-            }`}
+            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-obsidian-surface transition-colors border border-transparent hover:border-gray-800 shrink-0"
             title={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
           >
             {isRtl ? (

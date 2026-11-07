@@ -7,9 +7,9 @@ import { SocketService } from '../services/socket.service';
 
 const DEFAULT_OFFICIAL_CHANNELS = [
   { channelId: 'general', name: 'النقاش-العام-والتوجيهات', description: 'التنسيق العام بين كافة أقسام المؤسسة', isOfficial: true, isPublic: true },
-  { channelId: 'trading', name: 'صفقات-التداول-والتحليل', description: 'مناقشة تحليلات SMC وصفقات VIP اليومية', isOfficial: true, isPublic: true },
+  { channelId: 'operations', name: 'العمليات-والإشراف-التنفيذي', description: 'متابعة سير العمليات اليومية ومسارات الإنجاز التنفيذي', isOfficial: true, isPublic: true },
   { channelId: 'marketing', name: 'حملات-التسويق-والإعلانات', description: 'إعلانات تليجرام الرسمية وتبادل القنوات', isOfficial: true, isPublic: true },
-  { channelId: 'development', name: 'تطوير-البوتات-والأنظمة', description: 'برمجة بوتات التداول وأنظمة الـ ERP', isOfficial: true, isPublic: true },
+  { channelId: 'development', name: 'تطوير-البوتات-والأنظمة', description: 'برمجة وبناء خدمات وأنظمة المنظومة والـ ERP', isOfficial: true, isPublic: true },
   { channelId: 'treasury', name: 'الخزينة-وحوالات-الصندوق', description: 'متابعة الصرف المالي وإشعارات التحويل', isOfficial: true, isPublic: true }
 ];
 

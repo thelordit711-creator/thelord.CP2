@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   useGetTasksQuery,
   useCreateOrProposeTaskMutation,
@@ -244,9 +245,24 @@ export default function TasksPage() {
   const [adminSelectedEmployee, setAdminSelectedEmployee] = useState<string>('ALL');
 
   // Modals state
+  const [mounted, setMounted] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [isExecutionWorkspaceOpen, setIsExecutionWorkspaceOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Lock background scroll when modal is active
+  useEffect(() => {
+    if (selectedTask || isCreateModalOpen || isExecutionWorkspaceOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [selectedTask, isCreateModalOpen, isExecutionWorkspaceOpen]);
 
   // New Task State
   const [taskTitle, setTaskTitle] = useState('');
@@ -708,11 +724,11 @@ export default function TasksPage() {
         </div>
 
         {/* Multi-View Tabs & Filters (2-Tier Clean Layout) */}
-        <div className="space-y-3 pt-3 border-t border-gray-800">
+        <div className="space-y-3.5 pt-3 border-t border-gray-800">
           {/* Tier 1: View Toggles & Scope Switcher */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             {/* View Toggles */}
-            <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs overflow-x-auto max-w-full">
+            <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs overflow-x-auto max-w-full no-scrollbar shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveView('board')}
@@ -763,7 +779,7 @@ export default function TasksPage() {
             </div>
 
             {/* Scope Selector: Admin (Employee Filter) / Employee (Scope Switcher) */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {isAdmin ? (
                 <select
                   value={adminSelectedEmployee}
@@ -779,22 +795,22 @@ export default function TasksPage() {
                   ))}
                 </select>
               ) : (
-                <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs">
+                <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs shrink-0">
                   <button
                     type="button"
                     onClick={() => setEmployeeFilterScope('MY_TASKS')}
-                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap ${
                       employeeFilterScope === 'MY_TASKS'
                         ? 'bg-lord-gold text-black shadow-gold-glow'
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
-                    مهامي المسندة إلي
+                    مهامي المسندة
                   </button>
                   <button
                     type="button"
                     onClick={() => setEmployeeFilterScope('ALL_TASKS')}
-                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap ${
                       employeeFilterScope === 'ALL_TASKS'
                         ? 'bg-lord-gold text-black shadow-gold-glow'
                         : 'text-gray-400 hover:text-white'
@@ -1530,13 +1546,13 @@ export default function TasksPage() {
           };
         }
 
-        return (
+        const modalContent = (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-xl animate-fade-in"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-xl animate-fade-in"
             onClick={() => setSelectedTask(null)}
           >
             <div
-              className="bg-gradient-to-b from-obsidian-surface via-obsidian-card to-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-4xl w-full shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_25px_rgba(212,175,55,0.15)] max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-gradient-to-b from-obsidian-surface via-obsidian-card to-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-4xl w-full shadow-[0_0_60px_rgba(0,0,0,0.95),0_0_25px_rgba(212,175,55,0.2)] max-h-[96dvh] sm:max-h-[90vh] flex flex-col overflow-hidden my-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Sticky Top Header */}
@@ -2136,13 +2152,15 @@ export default function TasksPage() {
             </div>
           </div>
         );
+
+        return mounted ? createPortal(modalContent, document.body) : null;
       })()}
 
       {/* ============================================================== */}
       {/* ADVANCED MULTI-STAGE & ROUTINE TASK CREATION MODAL */}
       {/* ============================================================== */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+      {isCreateModalOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
           <div className="bg-obsidian-surface border-2 border-lord-gold/60 rounded-3xl max-w-3xl w-full p-6 md:p-8 shadow-2xl max-h-[94vh] overflow-y-auto space-y-5">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
               <h3 className="text-xl font-black text-white flex items-center gap-2">
@@ -2795,12 +2813,13 @@ export default function TasksPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* EDIT TASK MODAL */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+      {isEditModalOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
           <div className="bg-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto space-y-5">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
               <div className="flex items-center gap-2">
@@ -2900,7 +2919,8 @@ export default function TasksPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {/* Dedicated AI Execution Workspace & Export Modal */}
       {isExecutionWorkspaceOpen && selectedTask && (
