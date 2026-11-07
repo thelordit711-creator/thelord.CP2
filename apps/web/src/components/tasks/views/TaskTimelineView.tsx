@@ -80,3 +80,4 @@ export const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({
     </div>
   );
 };
+

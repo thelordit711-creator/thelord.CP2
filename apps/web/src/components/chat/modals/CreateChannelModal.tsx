@@ -190,3 +190,4 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
     </AppModalPortal>
   );
 };
+

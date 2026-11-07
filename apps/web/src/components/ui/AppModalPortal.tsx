@@ -71,3 +71,4 @@ export const AppModalPortal: React.FC<AppModalPortalProps> = ({
     document.body
   );
 };
+

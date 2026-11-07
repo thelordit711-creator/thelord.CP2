@@ -100,3 +100,4 @@ export const MeetingNotesPanel: React.FC<MeetingNotesPanelProps> = ({
     </div>
   );
 };
+

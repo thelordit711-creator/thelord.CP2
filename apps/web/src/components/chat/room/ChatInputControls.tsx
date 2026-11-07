@@ -233,3 +233,4 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
     </div>
   );
 };
+

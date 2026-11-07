@@ -95,3 +95,4 @@ export const DeleteEmployeeModal: React.FC<DeleteEmployeeModalProps> = ({
     </AppModalPortal>
   );
 };
+

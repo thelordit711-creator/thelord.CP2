@@ -370,3 +370,4 @@ export const ChatMessageStream: React.FC<ChatMessageStreamProps> = ({
     </div>
   );
 };
+

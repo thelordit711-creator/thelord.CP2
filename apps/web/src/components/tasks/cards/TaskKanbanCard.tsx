@@ -165,3 +165,4 @@ export const TaskKanbanCard: React.FC<TaskKanbanCardProps> = React.memo(
 );
 
 TaskKanbanCard.displayName = 'TaskKanbanCard';
+

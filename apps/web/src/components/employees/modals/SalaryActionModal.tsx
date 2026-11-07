@@ -88,11 +88,10 @@ export const SalaryActionModal: React.FC<SalaryActionModalProps> = ({
                   key={act.id}
                   type="button"
                   onClick={() => setActionType(act.id as any)}
-                  className={`p-2 rounded-xl font-bold transition-all ${
-                    actionType === act.id
+                  className={`p-2 rounded-xl font-bold transition-all ${actionType === act.id
                       ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
                       : 'bg-obsidian-card text-gray-400 border border-gray-800'
-                  }`}
+                    }`}
                 >
                   {act.label}
                 </button>

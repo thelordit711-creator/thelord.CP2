@@ -82,3 +82,4 @@ export const TaskAnalyticsView: React.FC<TaskAnalyticsViewProps> = ({ tasks }) =
     </div>
   );
 };
+
