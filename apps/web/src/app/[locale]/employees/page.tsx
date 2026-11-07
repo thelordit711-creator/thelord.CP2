@@ -39,6 +39,12 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { lordToast } from '../../../lib/lordToast';
+import { ChangePasswordModal } from '../../../components/employees/modals/ChangePasswordModal';
+import { SuspendEmployeeModal } from '../../../components/employees/modals/SuspendEmployeeModal';
+import { DeleteEmployeeModal } from '../../../components/employees/modals/DeleteEmployeeModal';
+import { SalaryActionModal } from '../../../components/employees/modals/SalaryActionModal';
+import { PayslipModal } from '../../../components/employees/modals/PayslipModal';
 
 // Sample enterprise employees to populate if DB is fresh
 const SAMPLE_EMPLOYEES: any[] = [
@@ -647,433 +653,43 @@ export default function EmployeesPage() {
         })}
       </div>
 
-      {/* Action Dialog: Add Bonus / Deduction / Warning / Salary Adjust */}
-      {isActionModalOpen && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-obsidian-surface border border-lord-gold/40 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Award className="w-5 h-5 text-lord-gold" />
-              <span>إجراء مالي أو إداري: {selectedEmployee.fullName}</span>
-            </h3>
+      {/* Modular Universal Portal Modals */}
+      <SalaryActionModal
+        employee={selectedEmployee}
+        isOpen={isActionModalOpen}
+        onClose={() => setIsActionModalOpen(false)}
+        onSuccess={() => refetch()}
+      />
 
-            <form onSubmit={handleActionSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">نوع الإجراء:</label>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  {[
-                    { id: 'BONUS', label: '+ مكافأة إنجاز' },
-                    { id: 'DEDUCTION', label: '- خصم مالي' },
-                    { id: 'WARNING', label: '⚠️ إنذار إداري' },
-                    { id: 'ADVANCE_REQUEST', label: '💵 سلفة مؤقتة' },
-                    { id: 'BASE_SALARY', label: '📝 تعديل الراتب' }
-                  ].map(act => (
-                    <button
-                      key={act.id}
-                      type="button"
-                      onClick={() => setActionType(act.id as any)}
-                      className={`p-2 rounded-xl font-bold transition-all ${
-                        actionType === act.id
-                          ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
-                          : 'bg-obsidian-card text-gray-400 border border-gray-800'
-                      }`}
-                    >
-                      {act.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+      <PayslipModal
+        employee={selectedEmployee}
+        isOpen={isPayslipOpen}
+        onClose={() => setIsPayslipOpen(false)}
+      />
 
-              {actionType !== 'WARNING' ? (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-300 mb-1">
-                    {actionType === 'BASE_SALARY' ? 'الراتب الأساسي الجديد (USDT):' : 'المبلغ (USDT):'}
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={actionAmount}
-                    onChange={e => setActionAmount(Number(e.target.value))}
-                    className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-4 py-2 text-sm text-white focus:border-lord-gold"
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-300 mb-1">مستوى الإنذار:</label>
-                  <select
-                    value={actionWarning}
-                    onChange={e => setActionWarning(e.target.value as any)}
-                    className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-4 py-2 text-sm text-white"
-                  >
-                    <option value="FIRST">إنذار أولي (First Warning)</option>
-                    <option value="SECOND">إنذار ثانٍ (Second Warning)</option>
-                    <option value="FINAL">إنذار نهائي مشدد (Final Notice)</option>
-                  </select>
-                </div>
-              )}
+      <ChangePasswordModal
+        employee={selectedEmployee}
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSuccess={() => refetch()}
+      />
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">السبب والمبرر الإداري:</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={actionReason}
-                  onChange={e => setActionReason(e.target.value)}
-                  className="w-full bg-obsidian-primary border border-gray-700 rounded-xl p-3 text-xs text-white focus:border-lord-gold"
-                />
-              </div>
+      <SuspendEmployeeModal
+        employee={selectedEmployee}
+        isOpen={isSuspendModalOpen}
+        onClose={() => setIsSuspendModalOpen(false)}
+        onSuccess={() => refetch()}
+      />
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsActionModalOpen(false)}
-                >
-                  إلغاء
-                </Button>
-                <Button
-                  type="submit"
-                  variant="gold"
-                  size="sm"
-                  isLoading={isUpdatingLedger}
-                >
-                  تأكيد وقيد في كشف الحساب
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Official Payslip Modal */}
-      {isPayslipOpen && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-obsidian-surface border-2 border-lord-gold rounded-3xl max-w-2xl w-full p-8 shadow-2xl relative">
-            {/* Payslip Header with Lion Crown Brand */}
-            <div className="flex items-center justify-between border-b border-lord-gold/30 pb-6 mb-6">
-              <div className="flex items-center gap-3">
-                <img
-                  src="/logo.png"
-                  alt="THE LORD OF CRYPTO"
-                  className="w-14 h-14 rounded-full object-cover border-2 border-lord-gold shadow-gold-glow shrink-0"
-                />
-                <div>
-                  <h2 className="text-xl font-black text-white tracking-wider">
-                    THE LORD OF CRYPTO
-                  </h2>
-                  <p className="text-xs text-lord-gold font-mono">OFFICIAL SALARY PAYSLIP & LEDGER</p>
-                </div>
-              </div>
-              <div className="text-right text-xs text-gray-400 font-mono">
-                <div>التاريخ: {new Date().toLocaleDateString('ar-EG')}</div>
-                <div className="text-emerald-400 font-bold">الحالة: معتمد رسمي</div>
-              </div>
-            </div>
-
-            {/* Employee Info */}
-            <div className="grid grid-cols-2 gap-4 text-xs bg-obsidian-card p-4 rounded-2xl border border-gray-800 mb-6">
-              <div>
-                <span className="text-gray-400">اسم الموظف: </span>
-                <strong className="text-white text-sm">{selectedEmployee.fullName}</strong>
-              </div>
-              <div>
-                <span className="text-gray-400">القسم: </span>
-                <strong className="text-lord-gold">{selectedEmployee.primaryDepartment}</strong>
-              </div>
-              <div>
-                <span className="text-gray-400">وسيلة الصرف: </span>
-                <strong className="text-cyber-blue font-mono">{selectedEmployee.payoutMethods?.preferredMethod}</strong>
-              </div>
-              <div>
-                <span className="text-gray-400">يوم الصرف الشهري: </span>
-                <strong className="text-white">يوم {selectedEmployee.compensation?.payoutDayOfMonth || 1} من كل شهر</strong>
-              </div>
-            </div>
-
-            {/* Calculation Table */}
-            <div className="border border-gray-800 rounded-2xl overflow-hidden mb-6 text-xs">
-              <table className="w-full text-right">
-                <thead className="bg-obsidian-card text-gray-400 border-b border-gray-800">
-                  <tr>
-                    <th className="py-2.5 px-4">البند المالي</th>
-                    <th className="py-2.5 px-4">التفاصيل</th>
-                    <th className="py-2.5 px-4 text-left">المبلغ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/60">
-                  <tr>
-                    <td className="py-2.5 px-4 font-bold text-white">الراتب الأساسي</td>
-                    <td className="py-2.5 px-4 text-gray-400">عقد العمل الأساسي</td>
-                    <td className="py-2.5 px-4 text-left font-mono">${selectedEmployee.compensation?.baseSalary || 0}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-4 font-bold text-emerald-400">+ المكافآت والحوافز</td>
-                    <td className="py-2.5 px-4 text-gray-400">إنجاز الصفقات والحملات</td>
-                    <td className="py-2.5 px-4 text-left font-mono text-emerald-400">+${selectedEmployee.compensation?.activeBonuses || 0}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-4 font-bold text-red-400">- الخصومات الإدارية</td>
-                    <td className="py-2.5 px-4 text-gray-400">تأخيرات أو جزاءات</td>
-                    <td className="py-2.5 px-4 text-left font-mono text-red-400">-${selectedEmployee.compensation?.activeDeductions || 0}</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-4 font-bold text-amber-400">- السلف المستلمة</td>
-                    <td className="py-2.5 px-4 text-gray-400">سلف مخصومة من الراتب</td>
-                    <td className="py-2.5 px-4 text-left font-mono text-amber-400">-${selectedEmployee.compensation?.activeAdvances || 0}</td>
-                  </tr>
-                </tbody>
-                <tfoot className="bg-lord-gold/15 border-t border-lord-gold/30">
-                  <tr>
-                    <td colSpan={2} className="py-3 px-4 font-black text-white text-sm">
-                      صافي المستحق النهائي القابل للصرف:
-                    </td>
-                    <td className="py-3 px-4 text-left font-mono text-base font-black text-lord-gold">
-                      ${calculateNetSalary(selectedEmployee.compensation).toLocaleString()} USDT
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            {/* Payslip Footer & Close */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-800">
-              <span className="text-[10px] text-gray-500 font-mono">
-                كشف إلكتروني معتمد مشفر برقم: TL-{Date.now().toString().slice(-8)}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1.5"
-                >
-                  <Printer className="w-4 h-4 ml-1" />
-                  <span>طباعة الكشف</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="gold"
-                  size="sm"
-                  onClick={() => setIsPayslipOpen(false)}
-                >
-                  إغلاق
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal 1: Change Password */}
-      {isPasswordModalOpen && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-lord-gold">
-                  <Key className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">تعديل كلمة السر</h3>
-                  <p className="text-[11px] text-gray-400 font-mono">{selectedEmployee.fullName}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPasswordModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                  كلمة المرور الجديدة:
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    placeholder="أدخل كلمة مرور قوية (6 أحرف/أرقام كحد أدنى)..."
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    className="w-full bg-obsidian-primary border border-gray-700 rounded-xl pr-4 pl-10 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1">
-                  سيتم تحديث كلمة المرور في قاعدة البيانات فورياً وتشفيرها بواسطة Bcrypt.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsPasswordModalOpen(false)}
-                >
-                  إلغاء
-                </Button>
-                <Button
-                  type="submit"
-                  variant="gold"
-                  size="sm"
-                  isLoading={isChangingPassword}
-                  className="shadow-gold-glow"
-                >
-                  حفظ وتعيين كلمة المرور 💾
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal 2: Suspend User Access */}
-      {isSuspendModalOpen && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="bg-obsidian-surface border-2 border-red-500/60 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
-                  <Ban className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">منع الموظف من دخول المنظومة</h3>
-                  <p className="text-[11px] text-red-300 font-mono">{selectedEmployee.fullName}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSuspendModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-red-950/40 border border-red-500/35 text-xs text-red-200 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-red-300">
-                <ShieldAlert className="w-4 h-4 text-red-400" />
-                <span>تحذير أمني:</span>
-              </div>
-              <p className="text-[11px] leading-relaxed text-gray-300">
-                سيؤدي هذا الإجراء إلى إنهاء جلسة الموظف فورياً وطرده من النظام ومنعه من تسجيل الدخول حتى قيام المسؤول برفع الحظر عنه.
-              </p>
-            </div>
-
-            <form onSubmit={handleToggleSuspensionSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                  سبب ومبرر الإيقاف والمنع:
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={suspensionReason}
-                  onChange={e => setSuspensionReason(e.target.value)}
-                  className="w-full bg-obsidian-primary border border-gray-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-red-400"
-                  placeholder="اكتب سبب المنع ليظهر للموظف عند محاولة تسجيل الدخول..."
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsSuspendModalOpen(false)}
-                >
-                  تراجع
-                </Button>
-                <Button
-                  type="submit"
-                  variant="danger"
-                  size="sm"
-                  isLoading={isTogglingSuspension}
-                  className="flex items-center gap-1 shadow-md"
-                >
-                  <Ban className="w-3.5 h-3.5" />
-                  <span>تأكيد منع الحساب من الدخول ⛔</span>
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal 3: Delete User Confirmation */}
-      {isDeleteModalOpen && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="bg-obsidian-surface border-2 border-red-600 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
-                  <Trash2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">حذف الحساب نهائياً</h3>
-                  <p className="text-[11px] text-gray-400 font-mono">{selectedEmployee.fullName}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-500/40 text-xs text-red-200 space-y-2">
-              <div className="flex items-center gap-1.5 font-bold text-red-300">
-                <AlertTriangle className="w-4 h-4 text-red-400" />
-                <span>تحذير إداري قطعي:</span>
-              </div>
-              <p className="text-[11px] text-gray-300 leading-relaxed">
-                هل أنت متأكد من رغبتك في حذف حساب <strong className="text-white font-bold">{selectedEmployee.fullName}</strong> ({selectedEmployee.email}) نهائياً من المنظومة؟
-              </p>
-              <p className="text-[10px] text-red-300 font-semibold">
-                سيتم إلغاء كافة صلاحيات الدخول، وفك ارتباط المهام المسندة إليه، ولا يمكن التراجع عن هذا الإجراء إطلاقاً.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                إلغاء
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                isLoading={isDeletingUser}
-                onClick={handleDeleteUserSubmit}
-                className="flex items-center gap-1 shadow-md"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>تأكيد الحذف النهائي 🗑️</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteEmployeeModal
+        employee={selectedEmployee}
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onSuccess={() => {
+          setSelectedEmployee(null);
+          refetch();
+        }}
+      />
     </div>
   );
 }
