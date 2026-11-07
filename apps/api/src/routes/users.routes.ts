@@ -23,9 +23,12 @@ router.get('/leaderboard', UsersController.getLeaderboard);
 router.get('/system-settings', UsersController.getSystemSettings);
 router.put('/system-settings', rbacGuard(['SUPER_ADMIN']), UsersController.updateSystemSettings);
 
-// Admin only: view all team members
+// Admin only: view and manage team members
 router.get('/admin/all', rbacGuard(['SUPER_ADMIN']), UsersController.getAllEmployees);
 router.get('/admin/:id', rbacGuard(['SUPER_ADMIN']), UsersController.getEmployeeDetails);
+router.delete('/admin/:id', rbacGuard(['SUPER_ADMIN']), UsersController.deleteUser);
+router.patch('/admin/:id/password', rbacGuard(['SUPER_ADMIN']), UsersController.changeUserPassword);
+router.patch('/admin/:id/suspend', rbacGuard(['SUPER_ADMIN']), UsersController.toggleUserSuspension);
 
 export default router;
 

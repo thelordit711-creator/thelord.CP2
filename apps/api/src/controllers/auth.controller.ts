@@ -105,6 +105,16 @@ export class AuthController {
         return;
       }
 
+      // Check if user is suspended/banned by management
+      if (user.isSuspended) {
+        const reasonText = user.suspensionReason ? ` السبب: ${user.suspensionReason}` : '';
+        res.status(403).json({
+          success: false,
+          error: `تم إيقاف هذا الحساب ومنعه من دخول المنظومة بقرار إداري.${reasonText}`
+        });
+        return;
+      }
+
       if (user.passwordHash) {
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) {

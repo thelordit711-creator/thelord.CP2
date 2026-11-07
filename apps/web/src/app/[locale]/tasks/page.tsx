@@ -16,6 +16,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../components/voice/DirectVoiceRecorder';
 import { StageDeliverableBox } from '../../../components/tasks/StageDeliverableBox';
 import { ExecutionWorkspaceModal } from '../../../components/tasks/ExecutionWorkspaceModal';
+import { ImageLightboxModal } from '../../../components/ui/ImageLightboxModal';
 import {
   CheckSquare,
   Plus,
@@ -52,7 +53,16 @@ import {
   CalendarClock,
   Tag,
   HelpCircle,
-  Edit3
+  Edit3,
+  User,
+  FileText,
+  ExternalLink,
+  Compass,
+  Award,
+  Shield,
+  Receipt,
+  Wallet,
+  Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -81,6 +91,7 @@ export default function TasksPage() {
   }, []);
 
   const isAdmin = currentUser?.accessRole === 'SUPER_ADMIN';
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt?: string } | null>(null);
 
   // Mobile Segmented Column Tab state
   const [mobileKanbanTab, setMobileKanbanTab] = useState<'TODO' | 'IN_PROGRESS' | 'PENDING_ADMIN_REVIEW' | 'COMPLETED'>('TODO');
@@ -229,6 +240,8 @@ export default function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
   const [onlyDailyFilter, setOnlyDailyFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [employeeFilterScope, setEmployeeFilterScope] = useState<'MY_TASKS' | 'ALL_TASKS'>('MY_TASKS');
+  const [adminSelectedEmployee, setAdminSelectedEmployee] = useState<string>('ALL');
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -298,13 +311,29 @@ export default function TasksPage() {
   const tasks = tasksRes?.data || [];
   const dailyTasksCount = tasks.filter(t => t.isDailyRecurring).length;
 
-  // Filter tasks
+  // Filter tasks with RBAC and employee view scoping
   const filteredTasks = tasks.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPlatform = platformFilter === 'ALL' || t.targetPlatform === platformFilter;
     const matchesPriority = priorityFilter === 'ALL' || t.priority === priorityFilter;
     const matchesDaily = !onlyDailyFilter || t.isDailyRecurring;
+
+    // RBAC Filter Scope:
+    if (isAdmin) {
+      if (adminSelectedEmployee !== 'ALL') {
+        const isAssigned = t.assignedTo?.some((e: any) => String(e._id || e) === adminSelectedEmployee);
+        if (!isAssigned) return false;
+      }
+    } else {
+      // Employee View Scope:
+      if (employeeFilterScope === 'MY_TASKS' && currentUser?._id) {
+        const isAssignedToMe = t.assignedTo?.some((e: any) => String(e._id || e) === String(currentUser._id));
+        const isOpenBounty = t.isBountyTask && !t.claimedBy;
+        if (!isAssignedToMe && !isOpenBounty) return false;
+      }
+    }
+
     return matchesSearch && matchesPlatform && matchesPriority && matchesDaily;
   });
 
@@ -678,66 +707,125 @@ export default function TasksPage() {
           </div>
         </div>
 
-        {/* Multi-View Tabs & Filters */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-3 border-t border-gray-800 overflow-x-hidden">
-          {/* View Toggles */}
-          <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs overflow-x-auto max-w-full shrink-0">
-            <button
-              type="button"
-              onClick={() => setActiveView('board')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'board'
-                  ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
-                  : 'text-gray-400 hover:text-white'
-                }`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-              <span>لوحة كانبان (Board)</span>
-            </button>
+        {/* Multi-View Tabs & Filters (2-Tier Clean Layout) */}
+        <div className="space-y-3 pt-3 border-t border-gray-800">
+          {/* Tier 1: View Toggles & Scope Switcher */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* View Toggles */}
+            <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs overflow-x-auto max-w-full">
+              <button
+                type="button"
+                onClick={() => setActiveView('board')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'board'
+                    ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
+                    : 'text-gray-400 hover:text-white'
+                  }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span>لوحة كانبان (Board)</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveView('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'list'
-                  ? 'bg-blue-600 text-white shadow-blue-glow'
-                  : 'text-gray-400 hover:text-white'
-                }`}
-            >
-              <List className="w-4 h-4" />
-              <span>جدول المهام (List)</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'list'
+                    ? 'bg-blue-600 text-white shadow-blue-glow'
+                    : 'text-gray-400 hover:text-white'
+                  }`}
+              >
+                <List className="w-4 h-4" />
+                <span>جدول المهام (List)</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveView('timeline')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'timeline'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-400 hover:text-white'
-                }`}
-            >
-              <Calendar className="w-4 h-4" />
-              <span>المخطط الزمني (Timeline)</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('timeline')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'timeline'
+                    ? 'bg-purple-600 text-white'
+                    : 'text-gray-400 hover:text-white'
+                  }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span>المخطط الزمني (Timeline)</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveView('analytics')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'analytics'
-                  ? 'bg-emerald-500 text-white'
-                  : 'text-gray-400 hover:text-white'
-                }`}
-            >
-              <BarChart2 className="w-4 h-4" />
-              <span>التحليلات ومعدل الإنجاز</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('analytics')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${activeView === 'analytics'
+                    ? 'bg-emerald-500 text-white'
+                    : 'text-gray-400 hover:text-white'
+                  }`}
+              >
+                <BarChart2 className="w-4 h-4" />
+                <span>التحليلات ومعدل الإنجاز</span>
+              </button>
+            </div>
+
+            {/* Scope Selector: Admin (Employee Filter) / Employee (Scope Switcher) */}
+            <div className="flex items-center gap-2">
+              {isAdmin ? (
+                <select
+                  value={adminSelectedEmployee}
+                  onChange={e => setAdminSelectedEmployee(e.target.value)}
+                  className="bg-obsidian-primary border border-lord-gold/40 rounded-xl px-3 py-1.5 text-xs text-lord-gold font-bold focus:outline-none focus:border-lord-gold"
+                  title="تصفية المهام حسب الموظف المسند إليه"
+                >
+                  <option value="ALL">جميع الموظفين (مراقبة عامة)</option>
+                  {employees.map(emp => (
+                    <option key={emp._id} value={emp._id}>
+                      {emp.fullName} ({emp.primaryDepartment || emp.accessRole})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setEmployeeFilterScope('MY_TASKS')}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                      employeeFilterScope === 'MY_TASKS'
+                        ? 'bg-lord-gold text-black shadow-gold-glow'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    مهامي المسندة إلي
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmployeeFilterScope('ALL_TASKS')}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                      employeeFilterScope === 'ALL_TASKS'
+                        ? 'bg-lord-gold text-black shadow-gold-glow'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    مهام الفريق
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Quick Search & Filters */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto">
+          {/* Tier 2: Search & Filter Toolbar */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+            {/* Search Box */}
+            <div className="relative flex-1 min-w-[180px] max-w-sm">
+              <Search className="w-3.5 h-3.5 text-gray-500 absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="بحث في أسماء المهام..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full bg-obsidian-surface border border-gray-800 rounded-xl pr-8 pl-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold transition-all"
+              />
+            </div>
+
             {/* Daily Routine Filter Button */}
             <button
               type="button"
               onClick={() => setOnlyDailyFilter(!onlyDailyFilter)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${onlyDailyFilter
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap ${onlyDailyFilter
                   ? 'bg-purple-600 text-white border-purple-500 shadow-md'
                   : 'bg-obsidian-surface text-gray-400 border-gray-800 hover:text-white'
                 }`}
@@ -746,21 +834,11 @@ export default function TasksPage() {
               <span>المهام اليومية ({dailyTasksCount})</span>
             </button>
 
-            <div className="relative flex-1 min-w-[140px] sm:w-52">
-              <Search className="w-3.5 h-3.5 text-gray-500 absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="تصفية المهام بالاسم..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-obsidian-surface border border-gray-800 rounded-xl pr-8 pl-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold"
-              />
-            </div>
-
+            {/* Platform Selector */}
             <select
               value={platformFilter}
               onChange={e => setPlatformFilter(e.target.value)}
-              className="bg-obsidian-surface border border-gray-800 rounded-xl px-2.5 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-lord-gold shrink-0"
+              className="bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-lord-gold"
             >
               <option value="ALL">كافة المنصات</option>
               <option value="TG_VIP">قناة VIP (تليجرام)</option>
@@ -904,6 +982,41 @@ export default function TasksPage() {
                     </button>
                   )}
 
+                  {/* Financial Requirement Payout Status Badge */}
+                  {task.financialRequirement?.requiresBudget && (() => {
+                    const fin = task.financialRequirement;
+                    const pOrder = typeof fin.payoutOrderId === 'object' ? (fin.payoutOrderId as any) : null;
+                    const isDisbursed = pOrder?.executionStatus === 'DISBURSED';
+                    const isProcessing = pOrder?.executionStatus === 'IN_PROGRESS';
+                    const isWaiting = pOrder?.executionStatus === 'WAITING_TREASURY' || fin.adminApprovalStatus === 'APPROVED';
+
+                    return (
+                      <div className="pt-1">
+                        {isDisbursed ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[10px] font-black flex items-center gap-1 w-fit shadow-xs">
+                            <Check className="w-3 h-3 text-emerald-400 stroke-[3]" />
+                            <span>تم تحويل ${fin.amount} USDT ✓</span>
+                          </span>
+                        ) : isProcessing ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Clock className="w-3 h-3 text-amber-400 animate-spin" />
+                            <span>جارٍ تحويل ${fin.amount} USDT</span>
+                          </span>
+                        ) : isWaiting ? (
+                          <span className="px-2 py-0.5 rounded-full bg-cyber-blue/15 border border-cyber-blue/35 text-cyber-blue text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Building2 className="w-3 h-3" />
+                            <span>بانتظار الصرف ${fin.amount} USDT</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/35 text-yellow-300 text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Coins className="w-3 h-3 text-yellow-400" />
+                            <span>طلب مالي: ${fin.amount} USDT</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="pt-2 border-t border-gray-800 flex justify-between items-center text-xs">
                     <span className="text-gray-500 text-[10px] font-mono">
                       {task.stages?.length || 0} مراحل متسلسلة
@@ -981,6 +1094,41 @@ export default function TasksPage() {
                     )}
                   </div>
 
+                  {/* Financial Requirement Payout Status Badge */}
+                  {task.financialRequirement?.requiresBudget && (() => {
+                    const fin = task.financialRequirement;
+                    const pOrder = typeof fin.payoutOrderId === 'object' ? (fin.payoutOrderId as any) : null;
+                    const isDisbursed = pOrder?.executionStatus === 'DISBURSED';
+                    const isProcessing = pOrder?.executionStatus === 'IN_PROGRESS';
+                    const isWaiting = pOrder?.executionStatus === 'WAITING_TREASURY' || fin.adminApprovalStatus === 'APPROVED';
+
+                    return (
+                      <div className="pt-0.5">
+                        {isDisbursed ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[10px] font-black flex items-center gap-1 w-fit shadow-xs">
+                            <Check className="w-3 h-3 text-emerald-400 stroke-[3]" />
+                            <span>تم تحويل ${fin.amount} USDT ✓</span>
+                          </span>
+                        ) : isProcessing ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Clock className="w-3 h-3 text-amber-400 animate-spin" />
+                            <span>جارٍ تحويل ${fin.amount} USDT</span>
+                          </span>
+                        ) : isWaiting ? (
+                          <span className="px-2 py-0.5 rounded-full bg-cyber-blue/15 border border-cyber-blue/35 text-cyber-blue text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Building2 className="w-3 h-3" />
+                            <span>بانتظار الصرف ${fin.amount} USDT</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/35 text-yellow-300 text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Coins className="w-3 h-3 text-yellow-400" />
+                            <span>طلب مالي: ${fin.amount} USDT</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="space-y-1.5 pt-1">
                     <div className="flex justify-between text-[10px] text-gray-400">
                       <span>إنجاز المراحل:</span>
@@ -1047,6 +1195,41 @@ export default function TasksPage() {
                     تم رفع المرفقات الإلزامية بانتظار اعتماد المسؤول لفتح المرحلة التالية.
                   </p>
 
+                  {/* Financial Requirement Payout Status Badge */}
+                  {task.financialRequirement?.requiresBudget && (() => {
+                    const fin = task.financialRequirement;
+                    const pOrder = typeof fin.payoutOrderId === 'object' ? (fin.payoutOrderId as any) : null;
+                    const isDisbursed = pOrder?.executionStatus === 'DISBURSED';
+                    const isProcessing = pOrder?.executionStatus === 'IN_PROGRESS';
+                    const isWaiting = pOrder?.executionStatus === 'WAITING_TREASURY' || fin.adminApprovalStatus === 'APPROVED';
+
+                    return (
+                      <div className="pt-0.5">
+                        {isDisbursed ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[10px] font-black flex items-center gap-1 w-fit shadow-xs">
+                            <Check className="w-3 h-3 text-emerald-400 stroke-[3]" />
+                            <span>تم تحويل ${fin.amount} USDT ✓</span>
+                          </span>
+                        ) : isProcessing ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Clock className="w-3 h-3 text-amber-400 animate-spin" />
+                            <span>جارٍ تحويل ${fin.amount} USDT</span>
+                          </span>
+                        ) : isWaiting ? (
+                          <span className="px-2 py-0.5 rounded-full bg-cyber-blue/15 border border-cyber-blue/35 text-cyber-blue text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Building2 className="w-3 h-3" />
+                            <span>بانتظار الصرف ${fin.amount} USDT</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/35 text-yellow-300 text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Coins className="w-3 h-3 text-yellow-400" />
+                            <span>طلب مالي: ${fin.amount} USDT</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="pt-2 border-t border-gray-800 flex justify-between items-center text-xs">
                     <span className="text-gray-500 text-[10px]">مرفق إلزامي مرفوع</span>
                     <span className="text-lord-gold font-bold text-[10px]">فحص TheLordAI ✅</span>
@@ -1093,6 +1276,41 @@ export default function TasksPage() {
                       <span className="text-[10px] text-gray-500">غير مسندة</span>
                     )}
                   </div>
+                  {/* Financial Requirement Payout Status Badge */}
+                  {task.financialRequirement?.requiresBudget && (() => {
+                    const fin = task.financialRequirement;
+                    const pOrder = typeof fin.payoutOrderId === 'object' ? (fin.payoutOrderId as any) : null;
+                    const isDisbursed = pOrder?.executionStatus === 'DISBURSED';
+                    const isProcessing = pOrder?.executionStatus === 'IN_PROGRESS';
+                    const isWaiting = pOrder?.executionStatus === 'WAITING_TREASURY' || fin.adminApprovalStatus === 'APPROVED';
+
+                    return (
+                      <div className="pt-0.5">
+                        {isDisbursed ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[10px] font-black flex items-center gap-1 w-fit shadow-xs">
+                            <Check className="w-3 h-3 text-emerald-400 stroke-[3]" />
+                            <span>تم تحويل ${fin.amount} USDT ✓</span>
+                          </span>
+                        ) : isProcessing ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Clock className="w-3 h-3 text-amber-400 animate-spin" />
+                            <span>جارٍ تحويل ${fin.amount} USDT</span>
+                          </span>
+                        ) : isWaiting ? (
+                          <span className="px-2 py-0.5 rounded-full bg-cyber-blue/15 border border-cyber-blue/35 text-cyber-blue text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Building2 className="w-3 h-3" />
+                            <span>بانتظار الصرف ${fin.amount} USDT</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/35 text-yellow-300 text-[10px] font-bold flex items-center gap-1 w-fit">
+                            <Coins className="w-3 h-3 text-yellow-400" />
+                            <span>طلب مالي: ${fin.amount} USDT</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="w-full bg-emerald-500/20 h-1.5 rounded-full overflow-hidden">
                     <div className="bg-emerald-500 h-full w-full rounded-full" />
                   </div>
@@ -1290,120 +1508,635 @@ export default function TasksPage() {
       })()}
 
       {/* TASK DETAIL MODAL */}
-      {selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-4xl w-full p-4 sm:p-6 md:p-8 shadow-2xl max-h-[94vh] overflow-y-auto space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-800 pb-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <Badge variant="gold">{selectedTask.targetPlatform}</Badge>
-                  <Badge
-                    variant={
-                      selectedTask.status === 'COMPLETED'
-                        ? 'disbursed'
-                        : selectedTask.status === 'IN_PROGRESS'
-                          ? 'cyber'
-                          : 'processing'
-                    }
+      {selectedTask && (() => {
+        const totalStages = selectedTask.stages?.length || 0;
+        const approvedStages = selectedTask.stages?.filter((s: any) => s.status === 'APPROVED').length || 0;
+        const progressPercent = totalStages > 0
+          ? Math.round((approvedStages / totalStages) * 100)
+          : (selectedTask.overallProgressPercent || 0);
+
+        const isTaskCompleted = selectedTask.status === 'COMPLETED' || (totalStages > 0 && approvedStages === totalStages);
+        const isTaskInProgress = selectedTask.status === 'IN_PROGRESS';
+        const isTaskPendingReview = selectedTask.status === 'PENDING_ADMIN_REVIEW';
+
+        let dueDateInfo: { dateString: string; diffDays: number; isOverdue: boolean } | null = null;
+        if (selectedTask.dueDate) {
+          const d = new Date(selectedTask.dueDate);
+          const diffDays = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          dueDateInfo = {
+            dateString: d.toLocaleDateString('ar-YE', { year: 'numeric', month: 'short', day: 'numeric' }),
+            diffDays,
+            isOverdue: diffDays < 0
+          };
+        }
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-xl animate-fade-in"
+            onClick={() => setSelectedTask(null)}
+          >
+            <div
+              className="bg-gradient-to-b from-obsidian-surface via-obsidian-card to-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-4xl w-full shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_25px_rgba(212,175,55,0.15)] max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Sticky Top Header */}
+              <div className="p-4 sm:p-6 border-b border-gray-800/80 bg-obsidian-surface/95 backdrop-blur-md shrink-0">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-2 flex-1 min-w-0">
+                    {/* Badges Row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="gold" className="font-mono text-xs uppercase tracking-wide">
+                        {selectedTask.targetPlatform}
+                      </Badge>
+                      <span
+                        className={`px-3 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 border shadow-xs ${
+                          isTaskCompleted
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : isTaskInProgress
+                            ? 'bg-lord-gold/20 text-lord-gold border-lord-gold/40'
+                            : isTaskPendingReview
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-gray-800 text-gray-300 border-gray-700'
+                        }`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            isTaskCompleted
+                              ? 'bg-emerald-400'
+                              : isTaskInProgress
+                              ? 'bg-lord-gold animate-pulse'
+                              : isTaskPendingReview
+                              ? 'bg-amber-400 animate-ping'
+                              : 'bg-gray-400'
+                          }`}
+                        />
+                        <span>
+                          {selectedTask.status === 'COMPLETED'
+                            ? 'مكتملة ومعتمدة'
+                            : selectedTask.status === 'IN_PROGRESS'
+                            ? 'قيد التنفيذ النشط'
+                            : selectedTask.status === 'PENDING_ADMIN_REVIEW'
+                            ? 'بانتظار مراجعة الإدارة'
+                            : selectedTask.status}
+                        </span>
+                      </span>
+
+                      {/* Priority Badge */}
+                      <span
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1 border ${
+                          selectedTask.priority === 'HIGH' || selectedTask.priority === 'URGENT'
+                            ? 'bg-red-500/15 border-red-500/35 text-red-300'
+                            : selectedTask.priority === 'MEDIUM'
+                            ? 'bg-amber-500/15 border-amber-500/35 text-amber-300'
+                            : 'bg-gray-800/80 border-gray-700 text-gray-300'
+                        }`}
+                      >
+                        <Flame className="w-3.5 h-3.5 text-current" />
+                        <span>الأولوية: {selectedTask.priority}</span>
+                      </span>
+
+                      {/* Routine Recurring Tag */}
+                      {selectedTask.isDailyRecurring && (
+                        <span className="px-2.5 py-1 rounded-xl bg-purple-500/15 border border-purple-500/35 text-purple-300 text-xs font-bold flex items-center gap-1.5">
+                          <Repeat className="w-3.5 h-3.5 text-purple-400" />
+                          <span>مهمة روتينية يومية ({selectedTask.dailyRecurrenceTime || '09:00 ص'})</span>
+                        </span>
+                      )}
+
+                      {/* Bounty / Financial Reward */}
+                      {selectedTask.isBountyTask && selectedTask.bountyRewardAmount && (
+                        <span className="px-2.5 py-1 rounded-xl bg-lord-gold/20 border border-lord-gold/45 text-lord-gold text-xs font-black flex items-center gap-1 shadow-gold-glow/20">
+                          <Coins className="w-3.5 h-3.5 text-lord-gold" />
+                          <span>مكافأة إنجاز: ${selectedTask.bountyRewardAmount} USDT</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Task Main Title */}
+                    <h2 className="text-lg sm:text-2xl font-black text-white leading-snug tracking-tight truncate">
+                      {selectedTask.title}
+                    </h2>
+                  </div>
+
+                  {/* Header Action Buttons */}
+                  <div className="flex flex-wrap items-center gap-2 justify-end shrink-0">
+                    <Button
+                      variant="gold"
+                      size="sm"
+                      onClick={() => setIsExecutionWorkspaceOpen(true)}
+                      className="shadow-gold-glow flex items-center gap-1.5 rounded-xl font-black text-xs px-3.5 py-2"
+                    >
+                      <Sparkles className="w-4 h-4 ml-0.5" />
+                      <span>مساحة التنفيذ الذكية ⚡</span>
+                    </Button>
+
+                    {isAdmin && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEdit(selectedTask)}
+                          className="text-lord-gold border-lord-gold/40 hover:bg-lord-gold/15 flex items-center gap-1 rounded-xl font-bold text-xs px-3"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>تعديل</span>
+                        </Button>
+
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDeleteTask(selectedTask._id, selectedTask.title)}
+                          disabled={isDeleting}
+                          className="flex items-center gap-1 rounded-xl font-bold text-xs px-3"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>حذف</span>
+                        </Button>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTask(null)}
+                      className="p-2 rounded-xl bg-obsidian-card hover:bg-gray-800 text-gray-400 hover:text-white transition-all border border-gray-800 hover:border-gray-700"
+                      title="إغلاق النافذة"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Scrollable Body */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 overscroll-contain custom-scrollbar pb-16">
+                {/* Executive Metadata Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* 1. Overall Progress Card */}
+                <div className="p-3.5 rounded-2xl bg-obsidian-card/90 border border-gray-800/90 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400 font-bold flex items-center gap-1.5">
+                      <BarChart2 className="w-3.5 h-3.5 text-lord-gold" />
+                      <span>نسبة الإنجاز الكلية</span>
+                    </span>
+                    <span className="font-mono font-black text-lord-gold text-sm">{progressPercent}%</span>
+                  </div>
+                  <div className="w-full bg-gray-900 rounded-full h-2 overflow-hidden border border-gray-800">
+                    <div
+                      className="bg-gradient-to-r from-lord-gold via-amber-400 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-gold-glow"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-gray-400 block">
+                    تم اعتماد {approvedStages} من أصل {totalStages} مراحل تنفيذية
+                  </span>
+                </div>
+
+                {/* 2. Assigned Employees Card */}
+                <div className="p-3.5 rounded-2xl bg-obsidian-card/90 border border-gray-800/90 space-y-2">
+                  <span className="text-xs text-gray-400 font-bold flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-cyber-blue" />
+                    <span>الموظف المسند إليه:</span>
+                  </span>
+                  {selectedTask.assignedTo && selectedTask.assignedTo.length > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-xl bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center text-lord-gold font-black text-xs shrink-0 shadow-xs">
+                        {(selectedTask.assignedTo[0] as any)?.fullName?.charAt(0) || 'U'}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-white font-bold text-xs truncate block">
+                          {(selectedTask.assignedTo[0] as any)?.fullName || 'الموظف المسؤول'}
+                        </span>
+                        {selectedTask.assignedTo.length > 1 && (
+                          <span className="text-[10px] text-gray-400">
+                            +{selectedTask.assignedTo.length - 1} موظفين آخرين مشاركين
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 font-medium">غير مسندة (متاحة لعموم الفريق)</div>
+                  )}
+                </div>
+
+                {/* 3. Deadline / Timeline Card */}
+                <div className="p-3.5 rounded-2xl bg-obsidian-card/90 border border-gray-800/90 space-y-2">
+                  <span className="text-xs text-gray-400 font-bold flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>الموعد النهائي والتوقيت:</span>
+                  </span>
+                  {dueDateInfo ? (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white font-mono font-bold">{dueDateInfo.dateString}</span>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                          dueDateInfo.isOverdue
+                            ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        }`}
+                      >
+                        {dueDateInfo.isOverdue ? 'انتهت المهلة' : `متبقي ${dueDateInfo.diffDays} يوم`}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-400">
+                      {selectedTask.isDailyRecurring ? 'مهمة مستمرة يومياً' : 'بدون موعد نهائي محدد'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* FINANCIAL REQUIREMENT & PAYOUT STATUS CARD */}
+              {selectedTask.financialRequirement?.requiresBudget && (() => {
+                const fin = selectedTask.financialRequirement;
+                const payoutOrder = typeof fin.payoutOrderId === 'object' ? (fin.payoutOrderId as any) : null;
+                const isDisbursed = payoutOrder?.executionStatus === 'DISBURSED';
+                const isProcessing = payoutOrder?.executionStatus === 'IN_PROGRESS';
+                const isWaitingTreasury = payoutOrder?.executionStatus === 'WAITING_TREASURY' || fin.adminApprovalStatus === 'APPROVED';
+                const isPendingAdmin = fin.adminApprovalStatus === 'PENDING_ADMIN';
+                const isRejected = fin.adminApprovalStatus === 'REJECTED';
+
+                const payoutMethodLabel =
+                  fin.payoutMethodRequested === 'BEP20_USDT'
+                    ? 'USDT (شبكة BSC BEP-20)'
+                    : fin.payoutMethodRequested === 'JEEB_WALLET'
+                    ? 'محفظة جيب الإلكترونية (Jeeb)'
+                    : fin.payoutMethodRequested === 'JAWALI_WALLET'
+                    ? 'محفظة جوالي الإلكترونية (Jawali)'
+                    : fin.payoutMethodRequested || 'تحويل مالي';
+
+                return (
+                  <div
+                    className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5 backdrop-blur-md shadow-md ${
+                      isDisbursed
+                        ? 'bg-gradient-to-l from-emerald-950/25 via-obsidian-card to-obsidian-surface border-emerald-500/50 shadow-emerald-500/10'
+                        : isProcessing
+                        ? 'bg-gradient-to-l from-amber-950/25 via-obsidian-card to-obsidian-surface border-amber-500/50 shadow-amber-500/10'
+                        : isWaitingTreasury
+                        ? 'bg-gradient-to-l from-cyan-950/25 via-obsidian-card to-obsidian-surface border-cyber-blue/50 shadow-cyan-500/10'
+                        : isRejected
+                        ? 'bg-gradient-to-l from-red-950/25 via-obsidian-card to-obsidian-surface border-red-500/50'
+                        : 'bg-gradient-to-l from-yellow-950/25 via-obsidian-card to-obsidian-surface border-yellow-500/40'
+                    }`}
                   >
-                    {selectedTask.status}
-                  </Badge>
-                  <span className="text-xs text-gray-400 font-mono">الأولوية: {selectedTask.priority}</span>
-                  {selectedTask.isDailyRecurring && (
-                    <span className="px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center gap-1">
-                      <Repeat className="w-3 h-3" /> مهمة يومية روتينية ({selectedTask.dailyRecurrenceTime || '09:00 ص'})
+                    {/* Financial Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-800/80 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 font-bold shadow-md ${
+                            isDisbursed
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/35'
+                              : isProcessing
+                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/35 animate-pulse'
+                              : 'bg-lord-gold/20 text-lord-gold border border-lord-gold/35'
+                          }`}
+                        >
+                          <Coins className="w-5 h-5 text-current" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                            <span>المعاملة المالية وميزانية المهمة:</span>
+                            <span className="text-lord-gold font-mono font-black text-base sm:text-lg">
+                              ${fin.amount} {fin.currency || 'USDT'}
+                            </span>
+                          </h4>
+                          <span className="text-xs text-gray-400 block mt-0.5">
+                            طريقة الاستلام المحددة: <strong className="text-gray-200">{payoutMethodLabel}</strong>
+                            {fin.justification ? ` • ${fin.justification}` : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Transaction Status Badge */}
+                      <div className="shrink-0">
+                        {isDisbursed ? (
+                          <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs flex items-center gap-2 shadow-emerald-500/10">
+                            <CheckCircle className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
+                            <span>تم تحويل وصرف المبلغ بنجاح ✓</span>
+                          </span>
+                        ) : isProcessing ? (
+                          <span className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-black text-xs flex items-center gap-2 shadow-sm">
+                            <Clock className="w-4 h-4 text-amber-400 animate-spin" />
+                            <span>جاري معالجة التحويل والصرف من الخزينة ⏳</span>
+                          </span>
+                        ) : isWaitingTreasury ? (
+                          <span className="px-3.5 py-1.5 rounded-xl bg-cyber-blue/20 border border-cyber-blue/50 text-cyber-blue font-black text-xs flex items-center gap-2 shadow-sm">
+                            <Building2 className="w-4 h-4 text-cyber-blue" />
+                            <span>معتمد إدارياً — بانتظار صرف الخزينة 🏦</span>
+                          </span>
+                        ) : isRejected ? (
+                          <span className="px-3.5 py-1.5 rounded-xl bg-red-500/20 border border-red-500/50 text-red-300 font-bold text-xs flex items-center gap-2 shadow-sm">
+                            <X className="w-4 h-4 text-red-400" />
+                            <span>تم رفض طلب الميزانية ❌</span>
+                          </span>
+                        ) : (
+                          <span className="px-3.5 py-1.5 rounded-xl bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 font-bold text-xs flex items-center gap-2 shadow-sm">
+                            <AlertCircle className="w-4 h-4 text-yellow-400" />
+                            <span>بانتظار موافقة الإدارة على الميزانية ⚠️</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Disbursed Transfer Proof & Transaction Hash Box */}
+                    {isDisbursed && payoutOrder?.transferProof && (
+                      <div className="p-3.5 sm:p-4 rounded-xl bg-obsidian-surface border border-emerald-500/35 space-y-3">
+                        <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+                          <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+                            <Receipt className="w-4 h-4 text-emerald-400" />
+                            <span>بيانات وسند الحوالة المالية الصادرة للمستفيد:</span>
+                          </span>
+                          {payoutOrder.disbursedClickedAt && (
+                            <span className="text-gray-400 font-mono text-[11px]">
+                              تاريخ ووقت الصرف: {new Date(payoutOrder.disbursedClickedAt).toLocaleString('ar-YE')}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Transaction Hash / Ref Code */}
+                        {payoutOrder.transferProof.txHashOrReferenceNumber && (
+                          <div className="flex items-center justify-between p-2.5 rounded-lg bg-obsidian-card border border-gray-700/80 gap-2 flex-wrap">
+                            <div className="min-w-0">
+                              <span className="text-[10px] text-gray-400 block mb-0.5">
+                                رقم الحوالة أو الهاش المرجعي (TxHash / Reference Number):
+                              </span>
+                              <span className="font-mono text-xs text-white font-bold select-all break-all">
+                                {payoutOrder.transferProof.txHashOrReferenceNumber}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(payoutOrder.transferProof.txHashOrReferenceNumber);
+                                  toast.success('تم نسخ كود التحويل / الهاش بنجاح 📋');
+                                }}
+                                className="px-2.5 py-1 rounded-md bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold flex items-center gap-1 transition-colors"
+                                title="نسخ الهاش"
+                              >
+                                <Copy className="w-3.5 h-3.5 text-lord-gold" />
+                                <span>نسخ الكود</span>
+                              </button>
+                              {payoutOrder.transferProof.txHashOrReferenceNumber.startsWith('0x') && (
+                                <a
+                                  href={`https://bscscan.com/tx/${payoutOrder.transferProof.txHashOrReferenceNumber}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-2.5 py-1 rounded-md bg-cyber-blue/15 border border-cyber-blue/30 text-cyber-blue hover:underline text-xs font-bold flex items-center gap-1 transition-colors"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  <span>BscScan</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Receipt Screenshot Image */}
+                        {payoutOrder.transferProof.receiptScreenshot?.fileUrl && (
+                          <div className="flex items-center gap-3 pt-1">
+                            <span className="text-[11px] text-gray-300 font-bold">صورة سند / إشعار التحويل:</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLightboxImage({
+                                  url: payoutOrder.transferProof.receiptScreenshot.fileUrl,
+                                  alt: 'سند التحويل المالي'
+                                })
+                              }
+                              className="group relative cursor-zoom-in rounded-xl overflow-hidden border border-emerald-500/40 hover:border-lord-gold transition-all"
+                              title="انقر لتكبير ومعاينة سند التحويل"
+                            >
+                              <img
+                                src={payoutOrder.transferProof.receiptScreenshot.fileUrl}
+                                alt="سند التحويل"
+                                className="w-24 h-16 object-cover group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold">
+                                تكبير 🔍
+                              </div>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Waiting Treasury Note */}
+                    {isWaitingTreasury && !isDisbursed && !isProcessing && (
+                      <div className="p-3 rounded-xl bg-obsidian-surface border border-cyber-blue/30 text-xs text-gray-300">
+                        <span className="text-cyber-blue font-bold block mb-0.5">توجيه الخزينة:</span>
+                        <p>
+                          تم اعتماد هذا الطلب مالياً، وهو مدرج حالياً في كشف صرف الخزينة (Payout Desk) وسيتم إرسال المبلغ فورياً.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Admin Notes if rejected */}
+                    {fin.adminNotes && (
+                      <div className="p-3 rounded-xl bg-obsidian-surface border border-gray-800 text-xs text-gray-300">
+                        <span className="text-lord-gold font-bold block mb-1">ملاحظات الإدارة:</span>
+                        <p>{fin.adminNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Work Plan / Executive Brief Card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-l from-obsidian-card via-obsidian-card to-amber-950/15 border-r-4 border-r-lord-gold border border-gray-800 space-y-2.5 shadow-sm">
+                <div className="flex items-center gap-2 text-xs font-bold text-lord-gold uppercase tracking-wider">
+                  <Compass className="w-4 h-4 text-lord-gold" />
+                  <span>تفاصيل وخطة وتوجيهات المهمة التنفيذية:</span>
+                </div>
+                <p className="text-sm text-gray-200 leading-relaxed font-normal whitespace-pre-line pr-1">
+                  {selectedTask.description}
+                </p>
+
+                {/* Brief Attachments */}
+                {selectedTask.adminBriefAttachments && selectedTask.adminBriefAttachments.length > 0 && (
+                  <div className="pt-3 border-t border-gray-800/70 space-y-2">
+                    <span className="text-xs font-bold text-gray-400 flex items-center gap-1.5">
+                      <Paperclip className="w-3.5 h-3.5 text-lord-gold" />
+                      <span>مرفقات التكليف والتوجيه الإداري ({selectedTask.adminBriefAttachments.length}):</span>
+                    </span>
+                    <div className="flex flex-wrap gap-2.5">
+                      {selectedTask.adminBriefAttachments.map((att: any, aIdx: number) => {
+                        const isImg = att.fileType === 'IMAGE' || att.fileUrl?.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+                        return isImg ? (
+                          <button
+                            key={aIdx}
+                            type="button"
+                            onClick={() => setLightboxImage({ url: att.fileUrl, alt: att.fileName || 'مرفق المهمة' })}
+                            className="block cursor-zoom-in group"
+                            title="انقر لتكبير ومعاينة الصورة"
+                          >
+                            <img
+                              src={att.fileUrl}
+                              alt={att.fileName || 'مرفق'}
+                              className="w-20 h-20 object-cover rounded-xl border border-gray-700 group-hover:border-lord-gold group-hover:scale-105 transition-all shadow-md"
+                            />
+                          </button>
+                        ) : (
+                          <a
+                            key={aIdx}
+                            href={att.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3.5 py-2 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white flex items-center gap-2 transition-all shadow-sm"
+                          >
+                            <Paperclip className="w-3.5 h-3.5 text-lord-gold" />
+                            <span className="truncate max-w-[160px]">{att.fileName || 'مستند مرفق'}</span>
+                            <ExternalLink className="w-3 h-3 text-gray-500 mr-auto" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Stages Execution Pipeline (Timeline Stepper) */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-800/80 pb-3 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-lord-gold" />
+                    <span className="text-sm font-black text-white uppercase tracking-wider">
+                      المسار التنفيذي ومراحل الاعتماد ({selectedTask.stages?.length || 0})
+                    </span>
+                  </div>
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-gray-800/80 border border-gray-700/60 text-gray-400 font-medium">
+                    تتابع المراحل تسلسلياً — لا تفتح مرحلة إلا بعد اعتماد سابقتها
+                  </span>
+                </div>
+
+                <div className="space-y-4 relative before:absolute before:top-6 before:bottom-6 before:right-5 before:w-0.5 before:bg-gradient-to-b before:from-lord-gold/40 before:via-gray-800 before:to-gray-800/20 before:hidden md:before:block">
+                  {selectedTask.stages?.map((stage: any) => (
+                    <StageDeliverableBox
+                      key={stage.stageOrder}
+                      taskId={selectedTask._id}
+                      stage={stage}
+                      canSubmit={!isAdmin && (selectedTask.assignedTo?.some((e: any) => String(e._id || e) === String(currentUser?._id)) ?? false)}
+                      isAdmin={isAdmin}
+                      onRefresh={async () => {
+                        const res = await refetch();
+                        if (res?.data?.data) {
+                          const updated = res.data.data.find((t: any) => t._id === selectedTask._id);
+                          if (updated) setSelectedTask(updated);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Direct Reports Submitted */}
+              {selectedTask.directReports && selectedTask.directReports.length > 0 && (
+                <div className="space-y-3 pt-3 border-t border-gray-800/80">
+                  <span className="text-xs font-bold text-lord-gold uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-lord-gold" />
+                    <span>التقارير المباشرة المسلمة من الموظف ({selectedTask.directReports.length}):</span>
+                  </span>
+                  <div className="space-y-2.5">
+                    {selectedTask.directReports.map((rep: any, rIdx: number) => (
+                      <div key={rIdx} className="p-3.5 rounded-2xl bg-obsidian-card border border-gray-800 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-white flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                            <span>{(rep.submittedBy as any)?.fullName || 'الموظف'}</span>
+                          </span>
+                          <span className="text-gray-500 font-mono text-[10px]">
+                            {new Date(rep.createdAt).toLocaleString('ar-YE')}
+                          </span>
+                        </div>
+                        {rep.textContent && (
+                          <p className="text-xs text-gray-300 leading-relaxed">{rep.textContent}</p>
+                        )}
+                        {rep.attachments && rep.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {rep.attachments.map((att: any, raIdx: number) => {
+                              const isImg = att.fileType === 'IMAGE' || att.fileUrl?.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+                              return isImg ? (
+                                <button
+                                  key={raIdx}
+                                  type="button"
+                                  onClick={() => setLightboxImage({ url: att.fileUrl, alt: att.fileName || 'مرفق التقرير' })}
+                                  className="block cursor-zoom-in group"
+                                  title="انقر لتكبير ومعاينة الصورة"
+                                >
+                                  <img
+                                    src={att.fileUrl}
+                                    alt={att.fileName || 'مرفق'}
+                                    className="w-16 h-16 object-cover rounded-xl border border-gray-700 group-hover:border-lord-gold group-hover:scale-105 transition-all shadow-md"
+                                  />
+                                </button>
+                              ) : (
+                                <a
+                                  key={raIdx}
+                                  href={att.fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white flex items-center gap-1.5 transition-all"
+                                >
+                                  <Paperclip className="w-3.5 h-3.5 text-lord-gold" />
+                                  <span className="truncate max-w-[140px]">{att.fileName || 'مستند مرفق'}</span>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              </div>
+
+              {/* Sticky Bottom Executive Footer */}
+              <div className="p-3.5 sm:p-4 border-t border-gray-800/80 bg-obsidian-surface/95 backdrop-blur-md shrink-0 flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 font-bold hidden sm:inline">نسبة الإنجاز:</span>
+                    <span className="font-mono font-black text-lord-gold text-xs sm:text-sm">{progressPercent}%</span>
+                  </div>
+                  <div className="w-24 sm:w-36 bg-gray-900 rounded-full h-2 overflow-hidden border border-gray-800 hidden xs:block">
+                    <div
+                      className="bg-gradient-to-r from-lord-gold to-emerald-400 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-gray-400 truncate hidden md:inline">
+                    ({approvedStages} من أصل {totalStages} مراحل معتمدة)
+                  </span>
+                  {selectedTask.financialRequirement?.requiresBudget && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-lord-gold/10 border border-lord-gold/30 text-lord-gold text-[10px] font-mono font-bold hidden lg:inline">
+                      ${selectedTask.financialRequirement.amount} USDT ميزانية
                     </span>
                   )}
                 </div>
-                <h2 className="text-base sm:text-xl font-black text-white">{selectedTask.title}</h2>
-              </div>
 
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 justify-end">
-                <Button
-                  variant="gold"
-                  size="sm"
-                  onClick={() => setIsExecutionWorkspaceOpen(true)}
-                  className="shadow-gold-glow flex items-center gap-1 rounded-xl font-bold text-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 ml-0.5" />
-                  <span>مساحة التنفيذ ⚡</span>
-                </Button>
-
-                {isAdmin && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenEdit(selectedTask)}
-                      className="text-lord-gold border-lord-gold/40 hover:bg-lord-gold/10 flex items-center gap-1 rounded-xl font-bold text-xs"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>تعديل</span>
-                    </Button>
-
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => handleDeleteTask(selectedTask._id, selectedTask.title)}
-                      disabled={isDeleting}
-                      className="flex items-center gap-1 rounded-xl font-bold text-xs"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>حذف</span>
-                    </Button>
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedTask(null)}
-                  className="p-1.5 sm:p-2 rounded-xl bg-obsidian-card hover:bg-gray-800 text-gray-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">تفاصيل وخطة العمل:</span>
-              <p className="text-xs text-gray-300 leading-relaxed bg-obsidian-card p-4 rounded-2xl border border-gray-800">
-                {selectedTask.description}
-              </p>
-            </div>
-
-            {/* Stages Review List */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-                <span className="text-xs font-bold text-lord-gold uppercase">
-                  مراحل التنفيذ والحقول الإلزامية ({selectedTask.stages?.length || 0})
-                </span>
-                <span className="text-[11px] text-gray-400">
-                  لا تفتح مرحلة إلا بعد اعتماد السابقة
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {selectedTask.stages?.map((stage: any) => (
-                  <StageDeliverableBox
-                    key={stage.stageOrder}
-                    taskId={selectedTask._id}
-                    stage={stage}
-                    canSubmit={!isAdmin && (selectedTask.assignedTo?.some((e: any) => String(e._id || e) === String(currentUser?._id)) ?? false)}
-                    isAdmin={isAdmin}
-                    onRefresh={async () => {
-                      const res = await refetch();
-                      if (res?.data?.data) {
-                        const updated = res.data.data.find((t: any) => t._id === selectedTask._id);
-                        if (updated) setSelectedTask(updated);
-                      }
-                    }}
-                  />
-                ))}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="gold"
+                    size="sm"
+                    onClick={() => setIsExecutionWorkspaceOpen(true)}
+                    className="shadow-gold-glow flex items-center gap-1.5 rounded-xl font-black text-xs px-3.5 py-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 ml-0.5" />
+                    <span>مساحة التنفيذ الذكية ⚡</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedTask(null)}
+                    className="text-gray-300 border-gray-700 hover:bg-gray-800 rounded-xl text-xs px-3 py-1.5"
+                  >
+                    <span>إغلاق النافذة</span>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ============================================================== */}
       {/* ADVANCED MULTI-STAGE & ROUTINE TASK CREATION MODAL */}
@@ -2175,6 +2908,15 @@ export default function TasksPage() {
           task={selectedTask}
           onClose={() => setIsExecutionWorkspaceOpen(false)}
           onStageUpdated={() => refetch()}
+        />
+      )}
+
+      {/* Global Image Lightbox Modal */}
+      {lightboxImage && (
+        <ImageLightboxModal
+          imageUrl={lightboxImage.url}
+          imageAlt={lightboxImage.alt}
+          onClose={() => setLightboxImage(null)}
         />
       )}
     </div>

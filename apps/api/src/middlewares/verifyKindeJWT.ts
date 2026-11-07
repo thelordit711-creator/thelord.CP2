@@ -66,6 +66,14 @@ export const verifyKindeJWT = async (
       if (directDecoded && directDecoded.userId) {
         const directUser = await User.findById(directDecoded.userId);
         if (directUser) {
+          if (directUser.isSuspended) {
+            const reasonText = directUser.suspensionReason ? ` السبب: ${directUser.suspensionReason}` : '';
+            res.status(403).json({
+              success: false,
+              error: `تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري.${reasonText}`
+            });
+            return;
+          }
           req.user = (directUser.toObject() as unknown) as IUser;
           next();
           return;
@@ -128,6 +136,14 @@ export const verifyKindeJWT = async (
         });
         
         if (existingUser) {
+          if (existingUser.isSuspended) {
+            const reasonText = existingUser.suspensionReason ? ` السبب: ${existingUser.suspensionReason}` : '';
+            res.status(403).json({
+              success: false,
+              error: `تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري.${reasonText}`
+            });
+            return;
+          }
           req.user = (existingUser.toObject() as unknown) as IUser;
         }
 

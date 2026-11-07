@@ -87,6 +87,11 @@ export default function MeetingPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isLiveActive, setIsLiveActive] = useState(false);
 
+  // Standby vs Active Room State - Starts FALSE so the room is inactive upon opening
+  const [isRoomActive, setIsRoomActive] = useState(false);
+  const [startWithVideo, setStartWithVideo] = useState(true);
+  const [startWithAudio, setStartWithAudio] = useState(true);
+
   // Hardware Media Stream state
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenVideoRef = useRef<HTMLVideoElement>(null);
@@ -124,22 +129,21 @@ export default function MeetingPage() {
     }
   }, [meetingRoom]);
 
-  // Join MongoDB meeting room on mount
+  // Cleanup media tracks when unmounting page
   useEffect(() => {
-    joinMeetingMutation().unwrap().catch(() => {});
-
     return () => {
-      // Cleanup media tracks when leaving page
       if (mediaStream) {
         mediaStream.getTracks().forEach((track) => track.stop());
       }
       if (screenStream) {
         screenStream.getTracks().forEach((track) => track.stop());
       }
+      peerConnectionsRef.current.forEach((pc) => pc.close());
+      peerConnectionsRef.current.clear();
     };
-  }, []);
+  }, [mediaStream, screenStream]);
 
-  // Initialize Real Hardware Camera & Microphone (WebRTC MediaStreams)
+  // Initialize Real Hardware Camera & Microphone ONLY when room is manually activated
   useEffect(() => {
     let activeStream: MediaStream | null = null;
 
@@ -149,8 +153,8 @@ export default function MeetingPage() {
       }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true
+          video: startWithVideo ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
+          audio: startWithAudio
         });
         activeStream = stream;
         setMediaStream(stream);
@@ -165,7 +169,7 @@ export default function MeetingPage() {
       }
     }
 
-    if (activeTab === 'meeting') {
+    if (isRoomActive && activeTab === 'meeting') {
       setupLocalMedia();
     }
 
@@ -174,7 +178,7 @@ export default function MeetingPage() {
         activeStream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [activeTab]);
+  }, [isRoomActive, activeTab, startWithVideo, startWithAudio]);
 
   // Connect local video stream to video element when it becomes available
   useEffect(() => {
@@ -257,9 +261,9 @@ export default function MeetingPage() {
     return pc;
   };
 
-  // WebRTC Signaling Event Listeners
+  // WebRTC Signaling Event Listeners - ONLY active when isRoomActive is true
   useEffect(() => {
-    if (!socket || !currentUser) return;
+    if (!isRoomActive || !socket || !currentUser) return;
 
     socket.emit('meeting:signal:join', {
       userId: currentUser._id,
@@ -348,7 +352,7 @@ export default function MeetingPage() {
       socket.off('meeting:signal:candidate', handleCandidate);
       socket.off('meeting:signal:user-left', handleUserLeft);
     };
-  }, [socket, currentUser, mediaStream, screenStream, isScreenSharing]);
+  }, [isRoomActive, socket, currentUser, mediaStream, screenStream, isScreenSharing]);
 
   // Toggle Microphone
   const toggleAudio = () => {
@@ -468,9 +472,25 @@ export default function MeetingPage() {
     }
   };
 
-  // Officially Start the Live Meeting
+  // Manually Start / Turn On Room via Button
+  const handleStartBroadcastRoom = async () => {
+    setIsRoomActive(true);
+    try {
+      await joinMeetingMutation().unwrap();
+      refetchMeeting();
+      toast.success('🔴 تم تشغيل غرفة البث بنجاح وتفعيل الاتصال المباشر!');
+    } catch {
+      // Ignore
+    }
+  };
+
+  // Officially Start the Live Meeting (Broadcast notification to all staff)
   const handleStartLiveMeeting = async () => {
     try {
+      if (!isRoomActive) {
+        setIsRoomActive(true);
+        await joinMeetingMutation().unwrap();
+      }
       await startMeetingMutation().unwrap();
       setIsLiveActive(true);
       toast.success('🔴 بدأ الاجتماع المركزي رسمياً وتم بث إشعار الانضمام لكافة الموظفين!');
@@ -479,20 +499,29 @@ export default function MeetingPage() {
     }
   };
 
-  // Leave Meeting
+  // Leave Meeting and Return to Standby State
   const handleLeaveMeeting = async () => {
     try {
       if (mediaStream) {
         mediaStream.getTracks().forEach((t) => t.stop());
+        setMediaStream(null);
       }
       if (screenStream) {
         screenStream.getTracks().forEach((t) => t.stop());
+        setScreenStream(null);
       }
+      peerConnectionsRef.current.forEach((pc) => pc.close());
+      peerConnectionsRef.current.clear();
+      setRemotePeers([]);
+      setIsScreenSharing(false);
+      setIsHandRaised(false);
       await leaveMeetingMutation().unwrap();
-      toast.warning('تمت مغادرة قاعة الاجتماع');
+      setIsRoomActive(false);
+      toast.info('تم إيقاف البث ومغادرة الغرفة والعودة لوضع الاستعداد 🛑');
       refetchMeeting();
     } catch (err) {
-      toast.warning('تمت مغادرة الاجتماع');
+      setIsRoomActive(false);
+      toast.info('تمت مغادرة الاجتماع والعودة لوضع الاستعداد');
     }
   };
 
@@ -517,16 +546,34 @@ export default function MeetingPage() {
 
         {/* Top Header Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={handleStartLiveMeeting}
-            disabled={isStarting}
-            className="rounded-xl flex items-center gap-1.5 shadow-md"
-          >
-            <Radio className="w-3.5 h-3.5 animate-pulse" />
-            <span>بدء الاجتماع المركزي 🔴</span>
-          </Button>
+          {!isRoomActive ? (
+            <Button
+              variant="gold"
+              size="sm"
+              onClick={handleStartBroadcastRoom}
+              className="rounded-xl flex items-center gap-1.5 shadow-gold-glow font-black text-xs"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>تشغيل الغرفة والانضمام 🔴</span>
+            </Button>
+          ) : (
+            <>
+              <span className="px-3 py-1.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 font-bold text-xs flex items-center gap-1.5 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                <span>البث نشط الآن</span>
+              </span>
+
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleLeaveMeeting}
+                className="rounded-xl flex items-center gap-1.5 shadow-md font-bold text-xs"
+              >
+                <PhoneOff className="w-3.5 h-3.5" />
+                <span>إيقاف البث ومغادرة الغرفة</span>
+              </Button>
+            </>
+          )}
 
           <Button
             variant="gold"
@@ -576,7 +623,125 @@ export default function MeetingPage() {
       </div>
 
       {activeTab === 'meeting' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        !isRoomActive ? (
+          /* STANDBY HUB VIEW - Room is OFF by default until user clicks the button */
+          <div className="rounded-3xl bg-gradient-to-b from-obsidian-surface via-obsidian-card to-obsidian-surface border-2 border-lord-gold/40 p-6 sm:p-10 shadow-[0_0_60px_rgba(0,0,0,0.85),0_0_25px_rgba(212,175,55,0.12)] space-y-8 animate-fade-in">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-gray-800/80 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-3xl bg-lord-gold/15 border-2 border-lord-gold/40 flex items-center justify-center text-lord-gold shadow-gold-glow shrink-0">
+                  <Radio className="w-8 h-8 text-lord-gold" />
+                </div>
+                <div className="space-y-1 text-right">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-3 py-1 rounded-full bg-gray-800/90 border border-gray-700 text-gray-300 font-bold text-xs flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-500" />
+                      <span>وضع الاستعداد: الغرفة متوقفة مؤقتاً</span>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-lord-gold/15 border border-lord-gold/30 text-lord-gold text-xs font-mono font-bold">
+                      WEBRTC SECURE
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white">
+                    {meetingRoom?.title || 'قاعة الاجتماعات والبث المباشر THE LORD'}
+                  </h2>
+                  <p className="text-xs text-gray-400">
+                    الغرفة مغلقة ومؤمنة لحماية خصوصيتك ولن يتم تشغيل الكاميرا أو الميكروفون إلا عند الضغط على زر التشغيل.
+                  </p>
+                </div>
+              </div>
+
+              {/* Start Room Button */}
+              <div className="flex flex-col items-center sm:items-end gap-2 shrink-0">
+                <Button
+                  variant="gold"
+                  size="lg"
+                  onClick={handleStartBroadcastRoom}
+                  className="rounded-2xl px-8 py-4 font-black text-base shadow-[0_0_30px_rgba(212,175,55,0.4)] hover:shadow-[0_0_45px_rgba(212,175,55,0.6)] flex items-center gap-2.5 transform hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Play className="w-5 h-5 fill-current" />
+                  <span>تشغيل الغرفة والانضمام للبث المباشر 🔴</span>
+                </Button>
+                <span className="text-[11px] text-gray-500 font-mono">
+                  انقر للبدء وبث الصوت والفيديو المباشر
+                </span>
+              </div>
+            </div>
+
+            {/* Pre-Join Hardware Checks & Meeting Overview Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* 1. Hardware Preferences */}
+              <div className="p-4 rounded-2xl bg-obsidian-surface border border-gray-800 space-y-3">
+                <span className="text-xs font-bold text-lord-gold uppercase tracking-wider flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-lord-gold" />
+                  <span>تفضيلات الأجهزة عند بدء البث:</span>
+                </span>
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-obsidian-card border border-gray-800/80 cursor-pointer hover:border-lord-gold/40 transition-colors">
+                    <span className="text-xs text-gray-300 font-bold flex items-center gap-2">
+                      <Video className="w-4 h-4 text-cyber-blue" />
+                      <span>تشغيل الكاميرا عند الدخول</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={startWithVideo}
+                      onChange={(e) => setStartWithVideo(e.target.checked)}
+                      className="w-4 h-4 accent-amber-400 rounded"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-obsidian-card border border-gray-800/80 cursor-pointer hover:border-lord-gold/40 transition-colors">
+                    <span className="text-xs text-gray-300 font-bold flex items-center gap-2">
+                      <Mic className="w-4 h-4 text-emerald-400" />
+                      <span>تشغيل الميكروفون عند الدخول</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={startWithAudio}
+                      onChange={(e) => setStartWithAudio(e.target.checked)}
+                      className="w-4 h-4 accent-amber-400 rounded"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* 2. Agenda & Topic */}
+              <div className="p-4 rounded-2xl bg-obsidian-surface border border-gray-800 space-y-2">
+                <span className="text-xs font-bold text-lord-gold uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-lord-gold" />
+                  <span>جدول الأعمال ومحاور اللقاء:</span>
+                </span>
+                <p className="text-xs text-gray-300 leading-relaxed bg-obsidian-card p-3 rounded-xl border border-gray-800 min-h-[72px]">
+                  {meetingRoom?.agenda || 'متابعة خطط التنفيذ، مناقشة نتائج العمل، واعتماد القرارات الاستراتيجية.'}
+                </p>
+              </div>
+
+              {/* 3. Attendees & Room State */}
+              <div className="p-4 rounded-2xl bg-obsidian-surface border border-gray-800 space-y-2">
+                <span className="text-xs font-bold text-lord-gold uppercase tracking-wider flex items-center gap-2">
+                  <Users className="w-4 h-4 text-lord-gold" />
+                  <span>الأعضاء المسجلون بالقاعة ({participants.length}):</span>
+                </span>
+                <div className="p-3 rounded-xl bg-obsidian-card border border-gray-800 min-h-[72px] flex items-center gap-2 flex-wrap">
+                  {participants.length > 0 ? (
+                    participants.map((p: any, pIdx: number) => (
+                      <span
+                        key={pIdx}
+                        className="px-2.5 py-1 rounded-xl bg-gray-800/80 border border-gray-700 text-gray-200 text-xs font-bold flex items-center gap-1.5"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span>{p.fullName || 'عضو'}</span>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-gray-500 font-mono">لا يوجد أعضاء داخل الغرفة حالياً</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ACTIVE MEETING & VIDEO BROADCAST GRID */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
           {/* Main Video Stream Stage */}
           <div className="lg:col-span-2 space-y-4">
             {/* Active Video Screen (Real WebRTC Video Tag) */}
@@ -887,6 +1052,7 @@ export default function MeetingPage() {
             </Button>
           </div>
         </div>
+        )
       ) : (
         /* Video Review Mode with Timestamped Notes */
         <div className="max-w-4xl mx-auto">

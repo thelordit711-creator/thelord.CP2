@@ -7,6 +7,9 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
 import { TheLordAIFloatingAssistant } from '../ai/TheLordAIFloatingAssistant';
+import { DynamicIslandNotification } from '../notifications/DynamicIslandNotification';
+import { useSocket } from '../../providers/SocketProvider';
+import { toast } from 'sonner';
 
 const PUBLIC_ROUTES = ['/login', '/register', '/logged-out', '/registered-success'];
 
@@ -14,7 +17,55 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const pathname = usePathname();
   const router = useRouter();
   const locale = useLocale();
+  const { socket } = useSocket();
   const [authorized, setAuthorized] = useState(false);
+
+  // Immediate security enforcement: revoke session if admin bans or deletes account
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleAccessRevoked = (data: { userId: string; reason?: string }) => {
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem('lord_current_user') : null;
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (String(user._id) === String(data.userId)) {
+            toast.error(
+              data.reason
+                ? `تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري. السبب: ${data.reason}`
+                : 'تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري'
+            );
+            localStorage.removeItem('lord_auth_token');
+            localStorage.removeItem('lord_current_user');
+            router.replace(`/${locale}/login`);
+          }
+        } catch (e) {}
+      }
+    };
+
+    const handleUserDeleted = (data: { userId: string }) => {
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem('lord_current_user') : null;
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (String(user._id) === String(data.userId)) {
+            toast.error('تم حذف حسابك نهائياً من المنظومة من قِبل الإدارة');
+            localStorage.removeItem('lord_auth_token');
+            localStorage.removeItem('lord_current_user');
+            router.replace(`/${locale}/login`);
+          }
+        } catch (e) {}
+      }
+    };
+
+    socket.on('USER_ACCESS_REVOKED', handleAccessRevoked);
+    socket.on('USER_DELETED', handleUserDeleted);
+
+    return () => {
+      socket.off('USER_ACCESS_REVOKED', handleAccessRevoked);
+      socket.off('USER_DELETED', handleUserDeleted);
+    };
+  }, [socket, locale, router]);
 
   // Check if current route is a standalone auth/public page
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.includes(route));
@@ -89,11 +140,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <TopBar />
-        <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 pb-20 md:pb-6 scroll-touch">
+        <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 pb-24 md:pb-6 scroll-touch">
           {children}
         </main>
       </div>
       <BottomNav />
+      <DynamicIslandNotification />
       <TheLordAIFloatingAssistant />
     </div>
   );

@@ -37,6 +37,7 @@ import {
   useMarkAsReadMutation,
   useMarkAllAsReadMutation
 } from '../../store/api/notificationsApi';
+import { NotificationDrawer } from '../notifications/NotificationDrawer';
 
 export const TopBar: React.FC = () => {
   const locale = useLocale();
@@ -52,8 +53,8 @@ export const TopBar: React.FC = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // Floating Overlay & HUD states (Desktop PiP & Mobile HUD)
-  const [showMobileOverlay, setShowMobileOverlay] = useState(false);
-  const [isMobileOverlayMinimized, setIsMobileOverlayMinimized] = useState(false);
+  const [showMobileOverlay, setShowMobileOverlay] = useState(true);
+  const [isMobileOverlayMinimized, setIsMobileOverlayMinimized] = useState(true);
   const [hasNativeNotificationPermission, setHasNativeNotificationPermission] = useState(false);
   const pipWindowRef = useRef<any>(null);
 
@@ -383,7 +384,7 @@ export const TopBar: React.FC = () => {
     <header className="sticky top-0 z-30 w-full bg-obsidian-surface/90 backdrop-blur-md border-b border-obsidian-border px-4 py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Left Side: Live Tickers */}
-        <div className="hidden lg:flex items-center gap-3 text-xs font-mono">
+        <div className="hidden xl:flex items-center gap-2.5 text-xs font-mono">
           <div className="flex items-center gap-1.5 text-lord-gold font-bold bg-lord-gold/10 px-2.5 py-1 rounded-lg border border-lord-gold/20">
             <TrendingUp className="w-3.5 h-3.5" />
             <span>BTC $91,420</span>
@@ -397,17 +398,17 @@ export const TopBar: React.FC = () => {
         </div>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-md relative hidden sm:block">
+        <div className="flex-1 max-w-xs xl:max-w-sm relative hidden md:block">
           <Search className="w-4 h-4 text-gray-500 absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
           <input
             type="text"
-            placeholder="بحث سريع في المنظومة... (Ctrl+K)"
+            placeholder="بحث سريع... (Ctrl+K)"
             className="w-full bg-obsidian-card border border-gray-800 rounded-xl pr-9 pl-4 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold transition-all"
           />
         </div>
 
         {/* Right Controls: Work Status Switcher + Language + Logout */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           {/* Work Status Dropdown Switcher */}
           <div className="relative">
             <button
@@ -489,21 +490,21 @@ export const TopBar: React.FC = () => {
           <button
             type="button"
             onClick={openFloatingPIP}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#17130c] via-[#10131c] to-[#0c0e15] border border-lord-gold/40 text-amber-400 hover:text-lord-gold hover:border-lord-gold hover:shadow-[0_0_15px_rgba(212,175,55,0.25)] transition-all text-xs shadow-sm"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-lord-gold/15 via-[#1a1711] to-lord-gold/5 border border-lord-gold/50 text-lord-gold hover:text-white hover:border-lord-gold hover:shadow-[0_0_15px_rgba(212,175,55,0.4)] transition-all text-xs shadow-md font-bold shrink-0"
             title="تفعيل الشاشة العائمة المصغرة والإشعارات اللحظية (Mobile Floating HUD & PIP)"
           >
-            <ExternalLink className="w-3.5 h-3.5 text-lord-gold animate-pulse" />
-            <span className="font-bold text-[11px] hidden sm:inline">النافذة العائمة</span>
-            <span className="font-bold text-[10px] sm:hidden">عائم</span>
+            <span className="text-sm">🦁</span>
+            <span className="hidden sm:inline">النافذة العائمة</span>
+            <span className="sm:hidden text-[11px]">عائم</span>
           </button>
 
           {/* Notifications Bell */}
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold transition-all relative flex items-center justify-center"
-              title="مركز الإشعارات والتنبيهات"
+              onClick={() => setShowNotifications(true)}
+              className="p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold transition-all relative flex items-center justify-center hover:border-lord-gold/40"
+              title="مركز الإشعارات والتنبيهات المباشرة"
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
@@ -512,69 +513,15 @@ export const TopBar: React.FC = () => {
                 </span>
               )}
             </button>
-
-            {showNotifications && (
-              <div className="absolute left-0 sm:right-auto sm:left-0 mt-3 w-88 max-w-[340px] bg-obsidian-card border border-lord-gold/40 rounded-2xl shadow-2xl overflow-hidden z-50">
-                <div className="p-3 bg-obsidian-surface border-b border-obsidian-border flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">مركز الإشعارات اللحظية</span>
-                    {unreadCount > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-lord-gold/20 text-lord-gold text-[10px] font-bold">
-                        {unreadCount} جديد
-                      </span>
-                    )}
-                  </div>
-                  {unreadCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await markAllAsRead().unwrap();
-                        toast.info('تم تحديد جميع الإشعارات كمقروءة');
-                      }}
-                      className="text-[10px] text-lord-gold hover:underline font-bold flex items-center gap-1"
-                    >
-                      <CheckCheck className="w-3 h-3" />
-                      <span>تحديد الكل كمقروء</span>
-                    </button>
-                  )}
-                </div>
-                <div className="divide-y divide-gray-800/80 max-h-80 overflow-y-auto">
-                  {notificationsList.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500 text-xs flex flex-col items-center gap-2">
-                      <Bell className="w-8 h-8 text-gray-600 opacity-40" />
-                      <span>لا توجد إشعارات حالياً</span>
-                    </div>
-                  ) : (
-                    notificationsList.map((n) => (
-                      <div
-                        key={n._id}
-                        onClick={async () => {
-                          if (!n.readStatus) await markAsRead(n._id).unwrap();
-                          if (n.relatedUrl) router.push(n.relatedUrl);
-                          setShowNotifications(false);
-                        }}
-                        className={`p-3 text-xs transition-colors hover:bg-obsidian-surface cursor-pointer ${!n.readStatus ? 'bg-lord-gold/10 border-r-2 border-lord-gold' : 'opacity-80'
-                          }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <strong className={`font-bold text-xs ${!n.readStatus ? 'text-lord-gold' : 'text-gray-300'}`}>
-                            {n.title}
-                          </strong>
-                          {!n.readStatus && (
-                            <span className="w-2 h-2 rounded-full bg-lord-gold" />
-                          )}
-                        </div>
-                        <p className="text-gray-300 leading-relaxed text-[11px] line-clamp-2">{n.message}</p>
-                        <span className="text-[10px] text-gray-500 font-mono mt-1 block">
-                          {new Date(n.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Full Screen Slide-over Notification Drawer */}
+          <NotificationDrawer
+            isOpen={showNotifications}
+            onClose={() => setShowNotifications(false)}
+            notifications={notificationsList}
+            onPlayChime={playNotificationChime}
+          />
 
           {/* Direct Logout Button */}
           <button
@@ -594,23 +541,24 @@ export const TopBar: React.FC = () => {
           {isMobileOverlayMinimized ? (
             /* Minimized Floating Gold Lion Orb */
             <div
-              className="fixed bottom-24 right-4 z-[99999] cursor-pointer group select-none animate-in fade-in zoom-in duration-200"
+              className="fixed bottom-20 right-3.5 z-[99999] cursor-pointer group select-none animate-in fade-in zoom-in duration-200"
               onClick={() => setIsMobileOverlayMinimized(false)}
               title="فتح اللوحة العائمة المصغرة (THE LORD HUD)"
             >
-              <div className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-[#07090E] via-[#161a26] to-[#251e10] border-2 border-lord-gold shadow-[0_0_20px_rgba(212,175,55,0.5)] transition-transform hover:scale-105 active:scale-95">
-                <span className="text-xl">🦁</span>
+              <div className="relative flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-[#07090E] via-[#161a26] to-[#2a2212] border-2 border-lord-gold shadow-[0_0_25px_rgba(212,175,55,0.65),inset_0_1px_2px_rgba(255,255,255,0.3)] transition-transform hover:scale-110 active:scale-95">
+                <span className="text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">🦁</span>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-status-danger text-white text-[10px] font-black flex items-center justify-center shadow-lg border-2 border-obsidian-primary animate-pulse">
+                  <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-status-danger text-white text-[10px] font-black flex items-center justify-center shadow-lg border-2 border-obsidian-primary animate-pulse">
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
-                <span className="absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#07090E]" />
+                <span className="absolute -bottom-0.5 -left-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#07090E] shadow-[0_0_6px_#10b981]" />
+                <span className="absolute inset-0 rounded-full border border-lord-gold/40 animate-ping opacity-25 pointer-events-none" />
               </div>
             </div>
           ) : (
             /* Expanded Luxury Glass Floating Panel */
-            <div className="fixed bottom-20 right-3 sm:bottom-6 sm:right-6 z-[99999] w-[94vw] max-w-[360px] bg-[#07090E]/95 backdrop-blur-2xl border-2 border-lord-gold/60 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8),0_0_25px_rgba(212,175,55,0.25)] p-3 text-white animate-in fade-in slide-in-from-bottom-5 duration-200 select-none">
+            <div className="fixed bottom-20 right-2 sm:bottom-6 sm:right-6 z-[99999] w-[95vw] max-w-[370px] bg-[#07090E]/95 backdrop-blur-3xl border-2 border-lord-gold/60 rounded-3xl shadow-[0_12px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(212,175,55,0.3)] p-3.5 text-white animate-in fade-in slide-in-from-bottom-5 duration-200 select-none">
               {/* HUD Top Bar */}
               <div className="flex items-center justify-between border-b border-lord-gold/30 pb-2.5 mb-2.5">
                 <div className="flex items-center gap-2">

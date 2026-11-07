@@ -210,16 +210,17 @@ export class ProjectsController {
         dueDate: milestone.dueDate || project.targetEndDate,
         assignedTo: project.teamMembers,
         createdBy: req.user._id,
+        status: 'TODO',
         stages: [
           {
             stageOrder: 1,
             stageTitle: 'المرحلة 1: إعداد وتجهيز متطلبات المعلم',
-            instructions: milestone.description || 'تنفيذ العمل بدقة',
-            status: 'PENDING',
+            instructions: milestone.description || 'تنفيذ العمل بدقة ورفع الإثباتات المطلوبة',
+            status: 'IN_PROGRESS',
             requiredInputs: [
               {
                 fieldLabel: 'مستند أو تقرير الإنجاز',
-                expectedType: 'FILE',
+                expectedType: 'DOCUMENT',
                 isMandatory: true
               }
             ]
@@ -279,16 +280,17 @@ export class ProjectsController {
           dueDate: milestone.dueDate || project.targetEndDate,
           assignedTo: project.teamMembers,
           createdBy: req.user._id,
+          status: 'TODO',
           stages: [
             {
               stageOrder: 1,
               stageTitle: `المرحلة 1: إعداد وتنفيذ ${milestone.title}`,
               instructions: milestone.description || 'تنفيذ العمل بدقة ورفع الإثباتات',
-              status: 'PENDING',
+              status: 'IN_PROGRESS',
               requiredInputs: [
                 {
                   fieldLabel: 'مستند أو تقرير الإنجاز',
-                  expectedType: 'FILE',
+                  expectedType: 'DOCUMENT',
                   isMandatory: true
                 }
               ]

@@ -378,20 +378,7 @@ export default function ProjectsPage() {
 
   const totalAllocated = projects.reduce((acc, p) => acc + (p.allocatedBudget || 0), 0);
   const totalSpent = projects.reduce((acc, p) => acc + (p.spentBudget || 0), 0);
-
-  if (currentUser && currentUser.accessRole !== 'SUPER_ADMIN') {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-        <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
-          <FolderKanban className="w-8 h-8" />
-        </div>
-        <h2 className="text-lg font-bold text-white">مساحة مخصصة للإدارة العليا والقيادة التنفيذية</h2>
-        <p className="text-xs text-gray-400 max-w-md">
-          إدارة المشاريع الاستراتيجية وتفكيك معالم WBS متاحة للمسؤول التنفيذي فقط. يمكنك استعراض مهامك المسندة إليك عبر مساحة العمل أو لوحة المهام.
-        </p>
-      </div>
-    );
-  }
+  const isAdmin = currentUser?.accessRole === 'SUPER_ADMIN';
 
   if (isLoading) {
     return (
@@ -412,27 +399,33 @@ export default function ProjectsPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-black text-white">إدارة المشاريع الاستراتيجية ومحرك WBS</h1>
+              <h1 className="text-xl md:text-2xl font-black text-white">
+                {isAdmin ? 'إدارة المشاريع الاستراتيجية ومحرك WBS' : 'المشاريع الاستراتيجية ومراحل العمل'}
+              </h1>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-lord-gold/20 text-lord-gold border border-lord-gold/40 font-bold">
-                Enterprise Suite
+                {isAdmin ? 'إشراف المدير التنفيذي' : 'استعراض الفريق'}
               </span>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              أهداف المشاريع، الميزانيات المحجوزة، تفكيك المعالم لمهام تنفيذية، والتحكم الصارم بسقف الصرف
+              {isAdmin
+                ? 'أهداف المشاريع، الميزانيات المحجوزة، تفكيك المعالم لمهام تنفيذية، والتحكم الصارم بسقف الصرف'
+                : 'استعراض أهداف المشاريع والمعالم المحددة والمهام التنفيذية المرتبطة بفريق العمل'}
             </p>
           </div>
         </div>
 
-        <Button
-          type="button"
-          onClick={() => setIsCreateModalOpen(true)}
-          variant="gold"
-          size="md"
-          className="rounded-2xl shadow-gold-glow flex items-center gap-2 shrink-0 font-bold"
-        >
-          <Plus className="w-4 h-4 ml-1" />
-          <span>مشروع جديد (يدوي / ذكاء اصطناعي) +</span>
-        </Button>
+        {isAdmin && (
+          <Button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            variant="gold"
+            size="md"
+            className="rounded-2xl shadow-gold-glow flex items-center gap-2 shrink-0 font-bold"
+          >
+            <Plus className="w-4 h-4 ml-1" />
+            <span>مشروع جديد (يدوي / ذكاء اصطناعي) +</span>
+          </Button>
+        )}
       </div>
 
       {/* Metrics Row */}
@@ -498,56 +491,60 @@ export default function ProjectsPage() {
                       <span>عرض الخطة 📋</span>
                     </button>
 
-                    <button
-                      type="button"
-                      disabled={isDecomposingAll}
-                      onClick={() => handleDecomposeAll(project._id)}
-                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-lord-gold to-yellow-600 text-obsidian-primary text-xs font-black shadow-gold-glow hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>تحويل الخطة لمهام 🚀</span>
-                    </button>
+                    {isAdmin && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={isDecomposingAll}
+                          onClick={() => handleDecomposeAll(project._id)}
+                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-lord-gold to-yellow-600 text-obsidian-primary text-xs font-black shadow-gold-glow hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>تحويل الخطة لمهام 🚀</span>
+                        </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEdit(project)}
-                      className="px-2.5 py-1.5 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1 shadow-md"
-                      title="تعديل بيانات المشروع"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 text-lord-gold" />
-                      <span>تعديل</span>
-                    </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(project)}
+                          className="px-2.5 py-1.5 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1 shadow-md"
+                          title="تعديل بيانات المشروع"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-lord-gold" />
+                          <span>تعديل</span>
+                        </button>
 
-                    <button
-                      type="button"
-                      disabled={isDeletingProject}
-                      onClick={() => handleDeleteProject(project._id, project.title)}
-                      className="px-2.5 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-xs font-bold text-red-400 transition-all flex items-center gap-1 shadow-md"
-                      title="حذف المشروع نهائياً"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>حذف</span>
-                    </button>
+                        <button
+                          type="button"
+                          disabled={isDeletingProject}
+                          onClick={() => handleDeleteProject(project._id, project.title)}
+                          className="px-2.5 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-xs font-bold text-red-400 transition-all flex items-center gap-1 shadow-md"
+                          title="حذف المشروع نهائياً"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>حذف</span>
+                        </button>
 
-                    {/* Quick Status Selector */}
-                    <select
-                      value={project.status || 'ACTIVE'}
-                      onChange={(e) => handleQuickStatusChange(project._id, e.target.value)}
-                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        project.status === 'COMPLETED'
-                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
-                          : project.status === 'ACTIVE'
-                          ? 'bg-lord-gold/15 border-lord-gold/40 text-lord-gold'
-                          : project.status === 'ON_HOLD'
-                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
-                          : 'bg-gray-800 border-gray-700 text-gray-300'
-                      }`}
-                    >
-                      <option value="PLANNING">قيد التخطيط 📋</option>
-                      <option value="ACTIVE">نشط قيد التنفيذ ⚡</option>
-                      <option value="ON_HOLD">معلق مؤقتاً ⏸️</option>
-                      <option value="COMPLETED">مكتمل 100% 🏆</option>
-                    </select>
+                        {/* Quick Status Selector */}
+                        <select
+                          value={project.status || 'ACTIVE'}
+                          onChange={(e) => handleQuickStatusChange(project._id, e.target.value)}
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                            project.status === 'COMPLETED'
+                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                              : project.status === 'ACTIVE'
+                              ? 'bg-lord-gold/15 border-lord-gold/40 text-lord-gold'
+                              : project.status === 'ON_HOLD'
+                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                              : 'bg-gray-800 border-gray-700 text-gray-300'
+                          }`}
+                        >
+                          <option value="PLANNING">قيد التخطيط 📋</option>
+                          <option value="ACTIVE">نشط قيد التنفيذ ⚡</option>
+                          <option value="ON_HOLD">معلق مؤقتاً ⏸️</option>
+                          <option value="COMPLETED">مكتمل 100% 🏆</option>
+                        </select>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -798,34 +795,38 @@ export default function ProjectsPage() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  disabled={isDecomposingAll}
-                  onClick={() => handleDecomposeAll(selectedProjectPlan._id)}
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-lord-gold to-yellow-600 text-obsidian-primary font-black text-xs shadow-gold-glow hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>تحويل الخطة كاملة إلى مهام 🚀</span>
-                </button>
+                {isAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={isDecomposingAll}
+                      onClick={() => handleDecomposeAll(selectedProjectPlan._id)}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-lord-gold to-yellow-600 text-obsidian-primary font-black text-xs shadow-gold-glow hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>تحويل الخطة كاملة إلى مهام 🚀</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(selectedProjectPlan)}
-                  className="px-3 py-2 rounded-xl bg-obsidian-card border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1.5 shadow-md"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-lord-gold" />
-                  <span>تعديل</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(selectedProjectPlan)}
+                      className="px-3 py-2 rounded-xl bg-obsidian-card border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1.5 shadow-md"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-lord-gold" />
+                      <span>تعديل</span>
+                    </button>
 
-                <button
-                  type="button"
-                  disabled={isDeletingProject}
-                  onClick={() => handleDeleteProject(selectedProjectPlan._id, selectedProjectPlan.title)}
-                  className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-xs font-bold text-red-400 transition-all flex items-center gap-1.5 shadow-md"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>حذف</span>
-                </button>
+                    <button
+                      type="button"
+                      disabled={isDeletingProject}
+                      onClick={() => handleDeleteProject(selectedProjectPlan._id, selectedProjectPlan.title)}
+                      className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-xs font-bold text-red-400 transition-all flex items-center gap-1.5 shadow-md"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>حذف</span>
+                    </button>
+                  </>
+                )}
 
                 <button
                   type="button"

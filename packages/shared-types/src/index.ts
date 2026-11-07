@@ -212,6 +212,9 @@ export interface IUser {
   payoutMethods: IUserPayoutMethods;
   compensation: IUserCompensation;
   presenceStatus: PresenceStatus;
+  isSuspended?: boolean;
+  suspendedAt?: Date | string;
+  suspensionReason?: string;
   lastActiveAt: Date | string;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -260,7 +263,7 @@ export interface IFinancialRequirement {
   adminApprovalStatus: AdminApprovalStatus;
   adminNotes?: string;
   approvedAt?: Date | string;
-  payoutOrderId?: string;
+  payoutOrderId?: string | IPayoutOrder;
 }
 
 export interface IDirectReport {

@@ -21,7 +21,14 @@ import {
   Volume2,
   ExternalLink,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Hourglass,
+  Quote,
+  FileCheck2,
+  ShieldCheck,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSubmitTaskStageMutation, useReviewTaskStageMutation } from '../../store/api/tasksApi';
@@ -71,6 +78,14 @@ export const StageDeliverableBox: React.FC<StageDeliverableBoxProps> = ({
   const [adminNote, setAdminNote] = useState('');
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; alt?: string } | null>(null);
+  const [isExpanded, setIsExpanded] = useState<boolean>(stage.status !== 'APPROVED');
+
+  // Keep state synchronized if stage becomes active or needs attention
+  React.useEffect(() => {
+    if (stage.status === 'IN_PROGRESS' || stage.status === 'SUBMITTED_FOR_REVIEW' || stage.status === 'NEEDS_REVISION') {
+      setIsExpanded(true);
+    }
+  }, [stage.status]);
 
   // File Upload Helper
   const handleFileUpload = async (file: File, fieldLabel?: string) => {
@@ -202,178 +217,329 @@ export const StageDeliverableBox: React.FC<StageDeliverableBoxProps> = ({
   const isApproved = stage.status === 'APPROVED';
   const isNeedsRevision = stage.status === 'NEEDS_REVISION';
 
+  const hasSubmittedDeliverables =
+    (stage.requiredInputs &&
+      stage.requiredInputs.some(
+        (inp) =>
+          inp.employeeSubmission?.textOrUrlValue ||
+          inp.employeeSubmission?.numberValue != null ||
+          inp.employeeSubmission?.mediaAttachment
+      )) ||
+    Boolean(stage.employeeVoiceNote) ||
+    Boolean(stage.additionalAttachments && stage.additionalAttachments.length > 0);
+
   return (
     <div
-      className={`rounded-2xl border transition-all text-xs overflow-hidden ${
+      className={`rounded-2xl border transition-all text-xs overflow-hidden backdrop-blur-sm ${
         isApproved
-          ? 'bg-emerald-500/5 border-emerald-500/30'
+          ? 'bg-gradient-to-br from-emerald-950/20 via-obsidian-surface to-obsidian-card border-emerald-500/40 shadow-[0_4px_20px_rgba(16,185,129,0.08)]'
           : isInProgress
-          ? 'bg-lord-gold/5 border-lord-gold/40 shadow-lg shadow-lord-gold/5'
+          ? 'bg-gradient-to-br from-amber-950/20 via-obsidian-surface to-obsidian-card border-2 border-lord-gold/60 shadow-[0_4px_25px_rgba(212,175,55,0.15)] ring-1 ring-lord-gold/30'
           : isSubmitted
-          ? 'bg-amber-500/5 border-amber-500/40'
+          ? 'bg-gradient-to-br from-amber-950/25 via-obsidian-surface to-obsidian-card border border-amber-500/45 shadow-[0_4px_20px_rgba(245,158,11,0.08)]'
           : isNeedsRevision
-          ? 'bg-red-500/5 border-red-500/40'
-          : 'bg-obsidian-card border-gray-800 opacity-60'
+          ? 'bg-gradient-to-br from-red-950/25 via-obsidian-surface to-obsidian-card border border-red-500/45 shadow-[0_4px_20px_rgba(239,68,68,0.1)]'
+          : 'bg-obsidian-card/75 border-gray-800/80 opacity-70'
       }`}
     >
       {/* Stage Header */}
-      <div className="p-4 flex items-center justify-between border-b border-gray-800/60 flex-wrap gap-2">
-        <div className="flex items-center gap-2.5">
-          <span
-            className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs ${
+      <div
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="p-3.5 sm:p-4 flex items-center justify-between border-b border-gray-800/70 flex-wrap gap-2.5 cursor-pointer hover:bg-white/[0.03] select-none transition-colors"
+        title={isExpanded ? 'طي تفاصيل المرحلة' : 'توسيع وعرض تفاصيل ومخرجات المرحلة'}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className={`w-9 h-9 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-md ${
               isApproved
-                ? 'bg-emerald-500 text-obsidian-primary'
+                ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-obsidian-primary shadow-emerald-500/30'
                 : isInProgress
-                ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow animate-pulse'
+                ? 'bg-gradient-to-br from-amber-300 via-lord-gold to-yellow-600 text-obsidian-primary shadow-gold-glow animate-pulse'
                 : isSubmitted
-                ? 'bg-amber-500 text-obsidian-primary'
+                ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-obsidian-primary shadow-amber-500/20'
                 : isNeedsRevision
-                ? 'bg-red-500 text-white'
-                : 'bg-gray-800 text-gray-400'
+                ? 'bg-gradient-to-br from-red-400 to-red-600 text-white shadow-red-500/30'
+                : 'bg-gray-800/90 text-gray-400 border border-gray-700/50'
             }`}
           >
-            {isApproved ? <Check className="w-4 h-4 stroke-[3]" /> : isLocked ? <Lock className="w-3.5 h-3.5" /> : stage.stageOrder}
-          </span>
+            {isApproved ? (
+              <Check className="w-5 h-5 stroke-[3]" />
+            ) : isLocked ? (
+              <Lock className="w-4 h-4 text-gray-400" />
+            ) : isSubmitted ? (
+              <Hourglass className="w-4 h-4" />
+            ) : (
+              <span className="font-mono text-sm">{stage.stageOrder}</span>
+            )}
+          </div>
 
           <div>
-            <h4 className="font-bold text-white text-sm flex items-center gap-1.5">
+            <h4 className="font-bold text-white text-sm sm:text-base flex items-center gap-2">
               <span>{stage.stageTitle}</span>
               {isInProgress && (
-                <span className="px-2 py-0.5 rounded-full bg-lord-gold/20 text-lord-gold text-[10px] font-bold border border-lord-gold/30">
-                  المرحلة النشطة الآن ⚡
+                <span className="px-2 py-0.5 rounded-full bg-lord-gold/20 text-lord-gold text-[10px] font-extrabold border border-lord-gold/40 shadow-xs animate-pulse">
+                  قيد التنفيذ الآن ⚡
                 </span>
               )}
             </h4>
-            <span className="text-[11px] text-gray-400">
-              المرحلة {stage.stageOrder} من المسار التنفيذي
-            </span>
+            <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
+              <span>المرحلة {stage.stageOrder} من المسار التنفيذي</span>
+              {stage.requiredInputs && stage.requiredInputs.length > 0 && (
+                <span className="text-gray-500 font-mono">
+                  ({stage.requiredInputs.length} متطلبات محددة)
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {isApproved && (
-            <Badge variant="disbursed" className="flex items-center gap-1 font-bold">
-              <CheckCircle className="w-3.5 h-3.5" />
+            <span className="px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1.5 shadow-xs">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
               <span>معتمدة ومكتملة ✓</span>
-            </Badge>
-          )}
-          {isInProgress && (
-            <Badge variant="gold" className="flex items-center gap-1 font-bold animate-pulse">
-              <Clock className="w-3.5 h-3.5" />
-              <span>قيد العمل والتنفيذ</span>
-            </Badge>
-          )}
-          {isSubmitted && (
-            <Badge variant="processing" className="flex items-center gap-1 font-bold">
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>تم إرسال المتطلبات (بانتظار المراجعة)</span>
-            </Badge>
-          )}
-          {isNeedsRevision && (
-            <Badge variant="neutral" className="flex items-center gap-1 font-bold bg-red-500/20 text-red-300 border-red-500/40">
-              <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-              <span>مطلوب تعديل المخرجات</span>
-            </Badge>
-          )}
-          {isLocked && (
-            <span className="px-2.5 py-1 rounded-xl bg-gray-800/80 text-gray-400 text-[11px] flex items-center gap-1">
-              <Lock className="w-3 h-3" />
-              <span>مغلقة</span>
             </span>
           )}
+          {isInProgress && (
+            <span className="px-3 py-1 rounded-xl bg-lord-gold/15 border border-lord-gold/40 text-lord-gold font-bold text-xs flex items-center gap-1.5 shadow-xs">
+              <Clock className="w-3.5 h-3.5 text-lord-gold animate-spin" style={{ animationDuration: '4s' }} />
+              <span>قيد العمل والتنفيذ</span>
+            </span>
+          )}
+          {isSubmitted && (
+            <span className="px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs flex items-center gap-1.5 shadow-xs">
+              <Hourglass className="w-3.5 h-3.5 text-amber-400" />
+              <span>بانتظار مراجعة الإدارة</span>
+            </span>
+          )}
+          {isNeedsRevision && (
+            <span className="px-3 py-1 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 font-bold text-xs flex items-center gap-1.5 shadow-xs">
+              <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+              <span>مطلوب تعديل المخرجات</span>
+            </span>
+          )}
+          {isLocked && (
+            <span className="px-2.5 py-1 rounded-xl bg-gray-800/80 border border-gray-700/50 text-gray-400 text-[11px] flex items-center gap-1">
+              <Lock className="w-3 h-3 text-gray-500" />
+              <span>مغلقة حتى اعتماد سابقتها</span>
+            </span>
+          )}
+          <div className="p-1.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-300 hover:text-white transition-colors">
+            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </div>
         </div>
       </div>
 
       {/* Stage Body */}
-      <div className="p-4 space-y-4">
-        {/* Stage Instructions */}
+      {isExpanded && (
+        <div className="p-3.5 sm:p-5 space-y-4 animate-in fade-in duration-200">
+        {/* Stage Instructions Callout */}
         {stage.instructions && (
-          <div className="p-3 bg-obsidian-primary/60 rounded-xl border border-gray-800 text-[11px] text-gray-300 leading-relaxed">
-            <span className="text-lord-gold font-bold block mb-1">تعليمات وشروط المرحلة:</span>
-            {stage.instructions}
+          <div className="p-3 sm:p-3.5 bg-obsidian-card/90 rounded-2xl border-r-4 border-r-lord-gold border border-gray-800 text-xs text-gray-200 leading-relaxed shadow-sm">
+            <div className="flex items-center gap-1.5 text-lord-gold font-bold mb-1.5">
+              <FileCheck2 className="w-3.5 h-3.5 text-lord-gold" />
+              <span>تعليمات وشروط المرحلة التنفيذية:</span>
+            </div>
+            <p className="pr-1 text-gray-300">{stage.instructions}</p>
           </div>
         )}
 
         {/* Needs Revision Warning Banner */}
         {isNeedsRevision && stage.adminFeedback?.note && (
-          <div className="p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs flex items-start gap-2.5">
-            <AlertTriangle className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
-            <div>
-              <strong className="block font-bold mb-0.5">ملاحظات المسؤول المطلوب تعديلها:</strong>
-              <p className="leading-relaxed">{stage.adminFeedback.note}</p>
+          <div className="p-3.5 rounded-2xl bg-red-500/15 border border-red-500/40 text-red-200 text-xs flex items-start gap-3 shadow-md">
+            <div className="w-7 h-7 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+            </div>
+            <div className="space-y-1">
+              <strong className="block font-bold text-red-300">ملاحظات وتوجيهات المسؤول المطلوب تعديلها:</strong>
+              <p className="leading-relaxed text-gray-200">{stage.adminFeedback.note}</p>
             </div>
           </div>
         )}
 
         {/* Display Submitted Deliverables (if Submitted or Approved) */}
-        {(isSubmitted || isApproved) && (
-          <div className="p-3.5 rounded-xl bg-obsidian-primary/80 border border-gray-800 space-y-3">
-            <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-              <span>المتطلبات والمخرجات المرسلة من الموظف:</span>
-            </span>
+        {(isSubmitted || isApproved) && hasSubmittedDeliverables && (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-obsidian-surface/90 border border-gray-800/90 space-y-3 shadow-inner">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                <span>المخرجات والإثباتات المسلمة من الموظف:</span>
+              </span>
+              <span className="text-[10px] text-gray-400 font-mono">
+                {isApproved ? 'معتمدة رسمياً' : 'مقدمة للمراجعة'}
+              </span>
+            </div>
 
             {/* List Submitted Inputs */}
-            {stage.requiredInputs && stage.requiredInputs.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
-                {stage.requiredInputs.map((inp, i) => (
-                  <div key={i} className="p-2.5 rounded-lg bg-obsidian-surface border border-gray-800">
-                    <span className="text-gray-400 text-[10px] block mb-1">{inp.fieldLabel}:</span>
-                    {inp.employeeSubmission?.textOrUrlValue?.startsWith('http') ? (
-                      <a
-                        href={inp.employeeSubmission.textOrUrlValue}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-cyber-blue hover:underline flex items-center gap-1 font-mono text-xs break-all"
+            {stage.requiredInputs && stage.requiredInputs.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {stage.requiredInputs.map((inp, i) => {
+                  const hasVal =
+                    inp.employeeSubmission?.textOrUrlValue ||
+                    inp.employeeSubmission?.numberValue != null ||
+                    inp.employeeSubmission?.mediaAttachment;
+
+                  if (!hasVal) {
+                    return (
+                      <div
+                        key={i}
+                        className="p-2.5 rounded-xl bg-obsidian-card/40 border border-gray-800/60 flex items-center justify-between text-gray-500"
                       >
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                        <span>{inp.employeeSubmission.textOrUrlValue}</span>
-                      </a>
-                    ) : inp.employeeSubmission?.mediaAttachment ? (
-                      <div className="flex items-center gap-2">
-                        {inp.employeeSubmission.mediaAttachment.fileType === 'IMAGE' ? (
-                          <button
-                            type="button"
-                            onClick={() => setLightboxImage({ url: inp.employeeSubmission!.mediaAttachment!.fileUrl, alt: inp.employeeSubmission!.mediaAttachment!.fileName })}
-                            className="block text-right cursor-zoom-in"
-                            title="انقر لتكبير ومعاينة الصورة"
-                          >
-                            <img
-                              src={inp.employeeSubmission.mediaAttachment.fileUrl}
-                              alt="مرفق"
-                              className="w-16 h-16 object-cover rounded-lg border border-gray-700 hover:border-amber-400 hover:scale-105 transition-all shadow-md"
-                            />
-                          </button>
-                        ) : (
-                          <a
-                            href={inp.employeeSubmission.mediaAttachment.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-lord-gold hover:underline flex items-center gap-1 font-bold text-xs"
-                          >
-                            <Paperclip className="w-3.5 h-3.5" />
-                            <span>{inp.employeeSubmission.mediaAttachment.fileName}</span>
-                          </a>
+                        <span className="text-[11px] font-medium">{inp.fieldLabel}:</span>
+                        <span className="text-[10px] text-gray-500 bg-gray-800/50 px-2 py-0.5 rounded-md">
+                          لم يُطلب إرفاقه
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  const val = inp.employeeSubmission;
+                  const isUrl = val?.textOrUrlValue?.startsWith('http');
+                  const isMedia = Boolean(val?.mediaAttachment);
+
+                  return (
+                    <div
+                      key={i}
+                      className="p-3 rounded-xl bg-obsidian-card border border-gray-700/80 hover:border-lord-gold/40 transition-all space-y-1.5 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-lord-gold text-[11px] font-bold flex items-center gap-1.5">
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span>{inp.fieldLabel}</span>
+                        </span>
+                        {val?.numberValue != null && (
+                          <span className="text-[10px] text-gray-400 font-mono">قيمة رقمية</span>
                         )}
                       </div>
-                    ) : (
-                      <span className="text-white font-medium break-words text-xs">
-                        {inp.employeeSubmission?.textOrUrlValue || inp.employeeSubmission?.numberValue || '—'}
-                      </span>
-                    )}
-                  </div>
-                ))}
+
+                      {isUrl ? (
+                        <a
+                          href={val!.textOrUrlValue}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-2 rounded-lg bg-cyber-blue/10 border border-cyber-blue/30 text-cyber-blue hover:underline flex items-center gap-2 font-mono text-xs break-all group transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform" />
+                          <span className="truncate">{val!.textOrUrlValue}</span>
+                        </a>
+                      ) : isMedia ? (
+                        <div>
+                          {val!.mediaAttachment!.fileType === 'IMAGE' ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLightboxImage({
+                                  url: val!.mediaAttachment!.fileUrl,
+                                  alt: val!.mediaAttachment!.fileName
+                                })
+                              }
+                              className="group relative block cursor-zoom-in rounded-xl overflow-hidden border border-gray-700 hover:border-lord-gold transition-all"
+                              title="انقر لتكبير ومعاينة الصورة"
+                            >
+                              <img
+                                src={val!.mediaAttachment!.fileUrl}
+                                alt="مرفق الإنجاز"
+                                className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white font-bold text-xs">
+                                <span>تكبير المعاينة</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <a
+                              href={val!.mediaAttachment!.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-2 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white flex items-center gap-2 transition-all shadow-sm"
+                            >
+                              <Paperclip className="w-4 h-4 text-lord-gold shrink-0" />
+                              <span className="truncate max-w-[200px]">
+                                {val!.mediaAttachment!.fileName || 'مستند مرفق'}
+                              </span>
+                              <ExternalLink className="w-3 h-3 text-gray-500 mr-auto shrink-0" />
+                            </a>
+                          )}
+                        </div>
+                      ) : val?.numberValue != null ? (
+                        <div className="text-sm font-mono font-black text-emerald-400 bg-obsidian-surface px-3 py-1.5 rounded-lg border border-gray-800 inline-block">
+                          {val.numberValue}
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-lg bg-obsidian-surface border border-gray-800/80 text-gray-200 font-medium text-xs leading-relaxed break-words">
+                          {val?.textOrUrlValue}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            ) : null}
+            )}
 
             {/* Voice Note Player */}
             {stage.employeeVoiceNote && (
-              <div className="p-2.5 rounded-lg bg-obsidian-surface border border-gray-800 flex items-center gap-3">
-                <Volume2 className="w-4 h-4 text-cyber-blue shrink-0" />
-                <span className="text-gray-300 text-xs">تسجيل صوتي مرفق:</span>
-                <audio controls src={stage.employeeVoiceNote.fileUrl} className="h-8 flex-1" />
+              <div className="p-3 rounded-xl bg-obsidian-card border border-cyber-blue/30 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-cyber-blue/15 border border-cyber-blue/30 flex items-center justify-center text-cyber-blue shrink-0">
+                  <Volume2 className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-gray-300 text-xs font-bold block mb-1">تسجيل صوتي مرفق بالإنجاز:</span>
+                  <audio controls src={stage.employeeVoiceNote.fileUrl} className="h-8 w-full max-w-md" />
+                </div>
               </div>
             )}
+
+            {/* Additional Attachments */}
+            {stage.additionalAttachments && stage.additionalAttachments.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-gray-800/70">
+                <span className="text-[11px] text-gray-400 font-bold flex items-center gap-1.5">
+                  <Paperclip className="w-3.5 h-3.5 text-lord-gold" />
+                  <span>مرفقات إضافية وإثباتات ({stage.additionalAttachments.length}):</span>
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {stage.additionalAttachments.map((att: any, aIdx: number) => {
+                    const isImg =
+                      att.fileType === 'IMAGE' ||
+                      att.fileUrl?.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+                    return isImg ? (
+                      <button
+                        key={aIdx}
+                        type="button"
+                        onClick={() =>
+                          setLightboxImage({ url: att.fileUrl, alt: att.fileName || 'مرفق إضافي' })
+                        }
+                        className="block cursor-zoom-in group"
+                        title="انقر لتكبير ومعاينة الصورة"
+                      >
+                        <img
+                          src={att.fileUrl}
+                          alt={att.fileName || 'مرفق'}
+                          className="w-16 h-16 object-cover rounded-xl border border-gray-700 group-hover:border-lord-gold group-hover:scale-105 transition-all shadow-md"
+                        />
+                      </button>
+                    ) : (
+                      <a
+                        key={aIdx}
+                        href={att.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-obsidian-card border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white flex items-center gap-1.5 transition-all shadow-sm"
+                      >
+                        <Paperclip className="w-3.5 h-3.5 text-lord-gold" />
+                        <span className="truncate max-w-[140px]">{att.fileName || 'مستند مرفق'}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* LOCKED BANNER */}
+        {isLocked && (
+          <div className="p-3.5 rounded-2xl bg-obsidian-card/60 border border-gray-800/80 text-gray-400 text-center text-xs flex items-center justify-center gap-2">
+            <Lock className="w-4 h-4 text-gray-500" />
+            <span>هذه المرحلة مقفلة — ستُفتح للموظف تلقائياً بعد اعتماد المرحلة السابقة ({stage.stageOrder - 1}).</span>
           </div>
         )}
 
@@ -586,15 +752,8 @@ export const StageDeliverableBox: React.FC<StageDeliverableBoxProps> = ({
             </div>
           </div>
         )}
-
-        {/* LOCKED BANNER */}
-        {isLocked && (
-          <div className="p-3 rounded-xl bg-gray-900/60 border border-gray-800 text-gray-500 text-center text-xs flex items-center justify-center gap-2">
-            <Lock className="w-3.5 h-3.5" />
-            <span>هذه المرحلة مقفلة — ستُفتح للموظف تلقائياً بعد اعتماد المرحلة السابقة ({stage.stageOrder - 1}).</span>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Global Image Lightbox Modal */}
       {lightboxImage && (

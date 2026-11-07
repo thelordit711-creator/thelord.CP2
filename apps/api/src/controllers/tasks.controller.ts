@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { Task } from '../models/Task.model';
 import { User } from '../models/User.model';
+import { PayoutOrder } from '../models/PayoutOrder.model';
 import { SocketService } from '../services/socket.service';
 import { ICreateTaskDto, ISubmitStageDto, IReviewStageDto } from '@lord/shared-types';
 
@@ -80,7 +81,8 @@ export class TasksController {
 
       const populatedTask = await Task.findById(task._id)
         .populate('assignedTo', 'fullName email avatarUrl jobTitles')
-        .populate('createdBy', 'fullName email avatarUrl');
+        .populate('createdBy', 'fullName email avatarUrl')
+        .populate('financialRequirement.payoutOrderId');
 
       if (isProposed) {
         SocketService.emitToAdmins('task:proposed', {
@@ -139,6 +141,7 @@ export class TasksController {
       const tasks = await Task.find(filter)
         .populate('assignedTo', 'fullName email avatarUrl jobTitles')
         .populate('createdBy', 'fullName email avatarUrl')
+        .populate('financialRequirement.payoutOrderId')
         .sort({ createdAt: -1 });
 
       res.json({ success: true, data: tasks });
@@ -154,7 +157,8 @@ export class TasksController {
       const task = await Task.findById(id)
         .populate('assignedTo', 'fullName email avatarUrl jobTitles skills')
         .populate('createdBy', 'fullName email avatarUrl')
-        .populate('directReports.submittedBy', 'fullName avatarUrl');
+        .populate('directReports.submittedBy', 'fullName avatarUrl')
+        .populate('financialRequirement.payoutOrderId');
 
       if (!task) {
         res.status(404).json({ success: false, error: 'Task not found' });
@@ -229,7 +233,8 @@ export class TasksController {
       const populatedTask = await Task.findById(task._id)
         .populate('assignedTo', 'fullName email avatarUrl jobTitles')
         .populate('createdBy', 'fullName email avatarUrl')
-        .populate('directReports.submittedBy', 'fullName avatarUrl');
+        .populate('directReports.submittedBy', 'fullName avatarUrl')
+        .populate('financialRequirement.payoutOrderId');
 
       SocketService.emitToAdmins('stage:submitted', {
         taskId: task._id,
@@ -318,23 +323,25 @@ export class TasksController {
         const populatedTask = await Task.findById(task._id)
           .populate('assignedTo', 'fullName email avatarUrl jobTitles')
           .populate('createdBy', 'fullName email avatarUrl')
-          .populate('directReports.submittedBy', 'fullName avatarUrl');
+          .populate('directReports.submittedBy', 'fullName avatarUrl')
+          .populate('financialRequirement.payoutOrderId');
 
         task.assignedTo.forEach((empId: any) => {
-          SocketService.emitToUser(empId.toString(), 'stage:approved', {
+          const targetId = (empId?._id ? empId._id : empId).toString();
+          SocketService.emitToUser(targetId, 'stage:approved', {
             taskId: task._id,
             stageOrder,
             nextStageUnlocked: stageIndex + 1 < task.stages.length,
             task: populatedTask
           });
           SocketService.dispatchNotification({
-            recipientId: empId.toString(),
+            recipientId: targetId,
             senderId: req.user?._id?.toString(),
             title: '✓ تم اعتماد المرحلة بنجاح',
             message: `اعتمد المسؤول المرحلة ${stageOrder} في مهمة "${task.title}" ${stageIndex + 1 < task.stages.length ? 'وتم فتح المرحلة التالية لك!' : 'واكتملت المهمة 100%! 🦁'}`,
             type: 'STAGE_APPROVED',
             relatedEntityId: task._id.toString(),
-            relatedUrl: '/workspace',
+            relatedUrl: '/tasks',
             priority: 'MEDIUM'
           });
         });
@@ -348,23 +355,25 @@ export class TasksController {
         const populatedTask = await Task.findById(task._id)
           .populate('assignedTo', 'fullName email avatarUrl jobTitles')
           .populate('createdBy', 'fullName email avatarUrl')
-          .populate('directReports.submittedBy', 'fullName avatarUrl');
+          .populate('directReports.submittedBy', 'fullName avatarUrl')
+          .populate('financialRequirement.payoutOrderId');
 
         task.assignedTo.forEach((empId: any) => {
-          SocketService.emitToUser(empId.toString(), 'stage:revision_requested', {
+          const targetId = (empId?._id ? empId._id : empId).toString();
+          SocketService.emitToUser(targetId, 'stage:revision_requested', {
             taskId: task._id,
             stageOrder,
             feedback: body.note,
             task: populatedTask
           });
           SocketService.dispatchNotification({
-            recipientId: empId.toString(),
+            recipientId: targetId,
             senderId: req.user?._id?.toString(),
             title: '⚠️ مطلوب تعديل مرحلة في المهمة',
             message: `طلب المسؤول تعديلاً في مهمة "${task.title}": "${body.note || 'يرجى مراجعة وتعديل مخرجات المرحلة'}"`,
             type: 'STAGE_REVISION',
             relatedEntityId: task._id.toString(),
-            relatedUrl: '/workspace',
+            relatedUrl: '/tasks',
             priority: 'HIGH'
           });
         });
@@ -453,7 +462,8 @@ export class TasksController {
 
       const updatedTask = await Task.findById(task._id)
         .populate('assignedTo', 'fullName email avatarUrl jobTitles')
-        .populate('createdBy', 'fullName email avatarUrl');
+        .populate('createdBy', 'fullName email avatarUrl')
+        .populate('financialRequirement.payoutOrderId');
 
       // Realtime broadcast of update
       SocketService.broadcast('task:updated', updatedTask);

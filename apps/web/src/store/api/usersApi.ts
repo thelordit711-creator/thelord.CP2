@@ -46,6 +46,29 @@ export const usersApi = baseApi.injectEndpoints({
         body: data
       }),
       invalidatesTags: ['User']
+    }),
+    deleteUser: builder.mutation<IApiResponse<void>, string>({
+      query: (id) => ({
+        url: `/users/admin/${id}`,
+        method: 'DELETE'
+      }),
+      invalidatesTags: ['User']
+    }),
+    changeUserPassword: builder.mutation<IApiResponse<void>, { id: string; newPassword: string }>({
+      query: ({ id, newPassword }) => ({
+        url: `/users/admin/${id}/password`,
+        method: 'PATCH',
+        body: { newPassword }
+      }),
+      invalidatesTags: ['User']
+    }),
+    toggleUserSuspension: builder.mutation<IApiResponse<IUser>, { id: string; isSuspended: boolean; reason?: string }>({
+      query: ({ id, isSuspended, reason }) => ({
+        url: `/users/admin/${id}/suspend`,
+        method: 'PATCH',
+        body: { isSuspended, reason }
+      }),
+      invalidatesTags: ['User']
     })
   })
 });
@@ -58,6 +81,9 @@ export const {
   useUpdateProfileMutation,
   useGetLeaderboardQuery,
   useGetSystemSettingsQuery,
-  useUpdateSystemSettingsMutation
+  useUpdateSystemSettingsMutation,
+  useDeleteUserMutation,
+  useChangeUserPasswordMutation,
+  useToggleUserSuspensionMutation
 } = usersApi;
 

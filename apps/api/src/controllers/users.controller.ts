@@ -1,7 +1,9 @@
 import { Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { User } from '../models/User.model';
 import { ValidationService } from '../services/validation.service';
+import { SocketService } from '../services/socket.service';
 import { ICompleteOnboardingDto } from '@lord/shared-types';
 
 export class UsersController {
@@ -119,6 +121,150 @@ export class UsersController {
         return;
       }
       res.json({ success: true, data: employee });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Admin: Delete User / Account
+   */
+  public static async deleteUser(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const targetUser = await User.findById(id);
+      if (!targetUser) {
+        res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
+        return;
+      }
+
+      // Root Admin Protection
+      if (targetUser.email.toLowerCase() === 'thelordit711@gmail.com') {
+        res.status(403).json({ success: false, error: 'لا يمكن حذف حساب القائد الأعلى الأساسي للمنظومة' });
+        return;
+      }
+
+      if (req.user && String(req.user._id) === String(id)) {
+        res.status(400).json({ success: false, error: 'لا يمكنك حذف حسابك الشخصي أثناء تسجيل الدخول به' });
+        return;
+      }
+
+      // Cascade remove from assigned tasks
+      const { Task } = await import('../models/Task.model');
+      await Task.updateMany(
+        { assignedTo: targetUser._id },
+        { $pull: { assignedTo: targetUser._id } }
+      );
+
+      await User.findByIdAndDelete(id);
+
+      // Broadcast revocation
+      SocketService.getIO()?.emit('USER_DELETED', { userId: id });
+
+      res.json({
+        success: true,
+        message: `تم حذف حساب ${targetUser.fullName} نهائياً من المنظومة 🗑️`
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Admin: Change / Reset Any User Password
+   */
+  public static async changeUserPassword(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { newPassword } = req.body;
+
+      if (!newPassword || newPassword.trim().length < 6) {
+        res.status(400).json({ success: false, error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أرقام على الأقل' });
+        return;
+      }
+
+      const targetUser = await User.findById(id);
+      if (!targetUser) {
+        res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
+        return;
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword.trim(), 10);
+      targetUser.passwordHash = passwordHash;
+      await targetUser.save();
+
+      res.json({
+        success: true,
+        message: `تم تغيير وتحديث كلمة المرور لحساب ${targetUser.fullName} بنجاح! 🔑`
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Admin: Ban / Suspend / Restore Employee Access
+   */
+  public static async toggleUserSuspension(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { isSuspended, reason } = req.body;
+
+      const targetUser = await User.findById(id);
+      if (!targetUser) {
+        res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
+        return;
+      }
+
+      // Root Admin Protection
+      if (targetUser.email.toLowerCase() === 'thelordit711@gmail.com') {
+        res.status(403).json({ success: false, error: 'لا يمكن حظر أو إيقاف حساب القائد الأعلى الأساسي' });
+        return;
+      }
+
+      if (req.user && String(req.user._id) === String(id)) {
+        res.status(400).json({ success: false, error: 'لا يمكنك إيقاف حسابك الشخصي' });
+        return;
+      }
+
+      const shouldSuspend = typeof isSuspended === 'boolean' ? isSuspended : !targetUser.isSuspended;
+
+      if (shouldSuspend) {
+        targetUser.isSuspended = true;
+        targetUser.suspendedAt = new Date();
+        targetUser.suspensionReason = reason?.trim() || 'إيقاف إداري مباشر من قِبل الإدارة العليا';
+        targetUser.workStatus = 'LOGGED_OUT';
+        targetUser.presenceStatus = 'OFFLINE';
+        await targetUser.save();
+
+        // Broadcast real-time revocation
+        SocketService.getIO()?.emit('USER_ACCESS_REVOKED', {
+          userId: targetUser._id,
+          reason: targetUser.suspensionReason
+        });
+
+        res.json({
+          success: true,
+          data: targetUser,
+          message: `تم منع وإيقاف حساب ${targetUser.fullName} من دخول المنظومة ⛔`
+        });
+      } else {
+        targetUser.isSuspended = false;
+        targetUser.suspendedAt = undefined;
+        targetUser.suspensionReason = '';
+        await targetUser.save();
+
+        // Broadcast real-time restoration
+        SocketService.getIO()?.emit('USER_ACCESS_RESTORED', {
+          userId: targetUser._id
+        });
+
+        res.json({
+          success: true,
+          data: targetUser,
+          message: `تم رفع الحظر وتفعيل دخول حساب ${targetUser.fullName} للمنظومة بنجاح 🟢`
+        });
+      }
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }

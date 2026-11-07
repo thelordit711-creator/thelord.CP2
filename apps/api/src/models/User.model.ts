@@ -5,6 +5,9 @@ export interface IUserDocument extends Omit<IUser, '_id'>, Document {
   passwordHash?: string;
   workStatus?: WorkStatus;
   workStatusUpdatedAt?: Date;
+  isSuspended?: boolean;
+  suspendedAt?: Date;
+  suspensionReason?: string;
 }
 
 export const MediaAttachmentSchema = new Schema({
@@ -104,6 +107,9 @@ const UserSchema = new Schema<IUserDocument>({
     default: 'OFFLINE',
     index: true
   },
+  isSuspended: { type: Boolean, default: false, index: true },
+  suspendedAt: { type: Date },
+  suspensionReason: { type: String, default: '' },
   lastActiveAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 

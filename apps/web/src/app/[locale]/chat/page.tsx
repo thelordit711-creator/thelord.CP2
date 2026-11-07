@@ -60,7 +60,7 @@ export default function ChatPage() {
 
   // 1. Fetch current logged-in user from MongoDB
   const { data: meResponse } = useGetMeQuery();
-  const currentUser = meResponse?.data || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('lord_user_profile') || '{}') : {});
+  const currentUser = meResponse?.data || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('lord_current_user') || localStorage.getItem('lord_user_profile') || '{}') : {});
   const currentUserId = currentUser?._id || '';
 
   // 2. Fetch real channels and real registered employees strictly from MongoDB
@@ -478,10 +478,10 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col md:flex-row gap-4 h-[calc(100vh-100px)] select-none">
+    <div className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 flex flex-col md:flex-row gap-3 sm:gap-4 h-[calc(100dvh-150px)] md:h-[calc(100vh-105px)] select-none">
       {/* Channels & Team Directory Sidebar */}
-      <div className={`w-full md:w-80 bg-obsidian-card border border-obsidian-border rounded-3xl p-4 ${showMobileChatRoom ? 'hidden md:flex' : 'flex'} flex-col justify-between shrink-0 shadow-2xl`}>
-        <div className="space-y-6 overflow-y-auto pr-1">
+      <div className={`w-full md:w-80 bg-obsidian-card border border-obsidian-border rounded-3xl p-3 sm:p-4 ${showMobileChatRoom ? 'hidden md:flex' : 'flex'} flex-col justify-between shrink-0 shadow-2xl overflow-hidden`}>
+        <div className="space-y-4 overflow-y-auto pr-1">
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-gray-800">
             <div className="flex items-center gap-2">
@@ -673,15 +673,15 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {activeChat.type === 'channel' && currentUser?.accessRole === 'SUPER_ADMIN' && (
+            {activeChat.type === 'channel' && (
               <button
                 type="button"
                 onClick={() => setIsManageMembersModalOpen(true)}
-                className="p-2 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-700/20 text-amber-300 hover:text-white hover:border-amber-400 border border-amber-500/40 transition-all flex items-center gap-1.5 text-xs font-bold shadow-sm"
                 title="إدارة وتحديد أعضاء القناة"
               >
                 <Users className="w-4 h-4 text-amber-400" />
-                <span className="hidden sm:inline">أعضاء القناة</span>
+                <span className="text-[11px]">أعضاء القناة</span>
               </button>
             )}
 
@@ -1287,39 +1287,41 @@ export default function ChatPage() {
               </button>
             </div>
 
-            {/* Add New Member Section */}
-            <div className="p-3.5 bg-obsidian-surface rounded-2xl border border-gray-800 space-y-2">
-              <label className="text-xs font-bold text-amber-400 block">إضافة عضو جديد للقناة:</label>
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedUserToAdd}
-                  onChange={(e) => setSelectedUserToAdd(e.target.value)}
-                  className="flex-1 bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                >
-                  <option value="">اختر موظفاً لإضافته...</option>
-                  {allMembers
-                    .filter((m) => {
-                      const currentMembers = channelMembersData?.data?.members || [];
-                      return !currentMembers.some((cm: any) => cm._id === m._id || cm === m._id);
-                    })
-                    .map((m) => (
-                      <option key={m._id} value={m._id}>
-                        {m.fullName} ({m.primaryDepartment || m.accessRole})
-                      </option>
-                    ))}
-                </select>
-                <Button
-                  type="button"
-                  variant="gold"
-                  size="sm"
-                  disabled={isAddingMember || !selectedUserToAdd}
-                  onClick={handleAddMemberToActiveChannel}
-                  className="rounded-xl font-bold shrink-0"
-                >
-                  {isAddingMember ? 'جاري الإضافة...' : 'إضافة +'}
-                </Button>
+            {/* Add New Member Section (Admin Only) */}
+            {currentUser?.accessRole === 'SUPER_ADMIN' && (
+              <div className="p-3.5 bg-obsidian-surface rounded-2xl border border-gray-800 space-y-2">
+                <label className="text-xs font-bold text-amber-400 block">إضافة عضو جديد للقناة:</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedUserToAdd}
+                    onChange={(e) => setSelectedUserToAdd(e.target.value)}
+                    className="flex-1 bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="">اختر موظفاً لإضافته...</option>
+                    {allMembers
+                      .filter((m) => {
+                        const currentMembers = channelMembersData?.data?.members || [];
+                        return !currentMembers.some((cm: any) => cm._id === m._id || cm === m._id);
+                      })
+                      .map((m) => (
+                        <option key={m._id} value={m._id}>
+                          {m.fullName} ({m.primaryDepartment || m.accessRole})
+                        </option>
+                      ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="gold"
+                    size="sm"
+                    disabled={isAddingMember || !selectedUserToAdd}
+                    onClick={handleAddMemberToActiveChannel}
+                    className="rounded-xl font-bold shrink-0"
+                  >
+                    {isAddingMember ? 'جاري الإضافة...' : 'إضافة +'}
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Current Members List */}
             <div className="space-y-2">
@@ -1350,7 +1352,7 @@ export default function ChatPage() {
                         </div>
                       </div>
 
-                      {!isCurrent && (
+                      {!isCurrent && currentUser?.accessRole === 'SUPER_ADMIN' && (
                         <button
                           type="button"
                           disabled={isRemovingMember}

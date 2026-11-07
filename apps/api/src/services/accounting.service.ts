@@ -246,6 +246,22 @@ export class AccountingService {
       SocketService.emitToAdmins('payout:disbursed', payload);
       SocketService.emitToAdmins('vault:updated', vault);
 
+      // Realtime task update if related to a task
+      if (order.relatedTaskId) {
+        try {
+          const { Task } = await import('../models/Task.model');
+          const updatedTask = await Task.findById(order.relatedTaskId)
+            .populate('assignedTo', 'fullName email avatarUrl jobTitles')
+            .populate('createdBy', 'fullName email avatarUrl')
+            .populate('financialRequirement.payoutOrderId');
+          if (updatedTask) {
+            SocketService.broadcast('task:updated', updatedTask);
+          }
+        } catch {
+          // Ignore silently
+        }
+      }
+
       return { vault, order };
     } catch (error) {
       await session.abortTransaction();

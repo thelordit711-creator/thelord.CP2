@@ -12,6 +12,7 @@ import { Button } from '../../../../components/ui/Button';
 import { Badge } from '../../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../../components/voice/DirectVoiceRecorder';
 import { StageDeliverableBox } from '../../../../components/tasks/StageDeliverableBox';
+import { ImageLightboxModal } from '../../../../components/ui/ImageLightboxModal';
 import {
   Briefcase,
   CheckCircle,
@@ -25,7 +26,14 @@ import {
   Coffee,
   CheckCircle2,
   Radio,
-  LogOut
+  LogOut,
+  Coins,
+  Check,
+  Building2,
+  ExternalLink,
+  Receipt,
+  Copy,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkStatus } from '@lord/shared-types';
@@ -42,6 +50,7 @@ export default function EmployeeWorkspacePage() {
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'propose' | 'statement'>('tasks');
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt?: string } | null>(null);
 
   // Keep selectedTask synchronized with live tasks list
   React.useEffect(() => {
@@ -404,14 +413,194 @@ export default function EmployeeWorkspacePage() {
             {selectedTask ? (
               <div className="bg-obsidian-card border border-obsidian-border rounded-3xl p-6 space-y-6">
                 <div>
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-white">{selectedTask.title}</h2>
-                    <Badge variant="gold">{selectedTask.targetPlatform}</Badge>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h2 className="text-lg sm:text-xl font-black text-white truncate">{selectedTask.title}</h2>
+                      <Badge variant="gold" className="shrink-0">{selectedTask.targetPlatform}</Badge>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTask(null)}
+                      className="p-1.5 rounded-xl bg-obsidian-surface hover:bg-gray-800 text-gray-400 hover:text-white transition-colors shrink-0"
+                      title="إغلاق تفاصيل المهمة"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                   <p className="text-xs text-gray-400 mt-2 leading-relaxed">
                     {selectedTask.description}
                   </p>
                 </div>
+
+                {/* FINANCIAL REQUIREMENT & PAYOUT STATUS CARD */}
+                {selectedTask.financialRequirement?.requiresBudget && (() => {
+                  const fin = selectedTask.financialRequirement;
+                  const payoutOrder = typeof fin.payoutOrderId === 'object' ? (fin.payoutOrderId as any) : null;
+                  const isDisbursed = payoutOrder?.executionStatus === 'DISBURSED';
+                  const isProcessing = payoutOrder?.executionStatus === 'IN_PROGRESS';
+                  const isWaitingTreasury = payoutOrder?.executionStatus === 'WAITING_TREASURY' || fin.adminApprovalStatus === 'APPROVED';
+                  const isPendingAdmin = fin.adminApprovalStatus === 'PENDING_ADMIN';
+                  const isRejected = fin.adminApprovalStatus === 'REJECTED';
+
+                  const payoutMethodLabel =
+                    fin.payoutMethodRequested === 'BEP20_USDT'
+                      ? 'USDT (شبكة BSC BEP-20)'
+                      : fin.payoutMethodRequested === 'JEEB_WALLET'
+                      ? 'محفظة جيب الإلكترونية (Jeeb)'
+                      : fin.payoutMethodRequested === 'JAWALI_WALLET'
+                      ? 'محفظة جوالي الإلكترونية (Jawali)'
+                      : fin.payoutMethodRequested || 'تحويل مالي';
+
+                  return (
+                    <div
+                      className={`p-4 rounded-2xl border transition-all space-y-3 backdrop-blur-md shadow-md ${
+                        isDisbursed
+                          ? 'bg-gradient-to-l from-emerald-950/25 via-obsidian-card to-obsidian-surface border-emerald-500/50 shadow-emerald-500/10'
+                          : isProcessing
+                          ? 'bg-gradient-to-l from-amber-950/25 via-obsidian-card to-obsidian-surface border-amber-500/50 shadow-amber-500/10'
+                          : isWaitingTreasury
+                          ? 'bg-gradient-to-l from-cyan-950/25 via-obsidian-card to-obsidian-surface border-cyber-blue/50 shadow-cyan-500/10'
+                          : isRejected
+                          ? 'bg-gradient-to-l from-red-950/25 via-obsidian-card to-obsidian-surface border-red-500/50'
+                          : 'bg-gradient-to-l from-yellow-950/25 via-obsidian-card to-obsidian-surface border-yellow-500/40'
+                      }`}
+                    >
+                      {/* Financial Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-800/80 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold ${
+                              isDisbursed
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/35'
+                                : isProcessing
+                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/35 animate-pulse'
+                                : 'bg-lord-gold/20 text-lord-gold border border-lord-gold/35'
+                            }`}
+                          >
+                            <Coins className="w-4 h-4 text-current" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-white flex items-center gap-2">
+                              <span>ميزانية المهمة:</span>
+                              <span className="text-lord-gold font-mono font-black text-base">
+                                ${fin.amount} {fin.currency || 'USDT'}
+                              </span>
+                            </h4>
+                            <span className="text-[11px] text-gray-400 block">
+                              طريقة الاستلام: <strong className="text-gray-200">{payoutMethodLabel}</strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="shrink-0">
+                          {isDisbursed ? (
+                            <span className="px-3 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-black text-xs flex items-center gap-1.5 shadow-sm">
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>تم تحويل وصرف المبلغ بنجاح ✓</span>
+                            </span>
+                          ) : isProcessing ? (
+                            <span className="px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                              <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                              <span>جاري التحويل والصرف من الخزينة ⏳</span>
+                            </span>
+                          ) : isWaitingTreasury ? (
+                            <span className="px-3 py-1 rounded-xl bg-cyber-blue/20 border border-cyber-blue/50 text-cyber-blue font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                              <Building2 className="w-3.5 h-3.5 text-cyber-blue" />
+                              <span>معتمد إدارياً — بانتظار صرف الخزينة 🏦</span>
+                            </span>
+                          ) : isRejected ? (
+                            <span className="px-3 py-1 rounded-xl bg-red-500/20 border border-red-500/50 text-red-300 font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                              <span>تم رفض الميزانية ❌</span>
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-xl bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                              <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
+                              <span>بانتظار موافقة الإدارة ⚠️</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Proof Details if Disbursed */}
+                      {isDisbursed && payoutOrder?.transferProof && (
+                        <div className="p-3 rounded-xl bg-obsidian-surface border border-emerald-500/35 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+                            <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+                              <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>إشعار وسند التحويل الصادر:</span>
+                            </span>
+                            {payoutOrder.disbursedClickedAt && (
+                              <span className="text-gray-400 font-mono text-[10px]">
+                                {new Date(payoutOrder.disbursedClickedAt).toLocaleString('ar-YE')}
+                              </span>
+                            )}
+                          </div>
+
+                          {payoutOrder.transferProof.txHashOrReferenceNumber && (
+                            <div className="flex items-center justify-between p-2 rounded-lg bg-obsidian-card border border-gray-700/80 gap-2 flex-wrap">
+                              <div className="min-w-0">
+                                <span className="text-[10px] text-gray-400 block">كود / هاش التحويل:</span>
+                                <span className="font-mono text-xs text-white font-bold select-all break-all">
+                                  {payoutOrder.transferProof.txHashOrReferenceNumber}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(payoutOrder.transferProof.txHashOrReferenceNumber);
+                                    toast.success('تم نسخ كود التحويل 📋');
+                                  }}
+                                  className="px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold flex items-center gap-1"
+                                >
+                                  <Copy className="w-3 h-3 text-lord-gold" />
+                                  <span>نسخ</span>
+                                </button>
+                                {payoutOrder.transferProof.txHashOrReferenceNumber.startsWith('0x') && (
+                                  <a
+                                    href={`https://bscscan.com/tx/${payoutOrder.transferProof.txHashOrReferenceNumber}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2 py-0.5 rounded bg-cyber-blue/15 text-cyber-blue hover:underline text-xs font-bold flex items-center gap-1"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    <span>BscScan</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {payoutOrder.transferProof.receiptScreenshot?.fileUrl && (
+                            <div className="flex items-center gap-2.5 pt-0.5">
+                              <span className="text-[10px] text-gray-300 font-bold">صورة السند:</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLightboxImage({
+                                    url: payoutOrder.transferProof.receiptScreenshot.fileUrl,
+                                    alt: 'سند التحويل'
+                                  })
+                                }
+                                className="group relative cursor-zoom-in rounded-lg overflow-hidden border border-emerald-500/40 hover:border-lord-gold transition-all"
+                              >
+                                <img
+                                  src={payoutOrder.transferProof.receiptScreenshot.fileUrl}
+                                  alt="سند التحويل"
+                                  className="w-20 h-14 object-cover group-hover:scale-105 transition-transform"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[9px] text-white font-bold">
+                                  تكبير
+                                </div>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Stages Stepper */}
                 <div className="space-y-4">
@@ -643,6 +832,15 @@ export default function EmployeeWorkspacePage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Global Image Lightbox Modal for Receipts & Proofs */}
+      {lightboxImage && (
+        <ImageLightboxModal
+          imageUrl={lightboxImage.url}
+          imageAlt={lightboxImage.alt}
+          onClose={() => setLightboxImage(null)}
+        />
       )}
     </div>
   );

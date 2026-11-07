@@ -3,7 +3,10 @@
 import React, { useState } from 'react';
 import {
   useGetAllEmployeesQuery,
-  useGetMeQuery
+  useGetMeQuery,
+  useDeleteUserMutation,
+  useChangeUserPasswordMutation,
+  useToggleUserSuspensionMutation
 } from '../../../store/api/usersApi';
 import { useManageEmployeeLedgerMutation } from '../../../store/api/financeApi';
 import { Button } from '../../../components/ui/Button';
@@ -24,12 +27,21 @@ import {
   ShieldCheck,
   CheckCircle2,
   Calendar,
-  Sparkles
+  Sparkles,
+  Key,
+  Ban,
+  UserCheck,
+  Trash2,
+  Eye,
+  EyeOff,
+  Lock,
+  ShieldAlert,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Sample enterprise employees to populate if DB is fresh
-const SAMPLE_EMPLOYEES = [
+const SAMPLE_EMPLOYEES: any[] = [
   {
     _id: 'emp_01',
     fullName: 'أحمد فاروق اليافعي',
@@ -128,12 +140,26 @@ const SAMPLE_EMPLOYEES = [
 export default function EmployeesPage() {
   const { data: dbEmployeesRes, refetch } = useGetAllEmployeesQuery();
   const [manageLedger, { isLoading: isUpdatingLedger }] = useManageEmployeeLedgerMutation();
+  const [deleteUser, { isLoading: isDeletingUser }] = useDeleteUserMutation();
+  const [changePassword, { isLoading: isChangingPassword }] = useChangeUserPasswordMutation();
+  const [toggleSuspension, { isLoading: isTogglingSuspension }] = useToggleUserSuspensionMutation();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL');
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isPayslipOpen, setIsPayslipOpen] = useState(false);
+
+  // Admin Security Modals States
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState('مخالفة سياسات التداول والعمل المؤسسي');
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Action Form state
   const [actionType, setActionType] = useState<'BONUS' | 'DEDUCTION' | 'WARNING' | 'ADVANCE_REQUEST' | 'BASE_SALARY'>('BONUS');
@@ -149,8 +175,89 @@ export default function EmployeesPage() {
     const matchesSearch = emp.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDept = departmentFilter === 'ALL' || emp.primaryDepartment === departmentFilter;
-    return matchesSearch && matchesDept;
+    const matchesStatus =
+      statusFilter === 'ALL'
+        ? true
+        : statusFilter === 'ACTIVE'
+        ? !emp.isSuspended
+        : Boolean(emp.isSuspended);
+
+    return matchesSearch && matchesDept && matchesStatus;
   });
+
+  // Handle Admin Password Change
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmployee) return;
+
+    if (!newPassword || newPassword.trim().length < 6) {
+      toast.error('كلمة المرور يجب أن تكون 6 أحرف أو أرقام على الأقل');
+      return;
+    }
+
+    try {
+      const res = await changePassword({
+        id: selectedEmployee._id,
+        newPassword: newPassword.trim()
+      }).unwrap();
+
+      toast.success(res?.message || 'تم تحديث كلمة السر بنجاح 🔑');
+      setIsPasswordModalOpen(false);
+      setNewPassword('');
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل تحديث كلمة السر');
+    }
+  };
+
+  // Handle Admin Suspension
+  const handleToggleSuspensionSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedEmployee) return;
+
+    try {
+      const res = await toggleSuspension({
+        id: selectedEmployee._id,
+        isSuspended: true,
+        reason: suspensionReason.trim()
+      }).unwrap();
+
+      toast.success(res?.message || 'تم إيقاف الحساب ومنعه من دخول المنظومة ⛔');
+      setIsSuspendModalOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل إيقاف الحساب');
+    }
+  };
+
+  // Direct Unsuspend (Restore)
+  const handleDirectUnsuspend = async (emp: any) => {
+    try {
+      const res = await toggleSuspension({
+        id: emp._id,
+        isSuspended: false
+      }).unwrap();
+
+      toast.success(res?.message || 'تم رفع الحظر والسماح للموظف بدخول المنظومة 🟢');
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل رفع الحظر');
+    }
+  };
+
+  // Handle Admin Delete User
+  const handleDeleteUserSubmit = async () => {
+    if (!selectedEmployee) return;
+
+    try {
+      const res = await deleteUser(selectedEmployee._id).unwrap();
+      toast.success(res?.message || 'تم حذف الحساب نهائياً 🗑️');
+      setIsDeleteModalOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'فشل حذف الحساب');
+    }
+  };
 
   const handleActionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,19 +318,59 @@ export default function EmployeesPage() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-obsidian-card p-4 rounded-3xl border border-obsidian-border">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-gray-500 absolute top-1/2 -translate-y-1/2 right-3" />
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-4 bg-obsidian-card p-4 rounded-3xl border border-obsidian-border">
+        <div className="relative w-full lg:w-72">
+          <Search className="w-4 h-4 text-gray-500 absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
           <input
             type="text"
-            placeholder="بحث بالاسم أو البريد..."
+            placeholder="بحث بالاسم أو البريد الإلكتروني..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full bg-obsidian-primary border border-gray-800 rounded-xl pr-9 pl-4 py-2 text-xs text-white focus:outline-none focus:border-lord-gold"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto text-xs">
+        {/* Status Filter (All / Active / Suspended) */}
+        <div className="flex items-center gap-1.5 bg-obsidian-surface/80 p-1 rounded-2xl border border-gray-800 text-xs">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('ALL')}
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+              statusFilter === 'ALL'
+                ? 'bg-lord-gold text-obsidian-primary shadow-xs'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            الكل ({employees.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('ACTIVE')}
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+              statusFilter === 'ACTIVE'
+                ? 'bg-emerald-500 text-obsidian-primary font-black shadow-xs'
+                : 'text-gray-400 hover:text-emerald-400'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>مصرّح بالدخول</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('SUSPENDED')}
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+              statusFilter === 'SUSPENDED'
+                ? 'bg-red-500 text-white font-black shadow-xs'
+                : 'text-gray-400 hover:text-red-400'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-red-400" />
+            <span>محظور ⛔</span>
+          </button>
+        </div>
+
+        {/* Department Filters */}
+        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto text-xs pb-1 lg:pb-0">
           {[
             { id: 'ALL', label: 'كافة الأقسام' },
             { id: 'TRADING', label: 'التداول والتحليل' },
@@ -237,7 +384,7 @@ export default function EmployeesPage() {
               onClick={() => setDepartmentFilter(dept.id)}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap ${
                 departmentFilter === dept.id
-                  ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
+                  ? 'bg-lord-gold/20 text-lord-gold border border-lord-gold/40'
                   : 'bg-obsidian-surface text-gray-400 hover:text-white'
               }`}
             >
@@ -258,31 +405,64 @@ export default function EmployeesPage() {
             >
               <div>
                 {/* Employee Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-lord-gold/20 to-amber-700/20 border border-lord-gold/40 flex items-center justify-center font-bold text-lord-gold text-lg">
+                <div className="flex items-start justify-between mb-4 gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-lord-gold/20 to-amber-700/20 border border-lord-gold/40 flex items-center justify-center font-bold text-lord-gold text-lg shrink-0">
                       {emp.fullName.charAt(0)}
                     </div>
-                    <div>
-                      <h3 className="text-base font-bold text-white flex items-center gap-2">
-                        <span>{emp.fullName}</span>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-white flex items-center gap-2 truncate">
+                        <span className="truncate">{emp.fullName}</span>
                         <span
-                          className={`w-2 h-2 rounded-full ${
-                            emp.presenceStatus === 'ONLINE'
+                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                            emp.isSuspended
+                              ? 'bg-red-500'
+                              : emp.presenceStatus === 'ONLINE'
                               ? 'bg-emerald-400 animate-ping'
                               : emp.presenceStatus === 'IN_MEETING'
                               ? 'bg-sky-400'
                               : 'bg-gray-600'
                           }`}
-                          title={emp.presenceStatus}
+                          title={emp.isSuspended ? 'محظور من الدخول' : emp.presenceStatus}
                         />
                       </h3>
-                      <p className="text-xs text-gray-400 font-mono">{emp.email}</p>
+                      <p className="text-xs text-gray-400 font-mono truncate">{emp.email}</p>
                     </div>
                   </div>
 
-                  <Badge variant="gold">{emp.primaryDepartment}</Badge>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <Badge variant="gold">{emp.primaryDepartment}</Badge>
+                    {emp.isSuspended ? (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-red-500/20 border border-red-500/50 text-red-300 text-[10px] font-black flex items-center gap-1 shadow-xs">
+                        <Ban className="w-3 h-3 text-red-400" />
+                        <span>محظور ⛔</span>
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[10px] font-bold flex items-center gap-1 shadow-xs">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                        <span>مصرّح 🟢</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
+
+                {/* Suspension Notice Banner */}
+                {emp.isSuspended && (
+                  <div className="p-3 rounded-2xl bg-gradient-to-l from-red-950/40 via-obsidian-surface to-obsidian-card border border-red-500/50 mb-4 text-xs text-red-200 flex items-start gap-2.5 shadow-md">
+                    <div className="w-6 h-6 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                      <Ban className="w-3.5 h-3.5 text-red-400" />
+                    </div>
+                    <div className="space-y-0.5 min-w-0">
+                      <strong className="block text-red-300 font-black">تم إيقاف هذا الحساب ومنعه من دخول المنظومة:</strong>
+                      <p className="text-gray-300 leading-relaxed text-[11px]">{emp.suspensionReason || 'إيقاف إداري مباشر بقرار الإدارة'}</p>
+                      {emp.suspendedAt && (
+                        <span className="text-[10px] text-gray-400 font-mono block">
+                          تاريخ الإيقاف: {new Date(emp.suspendedAt).toLocaleDateString('ar-YE')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Job Titles Badges */}
                 <div className="flex flex-wrap gap-1.5 mb-4">
@@ -362,32 +542,105 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-obsidian-border">
-                <Button
-                  variant="gold"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedEmployee(emp);
-                    setIsActionModalOpen(true);
-                  }}
-                  className="flex items-center gap-1"
-                >
-                  <DollarSign className="w-4 h-4 ml-1" />
-                  <span>إدارة المستحقات</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedEmployee(emp);
-                    setIsPayslipOpen(true);
-                  }}
-                  className="flex items-center gap-1 text-gray-300 border-gray-700"
-                >
-                  <FileText className="w-4 h-4 ml-1" />
-                  <span>كشف الراتب (Payslip)</span>
-                </Button>
+              {/* Action Buttons: Financials + Administrative Account Controls */}
+              <div className="space-y-3 pt-3 border-t border-obsidian-border">
+                {/* Financial Actions */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="gold"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedEmployee(emp);
+                      setIsActionModalOpen(true);
+                    }}
+                    className="flex items-center justify-center gap-1 rounded-xl text-xs"
+                  >
+                    <DollarSign className="w-3.5 h-3.5 ml-1" />
+                    <span>إدارة المستحقات</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedEmployee(emp);
+                      setIsPayslipOpen(true);
+                    }}
+                    className="flex items-center justify-center gap-1 text-gray-300 border-gray-700 hover:border-gray-600 rounded-xl text-xs"
+                  >
+                    <FileText className="w-3.5 h-3.5 ml-1" />
+                    <span>كشف الراتب (Payslip)</span>
+                  </Button>
+                </div>
+
+                {/* Administrative Account Controls (Delete, Change Password, Suspend Access) */}
+                <div className="pt-2.5 border-t border-gray-800/70 flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-[10px] font-black text-lord-gold uppercase tracking-wider flex items-center gap-1">
+                    <Key className="w-3 h-3 text-lord-gold" />
+                    <span>أمن الحساب والدخول:</span>
+                  </span>
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Change Password */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        setNewPassword('');
+                        setIsPasswordModalOpen(true);
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl bg-obsidian-surface hover:bg-gray-800 text-gray-200 border border-gray-700 hover:border-lord-gold/60 text-xs font-bold transition-all flex items-center gap-1 shadow-xs"
+                      title="تعديل وتعيين كلمة سر جديدة لهذا الحساب"
+                    >
+                      <Key className="w-3 h-3 text-lord-gold" />
+                      <span>تعديل كلمة السر</span>
+                    </button>
+
+                    {/* Suspend / Restore Access */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        if (emp.isSuspended) {
+                          handleDirectUnsuspend(emp);
+                        } else {
+                          setSuspensionReason('مخالفة سياسات التداول والعمل المؤسسي');
+                          setIsSuspendModalOpen(true);
+                        }
+                      }}
+                      className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1 shadow-xs ${
+                        emp.isSuspended
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30'
+                          : 'bg-red-500/15 text-red-300 border-red-500/40 hover:bg-red-500/25'
+                      }`}
+                      title={emp.isSuspended ? 'رفع الحظر والسماح للموظف بدخول المنظومة' : 'منع الموظف من تسجيل الدخول للمنظومة فورياً'}
+                    >
+                      {emp.isSuspended ? (
+                        <>
+                          <UserCheck className="w-3 h-3 text-emerald-400" />
+                          <span>رفع الحظر 🟢</span>
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="w-3 h-3 text-red-400" />
+                          <span>منع من الدخول ⛔</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Delete Account */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        setIsDeleteModalOpen(true);
+                      }}
+                      className="p-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 transition-all shadow-xs"
+                      title="حذف هذا الحساب نهائياً من المنظومة"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -608,6 +861,215 @@ export default function EmployeesPage() {
                   إغلاق
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 1: Change Password */}
+      {isPasswordModalOpen && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-lord-gold">
+                  <Key className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">تعديل كلمة السر</h3>
+                  <p className="text-[11px] text-gray-400 font-mono">{selectedEmployee.fullName}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                  كلمة المرور الجديدة:
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    placeholder="أدخل كلمة مرور قوية (6 أحرف/أرقام كحد أدنى)..."
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    className="w-full bg-obsidian-primary border border-gray-700 rounded-xl pr-4 pl-10 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  سيتم تحديث كلمة المرور في قاعدة البيانات فورياً وتشفيرها بواسطة Bcrypt.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsPasswordModalOpen(false)}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="submit"
+                  variant="gold"
+                  size="sm"
+                  isLoading={isChangingPassword}
+                  className="shadow-gold-glow"
+                >
+                  حفظ وتعيين كلمة المرور 💾
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Suspend User Access */}
+      {isSuspendModalOpen && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="bg-obsidian-surface border-2 border-red-500/60 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
+                  <Ban className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">منع الموظف من دخول المنظومة</h3>
+                  <p className="text-[11px] text-red-300 font-mono">{selectedEmployee.fullName}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSuspendModalOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-red-950/40 border border-red-500/35 text-xs text-red-200 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-red-300">
+                <ShieldAlert className="w-4 h-4 text-red-400" />
+                <span>تحذير أمني:</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-gray-300">
+                سيؤدي هذا الإجراء إلى إنهاء جلسة الموظف فورياً وطرده من النظام ومنعه من تسجيل الدخول حتى قيام المسؤول برفع الحظر عنه.
+              </p>
+            </div>
+
+            <form onSubmit={handleToggleSuspensionSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                  سبب ومبرر الإيقاف والمنع:
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={suspensionReason}
+                  onChange={e => setSuspensionReason(e.target.value)}
+                  className="w-full bg-obsidian-primary border border-gray-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-red-400"
+                  placeholder="اكتب سبب المنع ليظهر للموظف عند محاولة تسجيل الدخول..."
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsSuspendModalOpen(false)}
+                >
+                  تراجع
+                </Button>
+                <Button
+                  type="submit"
+                  variant="danger"
+                  size="sm"
+                  isLoading={isTogglingSuspension}
+                  className="flex items-center gap-1 shadow-md"
+                >
+                  <Ban className="w-3.5 h-3.5" />
+                  <span>تأكيد منع الحساب من الدخول ⛔</span>
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Delete User Confirmation */}
+      {isDeleteModalOpen && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="bg-obsidian-surface border-2 border-red-600 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">حذف الحساب نهائياً</h3>
+                  <p className="text-[11px] text-gray-400 font-mono">{selectedEmployee.fullName}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-500/40 text-xs text-red-200 space-y-2">
+              <div className="flex items-center gap-1.5 font-bold text-red-300">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <span>تحذير إداري قطعي:</span>
+              </div>
+              <p className="text-[11px] text-gray-300 leading-relaxed">
+                هل أنت متأكد من رغبتك في حذف حساب <strong className="text-white font-bold">{selectedEmployee.fullName}</strong> ({selectedEmployee.email}) نهائياً من المنظومة؟
+              </p>
+              <p className="text-[10px] text-red-300 font-semibold">
+                سيتم إلغاء كافة صلاحيات الدخول، وفك ارتباط المهام المسندة إليه، ولا يمكن التراجع عن هذا الإجراء إطلاقاً.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                isLoading={isDeletingUser}
+                onClick={handleDeleteUserSubmit}
+                className="flex items-center gap-1 shadow-md"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>تأكيد الحذف النهائي 🗑️</span>
+              </Button>
             </div>
           </div>
         </div>

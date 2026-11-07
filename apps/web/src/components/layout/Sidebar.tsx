@@ -123,7 +123,7 @@ export const Sidebar: React.FC = () => {
       href: `/${locale}/projects`,
       icon: FolderKanban,
       badge: 'WBS',
-      allowedRoles: ['SUPER_ADMIN']
+      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
     },
     {
       title: 'لوحة الشرف والترتيب (KPIs)',
@@ -158,7 +158,7 @@ export const Sidebar: React.FC = () => {
   return (
     <aside
       className={`hidden md:flex relative flex-col justify-between bg-obsidian-card border-l border-obsidian-border transition-all duration-300 z-40 select-none ${
-        collapsed ? 'w-20' : 'w-64'
+        collapsed ? 'w-20' : 'w-72'
       }`}
       style={{
         borderLeft: isRtl ? '1px solid #1F2937' : 'none',
@@ -167,26 +167,41 @@ export const Sidebar: React.FC = () => {
     >
       {/* Brand Header */}
       <div>
-        <div className="p-5 flex items-center justify-between border-b border-obsidian-border">
-          <Link href={`/${locale}`} className="flex items-center gap-3 overflow-hidden">
-            <img
-              src="/logo.png"
-              alt="THE LORD OF CRYPTO"
-              className="w-11 h-11 rounded-full object-cover shadow-gold-glow shrink-0 border border-lord-gold/50 hover:scale-105 transition-transform"
-            />
+        <div
+          className={`border-b border-obsidian-border transition-all ${
+            collapsed
+              ? 'p-3 flex flex-col items-center gap-2 justify-center'
+              : 'p-4 sm:p-5 flex items-center justify-between'
+          }`}
+        >
+          <Link
+            href={`/${locale}`}
+            className={`flex items-center gap-3 ${collapsed ? 'justify-center w-full' : 'overflow-hidden min-w-0'}`}
+            title="THE LORD OF CRYPTO"
+          >
+            <div className="relative shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] flex items-center justify-center">
+              <img
+                src="/logo.png"
+                alt="THE LORD OF CRYPTO"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-full object-cover shadow-gold-glow shrink-0 border border-lord-gold/50 hover:scale-105 transition-transform"
+              />
+            </div>
             {!collapsed && (
-              <div className="flex flex-col">
+              <div className="flex flex-col min-w-0">
                 <span className="text-sm font-black text-white tracking-wider truncate flex items-center gap-1.5">
                   THE LORD <span className="text-lord-gold">C.P</span>
                 </span>
-                <span className="text-[10px] text-lord-gold/80 font-mono">TRADING & LEARNING</span>
+                <span className="text-[10px] text-lord-gold/80 font-mono truncate">TRADING & LEARNING</span>
               </div>
             )}
           </Link>
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-obsidian-surface transition-colors"
+            className={`p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-obsidian-surface transition-colors border border-transparent hover:border-gray-800 shrink-0 ${
+              collapsed ? 'mt-1' : ''
+            }`}
+            title={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
           >
             {isRtl ? (
               collapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
@@ -205,7 +220,7 @@ export const Sidebar: React.FC = () => {
                 {isConnected ? 'الخادم متصل لحظياً' : 'جاري الاتصال...'}
               </span>
             </div>
-            <span className="text-[10px] text-lord-gold font-mono bg-lord-gold/10 px-2 py-0.5 rounded-full border border-lord-gold/20">
+            <span className="text-[10px] text-lord-gold font-mono bg-lord-gold/10 px-2.5 py-0.5 rounded-full border border-lord-gold/20 whitespace-nowrap shrink-0">
               {userRole === 'TREASURY' ? 'صندوق معزول 🪙' : 'BEP20 + جيب'}
             </span>
           </div>
@@ -220,21 +235,23 @@ export const Sidebar: React.FC = () => {
               <Link
                 key={idx}
                 href={item.href}
-                className={`flex items-center justify-between p-3 rounded-2xl transition-all duration-200 group ${
+                className={`flex items-center p-3 rounded-2xl transition-all duration-200 group ${
+                  collapsed ? 'justify-center px-0' : 'justify-between px-3.5'
+                } ${
                   isActive
-                    ? 'bg-lord-gold text-obsidian-primary font-bold shadow-gold-glow'
+                    ? 'bg-lord-gold text-obsidian-primary font-black shadow-gold-glow'
                     : 'text-gray-400 hover:text-white hover:bg-obsidian-surface'
                 }`}
                 title={collapsed ? (isRtl ? item.title : item.titleEn) : undefined}
               >
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 min-w-0 ${collapsed ? 'justify-center' : ''}`}>
                   <Icon
-                    className={`w-5 h-5 shrink-0 ${
-                      isActive ? 'text-obsidian-primary' : 'text-gray-400 group-hover:text-lord-gold'
+                    className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${
+                      isActive ? 'text-obsidian-primary stroke-[2.5]' : 'text-gray-400 group-hover:text-lord-gold'
                     }`}
                   />
                   {!collapsed && (
-                    <span className="text-xs font-semibold tracking-wide">
+                    <span className="text-xs font-bold tracking-wide truncate">
                       {isRtl ? item.title : item.titleEn}
                     </span>
                   )}
@@ -242,10 +259,10 @@ export const Sidebar: React.FC = () => {
 
                 {!collapsed && item.badge && (
                   <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
+                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg whitespace-nowrap shrink-0 transition-colors ${
                       isActive
-                        ? 'bg-obsidian-primary text-lord-gold font-bold'
-                        : 'bg-obsidian-surface text-gray-400 group-hover:text-white border border-gray-800'
+                        ? 'bg-obsidian-primary text-lord-gold shadow-xs'
+                        : 'bg-obsidian-surface text-gray-400 group-hover:text-white border border-gray-800/80'
                     }`}
                   >
                     {item.badge}
@@ -258,25 +275,31 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Bottom Profile / Role Badge */}
-      <div className="p-4 border-t border-obsidian-border bg-obsidian-surface/40">
+      <div className="p-3.5 border-t border-obsidian-border bg-obsidian-surface/50">
         {!collapsed ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold">
+          <div className="flex items-center justify-between gap-2.5 p-2 rounded-2xl bg-obsidian-card/80 border border-gray-800/80">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-lord-gold/15 border border-lord-gold/35 flex items-center justify-center font-bold text-sm text-lord-gold shrink-0 shadow-xs">
                 {userRole === 'SUPER_ADMIN' ? '👑' : userRole === 'TREASURY' ? '🪙' : '💼'}
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-white truncate max-w-[110px]">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-black text-white truncate">
                   {userName}
                 </span>
-                <span className="text-[10px] text-emerald-400 font-mono">{userRole}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[10px] text-emerald-400 font-mono font-bold">{userRole}</span>
+                </div>
               </div>
             </div>
-            <span className="text-xs" title="آمن ومشفر">🔒</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-emerald-500/50 shadow-sm shrink-0" title="جلسة آمنة ومتصلة" />
           </div>
         ) : (
-          <div className="flex justify-center">
-            <div className="w-8 h-8 rounded-full bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center text-xs">
+          <div className="flex justify-center py-1">
+            <div
+              className="w-9 h-9 rounded-xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-sm shadow-xs cursor-pointer hover:scale-105 transition-transform"
+              title={`${userName} (${userRole})`}
+            >
               {userRole === 'SUPER_ADMIN' ? '👑' : userRole === 'TREASURY' ? '🪙' : '💼'}
             </div>
           </div>
