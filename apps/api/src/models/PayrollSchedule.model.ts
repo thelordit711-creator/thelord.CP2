@@ -41,3 +41,4 @@ const PayrollScheduleSchema = new Schema<IPayrollScheduleDocument>(
 );
 
 export const PayrollSchedule = model<IPayrollScheduleDocument>('PayrollSchedule', PayrollScheduleSchema);
+

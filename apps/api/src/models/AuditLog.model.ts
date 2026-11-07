@@ -51,3 +51,4 @@ AuditLogSchema.index({ actionType: 1, createdAt: -1 });
 AuditLogSchema.index({ targetId: 1, createdAt: -1 });
 
 export const AuditLog = model<IAuditLogDocument>('AuditLog', AuditLogSchema);
+

@@ -340,3 +340,4 @@ export const AuditLogsViewer: React.FC = () => {
     </div>
   );
 };
+

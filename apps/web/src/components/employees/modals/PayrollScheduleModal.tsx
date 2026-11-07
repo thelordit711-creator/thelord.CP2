@@ -475,3 +475,4 @@ export const PayrollScheduleModal: React.FC<PayrollScheduleModalProps> = ({
     </AppModalPortal>
   );
 };
+

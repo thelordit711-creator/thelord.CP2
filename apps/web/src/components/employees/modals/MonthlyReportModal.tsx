@@ -245,3 +245,4 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
     </AppModalPortal>
   );
 };
+
