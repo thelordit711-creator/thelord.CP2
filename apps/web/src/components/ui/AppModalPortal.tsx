@@ -37,6 +37,7 @@ export const AppModalPortal: React.FC<AppModalPortalProps> = ({
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -48,6 +49,7 @@ export const AppModalPortal: React.FC<AppModalPortalProps> = ({
 
     return () => {
       document.body.style.overflow = originalOverflow;
+      document.body.classList.remove('modal-open');
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);

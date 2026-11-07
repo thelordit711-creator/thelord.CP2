@@ -180,17 +180,15 @@ export default function TasksPage() {
           </p>
         </div>
 
-        {isAdmin && (
-          <Button
-            variant="gold"
-            size="md"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="shadow-gold-glow flex items-center gap-2 rounded-2xl font-bold shrink-0 text-xs sm:text-sm px-4 py-2.5"
-          >
-            <Plus className="w-4 h-4 ml-1" />
-            <span>+ إنشاء وتكليف بمهمة جديدة ⚡</span>
-          </Button>
-        )}
+        <Button
+          variant="gold"
+          size="md"
+          onClick={() => setIsCreateModalOpen(true)}
+          className="shadow-gold-glow flex items-center gap-2 rounded-2xl font-bold shrink-0 text-xs sm:text-sm px-4 py-2.5"
+        >
+          <Plus className="w-4 h-4 ml-1" />
+          <span>{isAdmin ? '+ إنشاء وتكليف بمهمة جديدة ⚡' : '+ اقتراح مهمة أو مبادرة جديدة 💡'}</span>
+        </Button>
       </div>
 
       {/* ClickUp-Style Filter Toolbar */}
@@ -254,11 +252,12 @@ export default function TasksPage() {
         />
       )}
 
-      {/* Create Task Modal */}
+      {/* Create / Propose Task Modal */}
       <CreateTaskModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={refetch}
+        isProposal={!isAdmin}
       />
 
       {/* Edit Task Modal */}

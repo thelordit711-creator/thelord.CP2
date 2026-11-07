@@ -23,8 +23,9 @@ router.get('/leaderboard', UsersController.getLeaderboard);
 router.get('/system-settings', UsersController.getSystemSettings);
 router.put('/system-settings', rbacGuard(['SUPER_ADMIN']), UsersController.updateSystemSettings);
 
-// Admin only: view and manage team members
-router.get('/admin/all', rbacGuard(['SUPER_ADMIN']), UsersController.getAllEmployees);
+// Team members directory (accessible to all authenticated staff for task assignment, chat, & delegation)
+router.get('/team', UsersController.getAllEmployees);
+router.get('/admin/all', UsersController.getAllEmployees);
 router.get('/admin/:id', rbacGuard(['SUPER_ADMIN']), UsersController.getEmployeeDetails);
 router.delete('/admin/:id', rbacGuard(['SUPER_ADMIN']), UsersController.deleteUser);
 router.patch('/admin/:id/password', rbacGuard(['SUPER_ADMIN']), UsersController.changeUserPassword);

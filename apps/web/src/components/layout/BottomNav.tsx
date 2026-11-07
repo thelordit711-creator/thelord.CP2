@@ -80,7 +80,7 @@ export const BottomNav: React.FC = () => {
   return (
     <>
       {/* Floating Bottom Nav Capsule with All 8 Sections */}
-      <div className="md:hidden fixed bottom-2 inset-x-1.5 sm:inset-x-3 z-40 max-w-2xl mx-auto pointer-events-none select-none">
+      <div className="bottom-nav-capsule md:hidden fixed bottom-2 inset-x-1.5 sm:inset-x-3 z-40 max-w-2xl mx-auto pointer-events-none select-none">
         <nav className="pointer-events-auto bg-[#07090E]/95 backdrop-blur-2xl border border-lord-gold/40 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(212,175,55,0.18)] px-1 py-1 transition-all">
           {/* Proportional Grid Row containing all 8 sections so NONE are cut off */}
           <div className="flex items-center justify-between gap-0.5 px-0.5">

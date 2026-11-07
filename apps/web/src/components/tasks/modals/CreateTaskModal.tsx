@@ -17,20 +17,24 @@ import {
 } from 'lucide-react';
 import { lordToast } from '../../../lib/lordToast';
 import { useCreateOrProposeTaskMutation } from '../../../store/api/tasksApi';
-import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
+import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  isProposal?: boolean;
 }
 
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  isProposal = false
 }) => {
   const [createTask, { isLoading: isCreating }] = useCreateOrProposeTaskMutation();
+  const { data: meRes } = useGetMeQuery();
+  const currentUser = meRes?.data;
   const { data: employeesRes } = useGetAllEmployeesQuery();
   const employees = employeesRes?.data || [];
 
@@ -52,8 +56,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [isDailyRecurring, setIsDailyRecurring] = useState(false);
   const [dailyRecurrenceTime, setDailyRecurrenceTime] = useState('09:00 ص');
 
-  // Assignment: By Person (1 or more) or By Department
-  const [assignmentMode, setAssignmentMode] = useState<'EMPLOYEES' | 'DEPARTMENT'>('EMPLOYEES');
+  // Assignment: By Person (1 or more), Self, or By Department
+  const [assignmentMode, setAssignmentMode] = useState<'SELF' | 'EMPLOYEES' | 'DEPARTMENT'>(
+    isProposal ? 'SELF' : 'EMPLOYEES'
+  );
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [targetDepartment, setTargetDepartment] = useState<string>('TRADING');
 
@@ -343,18 +349,40 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     const finalCategory = serviceCategory === 'CUSTOM' ? (customCategory.trim() || 'GENERAL') : serviceCategory;
 
     if (!isBountyTask && assignmentMode === 'EMPLOYEES' && selectedAssignees.length === 0) {
-      lordToast.gold('إسناد المهمة', 'يرجى اختيار موظف واحد على الأقل، أو اختيار إسناد لقسم كامل');
+      lordToast.gold(
+        'إسناد المهمة',
+        isProposal
+          ? 'يرجى اختيار زميل واحد على الأقل، أو اختيار التنفيذ الذاتي'
+          : 'يرجى اختيار موظف واحد على الأقل، أو اختيار إسناد لقسم كامل'
+      );
       return;
     }
 
     try {
+      const finalAssignees =
+        assignmentMode === 'SELF'
+          ? (currentUser?._id ? [currentUser._id] : [])
+          : assignmentMode === 'EMPLOYEES'
+          ? selectedAssignees
+          : [];
+
+      const executionType = isProposal
+        ? assignmentMode === 'SELF'
+          ? 'SELF'
+          : 'DELEGATED_TO_COLLEAGUE'
+        : assignmentMode === 'EMPLOYEES'
+        ? 'ADMIN_ASSIGNED'
+        : undefined;
+
       await createTask({
         title: taskTitle,
         description: taskDescription,
         targetPlatform: finalPlatform as any,
         serviceCategory: finalCategory as any,
         targetDepartment: assignmentMode === 'DEPARTMENT' ? (targetDepartment as any) : undefined,
-        assignedTo: assignmentMode === 'EMPLOYEES' ? selectedAssignees : [],
+        assignedTo: finalAssignees,
+        executionType: executionType as any,
+        isProposedByEmployee: isProposal,
         priority: priority as any,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         isDailyRecurring,
@@ -372,11 +400,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         }
       }).unwrap();
 
-      lordToast.success('تم نشر المهمة وبناء مراحل التنفيذ بنجاح 🚀');
+      lordToast.success(
+        isProposal
+          ? 'تم إرسال مقترح المهمة بنجاح للإدارة للاعتماد 💡'
+          : 'تم نشر المهمة وبناء مراحل التنفيذ بنجاح 🚀'
+      );
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      lordToast.error('تعذر إنشاء المهمة', err?.data?.error || 'حدث خطأ أثناء نشر المهمة');
+      lordToast.error(
+        isProposal ? 'تعذر إرسال المقترح' : 'تعذر إنشاء المهمة',
+        err?.data?.error || 'حدث خطأ أثناء حفظ المهمة'
+      );
     }
   };
 
@@ -386,7 +421,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
             <Layers className="w-5 h-5 text-lord-gold" />
-            <span>إنشاء مهمة وبناء مراحل التنفيذ المخصصة</span>
+            <span>
+              {isProposal ? 'اقتراح مهمة أو مبادرة جديدة وبناء مراحلها 💡' : 'إنشاء مهمة وبناء مراحل التنفيذ المخصصة ⚡'}
+            </span>
           </h3>
           <button
             type="button"
@@ -643,6 +680,19 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               </span>
 
               <div className="flex items-center gap-1 bg-obsidian-primary p-0.5 rounded-xl border border-gray-800 text-[11px]">
+                {isProposal && (
+                  <button
+                    type="button"
+                    onClick={() => setAssignmentMode('SELF')}
+                    className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                      assignmentMode === 'SELF'
+                        ? 'bg-cyber-blue text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    تنفيذ ذاتي 🙋‍♂️
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setAssignmentMode('EMPLOYEES')}
@@ -652,7 +702,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
-                  موظف أو أكثر 👤
+                  {isProposal ? 'تكليف زميل بالكادر 👥' : 'موظف أو أكثر 👤'}
                 </button>
                 <button
                   type="button"
@@ -668,7 +718,24 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               </div>
             </div>
 
-            {assignmentMode === 'EMPLOYEES' ? (
+            {assignmentMode === 'SELF' ? (
+              <div className="p-3.5 rounded-xl bg-obsidian-primary/80 border border-cyber-blue/30 space-y-2">
+                <div className="flex items-center gap-2 text-cyber-blue font-bold text-xs">
+                  <CheckCircle className="w-4 h-4 text-cyber-blue" />
+                  <span>مبادرة وتنفيذ ذاتي: ستقوم بتنفيذ هذه المهمة ومراحلها بنفسك 🙋‍♂️</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  سيتم تسجيلك كمنفذ رئيسي للمهمة، وفور مراجعة واعتماد الإدارة للمقترح، ستظهر مباشرة في قائمة مهامك اليومية النشطة لبدء رفع المخرجات والمراحل.
+                </p>
+                {currentUser && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyber-blue/10 border border-cyber-blue/20 text-xs text-white">
+                    <span className="text-gray-400">المنفذ المقترح:</span>
+                    <strong className="text-cyber-blue">{currentUser.fullName}</strong>
+                    <span className="text-[10px] text-gray-400 font-mono">({currentUser.primaryDepartment || 'كادر TheLord'})</span>
+                  </div>
+                )}
+              </div>
+            ) : assignmentMode === 'EMPLOYEES' ? (
               <div className="space-y-2">
                 <p className="text-[11px] text-gray-400">
                   اختر شخصاً واحداً أو شخصين أو عدة أشخاص للعمل معاً على المهمة:
@@ -1023,7 +1090,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               size="md"
               isLoading={isCreating}
             >
-              نشر المهمة واعتماد المراحل 🚀
+              {isProposal ? 'إرسال المقترح لاعتماد الإدارة 🚀' : 'نشر المهمة واعتماد المراحل 🚀'}
             </Button>
           </div>
         </form>

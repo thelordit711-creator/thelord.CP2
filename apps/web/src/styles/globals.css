@@ -83,6 +83,11 @@ select option:checked, select option:hover {
   border: 1px solid rgba(212, 175, 55, 0.18);
 }
 
+/* Hide Mobile Bottom Nav when an AppModalPortal is active to prevent content overlay */
+body.modal-open .bottom-nav-capsule {
+  display: none !important;
+}
+
 .gold-border-glow {
   border: 1px solid #D4AF37;
   box-shadow: 0 0 20px -2px rgba(212, 175, 55, 0.35);

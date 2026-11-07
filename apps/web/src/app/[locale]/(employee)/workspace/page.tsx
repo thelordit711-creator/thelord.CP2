@@ -13,6 +13,7 @@ import { Badge } from '../../../../components/ui/Badge';
 import { DirectVoiceRecorder } from '../../../../components/voice/DirectVoiceRecorder';
 import { StageDeliverableBox } from '../../../../components/tasks/StageDeliverableBox';
 import { ImageLightboxModal } from '../../../../components/ui/ImageLightboxModal';
+import { CreateTaskModal } from '../../../../components/tasks/modals/CreateTaskModal';
 import {
   Briefcase,
   CheckCircle,
@@ -33,7 +34,11 @@ import {
   ExternalLink,
   Receipt,
   Copy,
-  X
+  X,
+  Sparkles,
+  Compass,
+  UserCheck,
+  Bot
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkStatus } from '@lord/shared-types';
@@ -49,6 +54,7 @@ export default function EmployeeWorkspacePage() {
   const [proposeTask, { isLoading: isProposing }] = useCreateOrProposeTaskMutation();
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'propose' | 'statement'>('tasks');
+  const [isProposeModalOpen, setIsProposeModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; alt?: string } | null>(null);
 
@@ -266,14 +272,18 @@ export default function EmployeeWorkspacePage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('propose')}
-            className={`px-4 py-2 rounded-xl font-bold transition-all ${
+            onClick={() => {
+              setActiveTab('propose');
+              setIsProposeModalOpen(true);
+            }}
+            className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'propose'
                 ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            + اقتراح مهمة جديدة
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>+ اقتراح مهمة ومراحلها 💡</span>
           </button>
           <button
             type="button"
@@ -637,138 +647,156 @@ export default function EmployeeWorkspacePage() {
         </div>
       )}
 
-      {/* Tab 2: Propose Task */}
+      {/* Tab 2: Propose Task Hub */}
       {activeTab === 'propose' && (
-        <div className="max-w-2xl mx-auto bg-obsidian-card border border-lord-gold/30 rounded-3xl p-6 md:p-8">
-          <h2 className="text-xl font-bold text-white mb-2">اقتراح مهمة أو مبادرة جديدة</h2>
-          <p className="text-xs text-gray-400 mb-6">
-            اقترح مهمة ذاتية لتنفيذها مع إمكانية طلب ميزانية مالية معتمدة من المسؤول.
-          </p>
+        <div className="space-y-6">
+          {/* Executive Proposal Hub Hero Card */}
+          <div className="bg-gradient-to-br from-obsidian-card via-obsidian-surface to-obsidian-card border-2 border-lord-gold/40 rounded-3xl p-6 md:p-8 shadow-gold-glow relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-96 h-96 bg-lord-gold/5 rounded-full blur-3xl pointer-events-none" />
 
-          <form onSubmit={handleProposeSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">عنوان المهمة:</label>
-              <input
-                type="text"
-                required
-                placeholder="مثال: إطلاق حملة صفقات مجانية على القناة العامة"
-                value={proposalTitle}
-                onChange={e => setProposalTitle(e.target.value)}
-                className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-lord-gold"
-              />
-            </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+              <div className="space-y-3 max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lord-gold/15 border border-lord-gold/30 text-lord-gold text-xs font-bold">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>محرك بناء واقتراح المبادرات والمهام المتكامل</span>
+                </div>
+                <h2 className="text-xl md:text-2xl font-black text-white">
+                  اقترح مهمة ومراحلها التنفيذية بالذكاء الاصطناعي 💡
+                </h2>
+                <p className="text-xs md:text-sm text-gray-300 leading-relaxed">
+                  يمكنك الآن كعضو في الكادر اقتراح مهام ومشاريع ذاتية أو تكليف زملاءك بها، مع بناء المسار التنفيذي للمراحل، وتحديد المخرجات المطلوبة بدقة، والتفريغ الصوتي بالذكاء الاصطناعي، وطلب ميزانية مالية معتمدة من الإدارة.
+                </p>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">تفاصيل وخطة التنفيذ:</label>
-              <textarea
-                rows={4}
-                required
-                placeholder="اشرح الفكرة، المنصة المستهدفة، ومراحل الإنجاز المقترحة..."
-                value={proposalDesc}
-                onChange={e => setProposalDesc(e.target.value)}
-                className="w-full bg-obsidian-primary border border-gray-700 rounded-xl p-3 text-sm text-white focus:border-lord-gold"
-              />
-            </div>
-
-            {/* Execution & Assignee Selection */}
-            <div className="p-4 rounded-2xl bg-obsidian-surface border border-obsidian-border space-y-3">
-              <label className="block text-xs font-semibold text-gray-300">
-                تحديد المنفذ والمكلف بالمهمة (Assignee):
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setExecutionType('SELF')}
-                  className={`p-3 rounded-xl border text-right transition-all ${
-                    executionType === 'SELF'
-                      ? 'bg-cyber-blue/15 border-cyber-blue text-cyber-blue font-bold shadow-sm'
-                      : 'bg-obsidian-primary border-gray-700 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <div className="font-bold text-xs mb-1">تنفيذ ذاتي (سأنفذها بنفسي)</div>
-                  <div className="text-[10px] text-gray-400">ستُسند المهمة لك فور اعتمادها من الإدارة</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setExecutionType('DELEGATED_TO_COLLEAGUE')}
-                  className={`p-3 rounded-xl border text-right transition-all ${
-                    executionType === 'DELEGATED_TO_COLLEAGUE'
-                      ? 'bg-lord-gold/15 border-lord-gold text-lord-gold font-bold shadow-sm'
-                      : 'bg-obsidian-primary border-gray-700 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <div className="font-bold text-xs mb-1">طلب إسنادها لزميل بالكادر</div>
-                  <div className="text-[10px] text-gray-400">تكليف زميل آخر ذو اختصاص بالمهمة</div>
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-xs text-gray-300">
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-obsidian-primary/60 border border-gray-800">
+                    <span className="w-6 h-6 rounded-lg bg-lord-gold/15 text-lord-gold flex items-center justify-center font-bold text-xs">🎙️</span>
+                    <span>تفريغ وهيكلة صوتية TheLord AI Voice-to-Task</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-obsidian-primary/60 border border-gray-800">
+                    <span className="w-6 h-6 rounded-lg bg-cyber-blue/15 text-cyber-blue flex items-center justify-center font-bold text-xs">📋</span>
+                    <span>بناء مراحل تنفيذ تفصيلية وشروط استلام المخرجات</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-obsidian-primary/60 border border-gray-800">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center font-bold text-xs">💰</span>
+                    <span>طلب ميزانية معتمدة وصرفها عبر USDT أو جيب/جوالي</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-obsidian-primary/60 border border-gray-800">
+                    <span className="w-6 h-6 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center font-bold text-xs">👥</span>
+                    <span>تنفيذ ذاتي 🙋‍♂️ أو تكليف زملاء الكادر وإشعارهم لحظياً</span>
+                  </div>
+                </div>
               </div>
 
-              {executionType === 'DELEGATED_TO_COLLEAGUE' && (
-                <div className="pt-2">
-                  <label className="block text-[11px] text-gray-400 mb-1">اختر الزميل المكلف:</label>
-                  <select
-                    value={selectedColleagueId}
-                    onChange={e => setSelectedColleagueId(e.target.value)}
-                    required={executionType === 'DELEGATED_TO_COLLEAGUE'}
-                    className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:border-lord-gold"
-                  >
-                    <option value="">-- اختر الزميل المكلف من الفريق --</option>
-                    {employees.map(emp => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.fullName} ({emp.primaryDepartment || 'عام'} - {emp.jobTitles?.[0] || emp.accessRole})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div className="shrink-0 flex flex-col items-center sm:items-start md:items-center justify-center gap-3">
+                <Button
+                  type="button"
+                  variant="gold"
+                  size="lg"
+                  onClick={() => setIsProposeModalOpen(true)}
+                  className="font-black px-8 py-4 rounded-2xl shadow-gold-glow flex items-center gap-2 text-sm w-full sm:w-auto"
+                >
+                  <Sparkles className="w-5 h-5 text-obsidian-primary" />
+                  <span>فتح محرك بناء واقتراح المهمة الآن ⚡</span>
+                </Button>
+                <span className="text-[11px] text-gray-400">نفس المحرك الشامل المتاح في صفحة المهام والمراحل</span>
+              </div>
+            </div>
+          </div>
+
+          {/* List of previously proposed initiatives by employee */}
+          <div className="bg-obsidian-card border border-obsidian-border rounded-3xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-lord-gold" />
+                <span>سجل المبادرات والمقترحات التي رفعتها للإدارة ({tasks.filter(t => t.isProposedByEmployee).length})</span>
+              </h3>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsProposeModalOpen(true)}
+                className="text-xs text-lord-gold border-lord-gold/40 hover:bg-lord-gold/10 rounded-xl"
+              >
+                + إضافة مقترح جديد
+              </Button>
             </div>
 
-            {/* Budget Request Toggle */}
-            <div className="p-4 rounded-2xl bg-obsidian-surface border border-obsidian-border space-y-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={requiresBudget}
-                  onChange={e => setRequiresBudget(e.target.checked)}
-                  className="rounded text-lord-gold"
-                />
-                <span className="text-sm font-bold text-white">تتطلب ميزانية مالية للصرف؟</span>
-              </label>
-
-              {requiresBudget && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">المبلغ المطلوب (USDT):</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={budgetAmount}
-                      onChange={e => setBudgetAmount(Number(e.target.value))}
-                      className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-sm text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">وسيلة الصرف المطلوبة:</label>
-                    <select
-                      value={budgetPayoutMethod}
-                      onChange={e => setBudgetPayoutMethod(e.target.value as any)}
-                      className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-sm text-white"
+            {tasks.filter(t => t.isProposedByEmployee).length === 0 ? (
+              <div className="text-center py-12 text-gray-500 space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-obsidian-surface border border-gray-800 flex items-center justify-center mx-auto text-xl text-lord-gold">
+                  💡
+                </div>
+                <p className="text-sm font-semibold text-gray-300">لم تقم برفع أي مقترح مهمة حتى الآن</p>
+                <p className="text-xs text-gray-500 max-w-md mx-auto">
+                  هل لديك فكرة أو مبادرة تطويرية؟ انقر على الزر بالأعلى لبناء مقترحك مع مراحله وميزانيته ورفعه للمسؤول للاعتماد!
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {tasks
+                  .filter(t => t.isProposedByEmployee)
+                  .map(t => (
+                    <div
+                      key={t._id}
+                      onClick={() => {
+                        setSelectedTask(t);
+                        setActiveTab('tasks');
+                      }}
+                      className="p-5 rounded-2xl bg-obsidian-surface border border-gray-800 hover:border-lord-gold/50 cursor-pointer transition-all space-y-3 group"
                     >
-                      <option value="BEP20_USDT">شبكة BEP20 (USDT)</option>
-                      <option value="JEEB_WALLET">📱 محفظة جيب (Jeeb)</option>
-                      <option value="JAWALI_WALLET">📱 محفظة جوالي (Jawali)</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-lord-gold/10 text-lord-gold border border-lord-gold/30">
+                          {t.targetPlatform || 'GENERAL_SYSTEM'}
+                        </span>
+                        <span
+                          className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
+                            t.status === 'PENDING_ADMIN_REVIEW'
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse'
+                              : t.status === 'COMPLETED'
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : t.status === 'REJECTED'
+                              ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                              : 'bg-cyber-blue/15 text-cyber-blue border-cyber-blue/30'
+                          }`}
+                        >
+                          {t.status === 'PENDING_ADMIN_REVIEW'
+                            ? 'بانتظار مراجعة الإدارة ⏳'
+                            : t.status === 'COMPLETED'
+                            ? 'مكتملة ومعتمدة ✅'
+                            : t.status === 'REJECTED'
+                            ? 'تم رفض المقترح ❌'
+                            : 'معتمدة وقيد التنفيذ 🚀'}
+                        </span>
+                      </div>
 
-            <Button type="submit" variant="gold" size="lg" isLoading={isProposing} className="w-full">
-              <PlusCircle className="w-4 h-4 ml-1.5" />
-              <span>إرسال المقترح للاعتماد</span>
-            </Button>
-          </form>
+                      <h4 className="text-sm font-black text-white group-hover:text-lord-gold transition-colors line-clamp-1">
+                        {t.title}
+                      </h4>
+                      <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+                        {t.description}
+                      </p>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-800/80 text-[11px] text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Layers className="w-3.5 h-3.5 text-lord-gold" />
+                          <span>{t.stages?.length || 0} مراحل تنفيذ</span>
+                        </span>
+
+                        {t.financialRequirement?.requiresBudget && (
+                          <span className="text-lord-gold font-mono font-bold">
+                            ميزانية: ${t.financialRequirement.amount} USDT
+                          </span>
+                        )}
+
+                        <span className="text-gray-500 font-mono text-[10px]">
+                          {new Date(t.createdAt).toLocaleDateString('ar-EG')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -842,6 +870,17 @@ export default function EmployeeWorkspacePage() {
           onClose={() => setLightboxImage(null)}
         />
       )}
+
+      {/* Comprehensive Task & Stage Proposal Modal with Voice AI & Budget */}
+      <CreateTaskModal
+        isOpen={isProposeModalOpen}
+        onClose={() => setIsProposeModalOpen(false)}
+        isProposal={true}
+        onSuccess={() => {
+          refetchTasks();
+          setActiveTab('propose');
+        }}
+      />
     </div>
   );
 }

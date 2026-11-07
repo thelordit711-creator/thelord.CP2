@@ -16,7 +16,7 @@ export const usersApi = baseApi.injectEndpoints({
       invalidatesTags: ['User']
     }),
     getAllEmployees: builder.query<IApiResponse<IUser[]>, void>({
-      query: () => '/users/admin/all',
+      query: () => '/users/team',
       providesTags: ['User']
     }),
     getEmployeeById: builder.query<IApiResponse<IUser>, string>({
