@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi';
-import { IUser, ICompleteOnboardingDto, IApiResponse } from '@lord/shared-types';
+import { IUser, ICompleteOnboardingDto, IApiResponse, IAuditLog } from '@lord/shared-types';
 
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -69,6 +69,16 @@ export const usersApi = baseApi.injectEndpoints({
         body: { isSuspended, reason }
       }),
       invalidatesTags: ['User']
+    }),
+    getAuditLogs: builder.query<
+      IApiResponse<IAuditLog[]>,
+      { page?: number; limit?: number; actionType?: string; severity?: string; search?: string } | void
+    >({
+      query: (params) => ({
+        url: '/users/admin/audit-logs',
+        params: params || {}
+      }),
+      providesTags: ['User']
     })
   })
 });
@@ -84,6 +94,7 @@ export const {
   useUpdateSystemSettingsMutation,
   useDeleteUserMutation,
   useChangeUserPasswordMutation,
-  useToggleUserSuspensionMutation
+  useToggleUserSuspensionMutation,
+  useGetAuditLogsQuery
 } = usersApi;
 

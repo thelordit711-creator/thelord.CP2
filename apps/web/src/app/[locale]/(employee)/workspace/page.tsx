@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import {
   useGetTasksQuery,
   useSubmitTaskStageMutation,
-  useCreateOrProposeTaskMutation
+  useCreateOrProposeTaskMutation,
+  useSettleTaskBudgetMutation
 } from '../../../../store/api/tasksApi';
-import { useGetMyStatementQuery } from '../../../../store/api/financeApi';
+import { useGetMyStatementQuery, useConfirmPayoutReceiptMutation } from '../../../../store/api/financeApi';
 import { useGetAllEmployeesQuery } from '../../../../store/api/usersApi';
 import { Button } from '../../../../components/ui/Button';
 import { Badge } from '../../../../components/ui/Badge';
@@ -52,11 +53,20 @@ export default function EmployeeWorkspacePage() {
 
   const [submitStage, { isLoading: isSubmittingStage }] = useSubmitTaskStageMutation();
   const [proposeTask, { isLoading: isProposing }] = useCreateOrProposeTaskMutation();
+  const [confirmPayoutReceipt, { isLoading: isConfirmingReceipt }] = useConfirmPayoutReceiptMutation();
+  const [settleTaskBudget, { isLoading: isSettlingBudget }] = useSettleTaskBudgetMutation();
 
   const [activeTab, setActiveTab] = useState<'tasks' | 'propose' | 'statement'>('tasks');
   const [isProposeModalOpen, setIsProposeModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; alt?: string } | null>(null);
+
+  // Receipt Confirmation & Expense Settlement states
+  const [confirmNote, setConfirmNote] = useState('');
+  const [showExpenseBox, setShowExpenseBox] = useState(false);
+  const [spentAmountInput, setSpentAmountInput] = useState('');
+  const [expenseDetailsInput, setExpenseDetailsInput] = useState('');
+  const [invoiceUrlInput, setInvoiceUrlInput] = useState('');
 
   // Keep selectedTask synchronized with live tasks list
   React.useEffect(() => {
@@ -604,6 +614,199 @@ export default function EmployeeWorkspacePage() {
                                   تكبير
                                 </div>
                               </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Receipt Confirmation Block */}
+                      {isDisbursed && payoutOrder && (
+                        <div className="p-3.5 rounded-xl bg-obsidian-surface border border-gray-800 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-white flex items-center gap-1.5">
+                              <CheckCircle className="w-4 h-4 text-lord-gold" />
+                              <span>تأكيد استلام المبلغ من الصندوق</span>
+                            </span>
+                            {payoutOrder.requireConfirmation && (
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                                مطلوب من الإدارة ⚠️
+                              </span>
+                            )}
+                          </div>
+
+                          {payoutOrder.employeeConfirmation?.isConfirmed ? (
+                            <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center justify-between gap-2">
+                              <div>
+                                <span className="font-bold block">✓ قمت بتأكيد استلام المبلغ في محفظتك</span>
+                                <span className="text-[10px] text-gray-400 font-mono">
+                                  {new Date(payoutOrder.employeeConfirmation.confirmedAt).toLocaleString('ar-YE')}
+                                </span>
+                                {payoutOrder.employeeConfirmation.confirmationNote && (
+                                  <p className="text-[11px] text-gray-300 mt-1 italic">
+                                    "{payoutOrder.employeeConfirmation.confirmationNote}"
+                                  </p>
+                                )}
+                              </div>
+                              <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-[11px] text-gray-400">
+                                فور وصول الحوالة لحسابك، يرجى تأكيد الاستلام لإشعار الصندوق والإدارة وإغلاق القيد:
+                              </p>
+                              <div className="flex flex-col sm:flex-row items-center gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="ملاحظة تأكيد (اختياري، مثلاً: استلمت الرصيد بنجاح في المحفظة)..."
+                                  value={confirmNote}
+                                  onChange={(e) => setConfirmNote(e.target.value)}
+                                  className="w-full sm:flex-1 bg-obsidian-card border border-gray-700 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-lord-gold"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="gold"
+                                  size="sm"
+                                  disabled={isConfirmingReceipt}
+                                  onClick={async () => {
+                                    try {
+                                      await confirmPayoutReceipt({
+                                        orderId: payoutOrder._id,
+                                        note: confirmNote
+                                      }).unwrap();
+                                      toast.success('تم تأكيد استلام الحوالة بنجاح وإشعار الصندوق والإدارة! ✓');
+                                      refetchTasks();
+                                    } catch (err: any) {
+                                      toast.error(err?.data?.error || 'فشل تأكيد الاستلام');
+                                    }
+                                  }}
+                                  className="w-full sm:w-auto font-bold text-xs whitespace-nowrap"
+                                >
+                                  ✓ أؤكد استلام الحوالة
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Task Budget Expense Breakdown & Settlement Block */}
+                      {isDisbursed && (
+                        <div className="p-3.5 rounded-xl bg-obsidian-surface border border-gray-800 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-white flex items-center gap-1.5">
+                              <FileText className="w-4 h-4 text-cyber-blue" />
+                              <span>بيان وتسوية مصروفات الميزانية (اختياري للمهمة)</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowExpenseBox(!showExpenseBox)}
+                              className="text-[11px] font-bold text-cyber-blue hover:underline"
+                            >
+                              {showExpenseBox
+                                ? 'إخفاء ▲'
+                                : selectedTask.budgetSettlement?.isSettled
+                                ? 'عرض البيان المسجل ▼'
+                                : '+ كتابة بيان الصرف ▼'}
+                            </button>
+                          </div>
+
+                          {selectedTask.budgetSettlement?.isSettled && !showExpenseBox && (
+                            <div className="p-2.5 rounded-lg bg-cyber-blue/10 border border-cyber-blue/30 text-xs text-cyber-blue flex items-center justify-between gap-2">
+                              <div>
+                                <span className="font-bold block">
+                                  تم توثيق بيان الصرف: ${selectedTask.budgetSettlement.spentAmount} USDT
+                                </span>
+                                <span className="text-[11px] text-gray-300 block mt-0.5 line-clamp-1">
+                                  {selectedTask.budgetSettlement.breakdownDetails}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setShowExpenseBox(true)}
+                                className="text-[11px] text-white underline font-bold"
+                              >
+                                تفاصيل
+                              </button>
+                            </div>
+                          )}
+
+                          {showExpenseBox && (
+                            <div className="p-3 rounded-xl bg-obsidian-card border border-gray-700/80 space-y-3 animate-fadeIn">
+                              <p className="text-[11px] text-gray-400 leading-relaxed">
+                                يمكنك هنا كتابة تفاصيل المبلغ المستلم وأين ومتى تم صرفه (مثلاً: إعلانات تليجرام، رسوم اشتراك، إلخ) وإرفاق أي فواتير أو روابط داعمة:
+                              </p>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-[10px] text-gray-400 mb-1">المبلغ المنفق فعلياً (USDT):</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    placeholder={String(fin.amount)}
+                                    value={spentAmountInput}
+                                    onChange={(e) => setSpentAmountInput(e.target.value)}
+                                    className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:border-lord-gold"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] text-gray-400 mb-1">رابط الفاتورة أو الإيصال الداعم (اختياري):</label>
+                                  <input
+                                    type="url"
+                                    placeholder="https://..."
+                                    value={invoiceUrlInput}
+                                    onChange={(e) => setInvoiceUrlInput(e.target.value)}
+                                    className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:border-lord-gold"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] text-gray-400 mb-1">تفاصيل ومواعيد الصرف وأي بيانات إضافية:</label>
+                                <textarea
+                                  rows={3}
+                                  placeholder="اكتب أين ومتى تم صرف الميزانية، مثلاً: تم حجز حملة إعلانية في قناة X يوم 8 نوفمبر بمبلغ 150 دولار..."
+                                  value={expenseDetailsInput}
+                                  onChange={(e) => setExpenseDetailsInput(e.target.value)}
+                                  className="w-full bg-obsidian-primary border border-gray-700 rounded-xl p-3 text-xs text-white focus:border-lord-gold"
+                                />
+                              </div>
+
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setShowExpenseBox(false)}
+                                >
+                                  إلغاء
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="gold"
+                                  size="sm"
+                                  disabled={isSettlingBudget}
+                                  onClick={async () => {
+                                    try {
+                                      await settleTaskBudget({
+                                        taskId: selectedTask._id,
+                                        data: {
+                                          spentAmount: Number(spentAmountInput) || Number(fin.amount),
+                                          breakdownDetails: expenseDetailsInput,
+                                          invoicesAndReceipts: invoiceUrlInput ? [{ fileUrl: invoiceUrlInput, originalName: 'فاتورة الصرف', fileType: 'IMAGE', sizeBytes: 0 }] : []
+                                        }
+                                      }).unwrap();
+                                      toast.success('تم حفظ وتوثيق بيان مصروفات الميزانية بنجاح! 🧾');
+                                      setShowExpenseBox(false);
+                                      refetchTasks();
+                                    } catch (err: any) {
+                                      toast.error(err?.data?.error || 'فشل حفظ بيان المصروفات');
+                                    }
+                                  }}
+                                  className="font-bold text-xs"
+                                >
+                                  حفظ وتوثيق بيان الصرف 🧾
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>

@@ -23,6 +23,9 @@ router.get('/leaderboard', UsersController.getLeaderboard);
 router.get('/system-settings', UsersController.getSystemSettings);
 router.put('/system-settings', rbacGuard(['SUPER_ADMIN']), UsersController.updateSystemSettings);
 
+// Security & Administrative Audit Logs (Super Admin only)
+router.get('/admin/audit-logs', rbacGuard(['SUPER_ADMIN']), UsersController.getAuditLogs);
+
 // Team members directory (accessible to all authenticated staff for task assignment, chat, & delegation)
 router.get('/team', UsersController.getAllEmployees);
 router.get('/admin/all', UsersController.getAllEmployees);

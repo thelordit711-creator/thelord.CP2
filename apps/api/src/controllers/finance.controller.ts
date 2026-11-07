@@ -5,8 +5,11 @@ import { PayoutOrder } from '../models/PayoutOrder.model';
 import { CompanyVault } from '../models/CompanyVault.model';
 import { EmployeeLedger } from '../models/EmployeeLedger.model';
 import { User } from '../models/User.model';
+import { PayrollSchedule } from '../models/PayrollSchedule.model';
+import { Notification } from '../models/Notification.model';
 import { AccountingService } from '../services/accounting.service';
 import { SocketService } from '../services/socket.service';
+import { AuditService } from '../services/audit.service';
 import { IFinancialDecisionDto, IAdjustVaultBalanceDto, IManageLedgerDto } from '@lord/shared-types';
 
 export class FinanceController {
@@ -269,6 +272,300 @@ export class FinanceController {
       const employeeId = req.user?._id;
       const ledger = await EmployeeLedger.find({ employeeId }).sort({ createdAt: -1 });
       res.json({ success: true, data: ledger });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 6. Confirm Receipt of Payout (Employee confirms they received funds)
+  public static async confirmPayoutReceipt(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { orderId } = req.params;
+      const { note } = req.body;
+
+      const order = await PayoutOrder.findById(orderId).populate('beneficiaryId', 'fullName email');
+      if (!order) {
+        res.status(404).json({ success: false, error: 'أمر الصرف غير موجود' });
+        return;
+      }
+
+      const beneficiaryIdStr = (order.beneficiaryId as any)?._id?.toString() || order.beneficiaryId?.toString();
+      const isBeneficiary = req.user && beneficiaryIdStr === String(req.user._id);
+      const isAdmin = req.user?.accessRole === 'SUPER_ADMIN';
+
+      if (!isBeneficiary && !isAdmin) {
+        res.status(403).json({ success: false, error: 'غير مصرح لك بتأكيد استلام هذا الصرف' });
+        return;
+      }
+
+      (order as any).employeeConfirmation = {
+        isConfirmed: true,
+        confirmedAt: new Date(),
+        confirmationNote: note?.trim() || 'تم تأكيد الاستلام بنجاح من قبل المستلم'
+      };
+      await order.save();
+
+      // Audit Trail
+      if (req.user) {
+        await AuditService.logAction({
+          userId: req.user._id,
+          userName: req.user.fullName,
+          userEmail: req.user.email,
+          userRole: req.user.accessRole,
+          actionType: 'CONFIRM_PAYOUT_RECEIPT',
+          targetId: String(order._id),
+          targetName: `أمر صرف بقيمة ${order.amount} ${order.currency}`,
+          targetType: 'PAYOUT',
+          severity: 'INFO',
+          details: {
+            amount: order.amount,
+            payoutMethod: order.payoutMethod,
+            note: (order as any).employeeConfirmation?.confirmationNote
+          },
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      }
+
+      // Realtime Broadcast
+      SocketService.emitToAdmins('payout:receipt_confirmed', {
+        orderId: order._id,
+        beneficiaryId: order.beneficiaryId,
+        confirmedAt: (order as any).employeeConfirmation?.confirmedAt,
+        note: (order as any).employeeConfirmation?.confirmationNote
+      });
+
+      res.json({
+        success: true,
+        data: order,
+        message: 'تم تأكيد استلام الحوالة وإشعار الصندوق والإدارة بنجاح! ✓'
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 7. Admin: Get all employee payroll schedules (10-day tranches & allowances)
+  public static async getPayrollSchedules(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const employees = await User.find({ accessRole: { $in: ['EMPLOYEE', 'TREASURY'] } })
+        .select('fullName email avatarUrl primaryDepartment jobTitles compensation payoutMethods isSuspended')
+        .sort({ fullName: 1 });
+
+      const existingSchedules = await PayrollSchedule.find().lean();
+      const schedulesMap = new Map(existingSchedules.map((s: any) => [s.employeeId.toString(), s]));
+
+      // Merge and auto-initialize missing schedules
+      const merged = await Promise.all(
+        employees.map(async (emp: any) => {
+          let schedule: any = schedulesMap.get(emp._id.toString());
+          if (!schedule) {
+            const created = await PayrollSchedule.create({
+              employeeId: emp._id,
+              baseMonthlySalary: emp.compensation?.baseSalary || 0,
+              cycleType: 'EVERY_10_DAYS',
+              tranche1Day: 10,
+              tranche2Day: 20,
+              tranche3Day: 30,
+              allowances: [],
+              requireEmployeeReceiptConfirmation: false,
+              sendProofAttachmentToEmployee: true
+            });
+            schedule = created.toObject();
+          }
+          return {
+            ...schedule,
+            employee: emp
+          };
+        })
+      );
+
+      res.json({ success: true, data: merged });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 8. Admin: Update employee payroll schedule & allowances
+  public static async updatePayrollSchedule(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { employeeId } = req.params;
+      const {
+        baseMonthlySalary,
+        cycleType,
+        tranche1Day,
+        tranche2Day,
+        tranche3Day,
+        allowances,
+        requireEmployeeReceiptConfirmation,
+        sendProofAttachmentToEmployee
+      } = req.body;
+
+      let schedule = await PayrollSchedule.findOne({ employeeId });
+      if (!schedule) {
+        schedule = new PayrollSchedule({ employeeId });
+      }
+
+      if (typeof baseMonthlySalary === 'number') schedule.baseMonthlySalary = Math.max(0, baseMonthlySalary);
+      if (cycleType) schedule.cycleType = cycleType;
+      if (tranche1Day) schedule.tranche1Day = tranche1Day;
+      if (tranche2Day) schedule.tranche2Day = tranche2Day;
+      if (tranche3Day) schedule.tranche3Day = tranche3Day;
+      if (Array.isArray(allowances)) schedule.allowances = allowances;
+      if (typeof requireEmployeeReceiptConfirmation === 'boolean') {
+        schedule.requireEmployeeReceiptConfirmation = requireEmployeeReceiptConfirmation;
+      }
+      if (typeof sendProofAttachmentToEmployee === 'boolean') {
+        schedule.sendProofAttachmentToEmployee = sendProofAttachmentToEmployee;
+      }
+
+      await schedule.save();
+
+      // Update User compensation field as well for synchronization
+      await User.findByIdAndUpdate(employeeId, {
+        'compensation.baseSalary': schedule.baseMonthlySalary
+      });
+
+      res.json({
+        success: true,
+        data: schedule,
+        message: 'تم تحديث جدول تجزئة الراتب والبدلات الشهرية بنجاح! ⚙️'
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 9. Admin: Generate Tranche Payout Orders (Disburse tranche 1, 2, 3 or monthly allowances)
+  public static async generateTranchePayouts(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { trancheType, employeeIds } = req.body; // e.g. 'TRANCHE_1' | 'TRANCHE_2' | 'TRANCHE_3' | 'MONTHLY_ALLOWANCE'
+
+      const query: any = {};
+      if (Array.isArray(employeeIds) && employeeIds.length > 0) {
+        query.employeeId = { $in: employeeIds };
+      }
+
+      const schedules = await PayrollSchedule.find(query).populate('employeeId', 'fullName email payoutMethods isSuspended');
+
+      const createdOrders = [];
+
+      for (const sched of schedules) {
+        const emp = sched.employeeId as any;
+        if (!emp || emp.isSuspended) continue;
+
+        let amount = 0;
+        let summary = '';
+        let category: any = 'SALARY';
+
+        if (trancheType === 'TRANCHE_1' || trancheType === 'TRANCHE_2' || trancheType === 'TRANCHE_3') {
+          // If 10-day cycle: salary is split into 3 parts (1/3 each)
+          const isTenDay = sched.cycleType === 'EVERY_10_DAYS';
+          amount = isTenDay ? Math.round((sched.baseMonthlySalary / 3) * 100) / 100 : sched.baseMonthlySalary;
+          const trancheLabel = trancheType === 'TRANCHE_1' ? 'الأولى (1-10)' : trancheType === 'TRANCHE_2' ? 'الثانية (11-20)' : 'الثالثة (21-30)';
+          summary = `صرف دفعة الراتب ${trancheLabel} - ${emp.fullName}`;
+        } else if (trancheType === 'MONTHLY_ALLOWANCE') {
+          // Sum active allowances (like internet allowance, communications)
+          const activeAllowances = (sched.allowances || []).filter((a: any) => a.isActive);
+          amount = activeAllowances.reduce((acc: number, curr: any) => acc + (Number(curr.amount) || 0), 0);
+          summary = `صرف البدلات والمصروفات الشهرية (بدل نت/اتصالات) - ${emp.fullName}`;
+          category = 'ALLOWANCE';
+        }
+
+        if (amount <= 0) continue;
+
+        const defaultMethod = emp.payoutMethods?.primary || 'BEP20_USDT';
+
+        const order = await PayoutOrder.create({
+          beneficiaryId: emp._id,
+          amount,
+          currency: 'USDT',
+          payoutMethod: defaultMethod,
+          destinationDetails: {
+            bep20Address: emp.payoutMethods?.bep20Address,
+            walletPhoneNumber: emp.payoutMethods?.jeebPhoneNumber || emp.payoutMethods?.jawaliPhoneNumber,
+            accountHolderName: emp.fullName
+          },
+          category,
+          payrollTranche: trancheType,
+          summaryForTreasury: summary,
+          executionStatus: 'WAITING_TREASURY',
+          requireConfirmation: sched.requireEmployeeReceiptConfirmation,
+          sendProofToEmployee: sched.sendProofAttachmentToEmployee
+        });
+
+        createdOrders.push(order);
+
+        // Notify Treasury
+        SocketService.emitToAdmins('payout:created', {
+          orderId: order._id,
+          amount: order.amount,
+          beneficiaryName: emp.fullName,
+          summary: order.summaryForTreasury
+        });
+      }
+
+      res.json({
+        success: true,
+        data: createdOrders,
+        message: `تم إصدار (${createdOrders.length}) أمر صرف بنجاح وإرسالها لمكتب الصندوق والخزينة 🚀`
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 10. Generate Monthly Comprehensive Report for Employee
+  public static async getEmployeeMonthlyReport(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { employeeId } = req.params;
+      const { year, month } = req.query;
+
+      const targetYear = Number(year) || new Date().getFullYear();
+      const targetMonth = Number(month) || new Date().getMonth() + 1;
+
+      const startDate = new Date(targetYear, targetMonth - 1, 1);
+      const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+
+      const [employee, schedule, ledgerEntries, payoutOrders] = await Promise.all([
+        User.findById(employeeId).select('fullName email primaryDepartment jobTitles compensation payoutMethods'),
+        PayrollSchedule.findOne({ employeeId }),
+        EmployeeLedger.find({
+          employeeId,
+          createdAt: { $gte: startDate, $lte: endDate }
+        }).sort({ createdAt: 1 }),
+        PayoutOrder.find({
+          beneficiaryId: employeeId,
+          createdAt: { $gte: startDate, $lte: endDate }
+        }).sort({ createdAt: 1 })
+      ]);
+
+      if (!employee) {
+        res.status(404).json({ success: false, error: 'الموظف غير موجود' });
+        return;
+      }
+
+      const totalDisbursed = payoutOrders
+        .filter((o) => o.executionStatus === 'DISBURSED')
+        .reduce((sum, o) => sum + o.amount, 0);
+
+      const totalPending = payoutOrders
+        .filter((o) => o.executionStatus !== 'DISBURSED')
+        .reduce((sum, o) => sum + o.amount, 0);
+
+      const report = {
+        employee,
+        period: { year: targetYear, month: targetMonth },
+        baseMonthlySalary: schedule?.baseMonthlySalary ?? (employee as any).compensation?.baseSalary ?? 0,
+        cycleType: schedule?.cycleType ?? 'EVERY_10_DAYS',
+        allowances: schedule?.allowances ?? [],
+        totalDisbursed,
+        totalPending,
+        ledgerEntries,
+        payoutOrders
+      };
+
+      res.json({ success: true, data: report });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }

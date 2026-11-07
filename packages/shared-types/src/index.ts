@@ -327,11 +327,26 @@ export interface IPayoutOrder {
   payoutMethod: PayoutMethod;
   destinationDetails: IPayoutDestinationDetails;
   category: PayoutCategory;
+  payrollTranche?: 'TRANCHE_1' | 'TRANCHE_2' | 'TRANCHE_3' | 'FULL_MONTH' | 'MONTHLY_ALLOWANCE' | 'NONE';
   summaryForTreasury: string;
   executionStatus: PayoutExecutionStatus;
   inProgressClickedAt?: Date | string;
   disbursedClickedAt?: Date | string;
   transferProof?: ITransferProof;
+  requireConfirmation?: boolean;
+  sendProofToEmployee?: boolean;
+  employeeConfirmation?: {
+    isConfirmed: boolean;
+    confirmedAt?: Date | string;
+    confirmationNote?: string;
+  };
+  taskExpenseSettlement?: {
+    isSettled: boolean;
+    settledAmount?: number;
+    expenseDetails?: string;
+    invoicesOrProofs?: any[];
+    settledAt?: Date | string;
+  };
   createdAt: Date | string;
   updatedAt: Date | string;
 }
@@ -620,6 +635,89 @@ export interface IAttendanceSession {
   createdAt: Date | string;
   updatedAt: Date | string;
 }
+
+// ==========================================
+// AUDIT TRAILS & ZERO-TRUST SECURITY
+// ==========================================
+
+export type AuditActionType =
+  | 'BLOCK_USER'
+  | 'UNBLOCK_USER'
+  | 'DELETE_USER'
+  | 'CHANGE_PASSWORD'
+  | 'UPDATE_USER_ROLE_SALARY'
+  | 'DISBURSE_PAYOUT'
+  | 'CONFIRM_PAYOUT_RECEIPT'
+  | 'TASK_BUDGET_SETTLED'
+  | 'DELETE_TASK'
+  | 'SYSTEM_SECURITY_CONFIG';
+
+export type AuditSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
+
+export interface IAuditLog {
+  _id: string;
+  userId: string | Partial<IUser>;
+  userName: string;
+  userEmail: string;
+  userRole: AccessRole;
+  actionType: AuditActionType;
+  targetId?: string;
+  targetName?: string;
+  targetType?: 'USER' | 'TASK' | 'PAYOUT' | 'SYSTEM' | 'SECURITY';
+  details?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  severity: AuditSeverity;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+// ==========================================
+// ADVANCED PAYROLL & 10-DAY TRANCHES
+// ==========================================
+
+export type PayoutCycleType = 'EVERY_10_DAYS' | 'MONTHLY_FULL';
+
+export interface IEmployeeAllowance {
+  _id?: string;
+  title: string;
+  amount: number;
+  currency: Currency;
+  category: 'INTERNET' | 'COMMUNICATION' | 'SOFTWARE_TOOLS' | 'HOUSING' | 'TRANSPORT' | 'OTHER';
+  disbursementDayOfMonth: number;
+  isActive: boolean;
+  notes?: string;
+}
+
+export interface IPayrollSchedule {
+  _id: string;
+  employeeId: string | Partial<IUser>;
+  baseMonthlySalary: number;
+  cycleType: PayoutCycleType;
+  tranche1Day: number; // Default: 10
+  tranche2Day: number; // Default: 20
+  tranche3Day: number; // Default: 30
+  allowances: IEmployeeAllowance[];
+  autoGeneratePayoutOrders: boolean;
+  requireEmployeeReceiptConfirmation: boolean;
+  sendProofAttachmentToEmployee: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface ITaskExpenseSettlement {
+  spentAmount: number;
+  currency: Currency;
+  expenseDetails: string;
+  invoicesOrProofs?: Array<{
+    title: string;
+    url: string;
+    amount?: number;
+  }>;
+  submittedAt: Date | string;
+  confirmedByAdmin?: boolean;
+}
+
 
 
 

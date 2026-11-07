@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { User } from '../models/User.model';
 import { ValidationService } from '../services/validation.service';
 import { SocketService } from '../services/socket.service';
+import { AuditService } from '../services/audit.service';
 import { ICompleteOnboardingDto } from '@lord/shared-types';
 
 export class UsersController {
@@ -158,6 +159,28 @@ export class UsersController {
 
       await User.findByIdAndDelete(id);
 
+      // Audit Trail Logging
+      if (req.user) {
+        await AuditService.logAction({
+          userId: req.user._id,
+          userName: req.user.fullName,
+          userEmail: req.user.email,
+          userRole: req.user.accessRole,
+          actionType: 'DELETE_USER',
+          targetId: String(targetUser._id),
+          targetName: targetUser.fullName,
+          targetType: 'USER',
+          severity: 'CRITICAL',
+          details: {
+            deletedEmail: targetUser.email,
+            deletedRole: targetUser.accessRole,
+            primaryDepartment: targetUser.primaryDepartment
+          },
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      }
+
       // Broadcast revocation
       SocketService.getIO()?.emit('USER_DELETED', { userId: id });
 
@@ -192,6 +215,27 @@ export class UsersController {
       const passwordHash = await bcrypt.hash(newPassword.trim(), 10);
       targetUser.passwordHash = passwordHash;
       await targetUser.save();
+
+      // Audit Trail Logging
+      if (req.user) {
+        await AuditService.logAction({
+          userId: req.user._id,
+          userName: req.user.fullName,
+          userEmail: req.user.email,
+          userRole: req.user.accessRole,
+          actionType: 'CHANGE_PASSWORD',
+          targetId: String(targetUser._id),
+          targetName: targetUser.fullName,
+          targetType: 'SECURITY',
+          severity: 'CRITICAL',
+          details: {
+            targetEmail: targetUser.email,
+            reason: 'تغيير كلمة المرور إدارياً بواسطة المسؤول'
+          },
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      }
 
       res.json({
         success: true,
@@ -237,6 +281,27 @@ export class UsersController {
         targetUser.presenceStatus = 'OFFLINE';
         await targetUser.save();
 
+        // Audit Trail Logging
+        if (req.user) {
+          await AuditService.logAction({
+            userId: req.user._id,
+            userName: req.user.fullName,
+            userEmail: req.user.email,
+            userRole: req.user.accessRole,
+            actionType: 'BLOCK_USER',
+            targetId: String(targetUser._id),
+            targetName: targetUser.fullName,
+            targetType: 'SECURITY',
+            severity: 'CRITICAL',
+            details: {
+              targetEmail: targetUser.email,
+              reason: targetUser.suspensionReason
+            },
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+          });
+        }
+
         // Broadcast real-time revocation
         SocketService.getIO()?.emit('USER_ACCESS_REVOKED', {
           userId: targetUser._id,
@@ -253,6 +318,27 @@ export class UsersController {
         targetUser.suspendedAt = undefined;
         targetUser.suspensionReason = '';
         await targetUser.save();
+
+        // Audit Trail Logging
+        if (req.user) {
+          await AuditService.logAction({
+            userId: req.user._id,
+            userName: req.user.fullName,
+            userEmail: req.user.email,
+            userRole: req.user.accessRole,
+            actionType: 'UNBLOCK_USER',
+            targetId: String(targetUser._id),
+            targetName: targetUser.fullName,
+            targetType: 'SECURITY',
+            severity: 'WARNING',
+            details: {
+              targetEmail: targetUser.email,
+              action: 'رفع الحظر واستعادة وصول الحساب للمنظومة'
+            },
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+          });
+        }
 
         // Broadcast real-time restoration
         SocketService.getIO()?.emit('USER_ACCESS_RESTORED', {
@@ -449,6 +535,27 @@ export class UsersController {
         success: true,
         data: settings,
         message: 'تم حفظ إعدادات المنظومة بنجاح! ⚙️'
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Admin: Get Centralized Security Audit Logs
+   */
+  public static async getAuditLogs(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const result = await AuditService.getLogs(req.query as any);
+      res.json({
+        success: true,
+        data: result.logs,
+        meta: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages
+        }
       });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });

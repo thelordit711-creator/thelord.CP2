@@ -67,6 +67,17 @@ export const tasksApi = baseApi.injectEndpoints({
         method: 'POST'
       }),
       invalidatesTags: (result, error, taskId) => ['Task', { type: 'Task', id: taskId }]
+    }),
+    settleTaskBudget: builder.mutation<
+      IApiResponse<ITask>,
+      { taskId: string; data: { spentAmount: number; breakdownDetails: string; invoicesAndReceipts?: any[] } }
+    >({
+      query: ({ taskId, data }) => ({
+        url: `/tasks/${taskId}/settle-budget`,
+        method: 'POST',
+        body: data
+      }),
+      invalidatesTags: (result, error, { taskId }) => ['Task', { type: 'Task', id: taskId }]
     })
   })
 });
@@ -80,6 +91,7 @@ export const {
   useSubmitTaskStageMutation,
   useReviewTaskStageMutation,
   useAddDirectReportMutation,
-  useClaimBountyTaskMutation
+  useClaimBountyTaskMutation,
+  useSettleTaskBudgetMutation
 } = tasksApi;
 

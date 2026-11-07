@@ -38,6 +38,41 @@ export const financeApi = baseApi.injectEndpoints({
     getMyStatement: builder.query<IApiResponse<IEmployeeLedger[]>, void>({
       query: () => '/finance/my-statement',
       providesTags: ['EmployeeLedger']
+    }),
+    confirmPayoutReceipt: builder.mutation<IApiResponse<any>, { orderId: string; note?: string }>({
+      query: ({ orderId, note }) => ({
+        url: `/finance/payouts/${orderId}/confirm-receipt`,
+        method: 'POST',
+        body: { note }
+      }),
+      invalidatesTags: ['PayoutOrder', 'EmployeeLedger']
+    }),
+    getPayrollSchedules: builder.query<IApiResponse<any[]>, void>({
+      query: () => '/finance/payroll-schedules',
+      providesTags: ['User']
+    }),
+    updatePayrollSchedule: builder.mutation<IApiResponse<any>, { employeeId: string; data: any }>({
+      query: ({ employeeId, data }) => ({
+        url: `/finance/payroll-schedules/${employeeId}`,
+        method: 'PUT',
+        body: data
+      }),
+      invalidatesTags: ['User']
+    }),
+    generateTranchePayouts: builder.mutation<IApiResponse<any>, { trancheType: string; employeeIds?: string[] }>({
+      query: (data) => ({
+        url: '/finance/payroll/generate-tranche',
+        method: 'POST',
+        body: data
+      }),
+      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'User']
+    }),
+    getMonthlyReport: builder.query<IApiResponse<any>, { employeeId: string; year?: number; month?: number }>({
+      query: ({ employeeId, year, month }) => ({
+        url: `/finance/monthly-report/${employeeId}`,
+        params: { year, month }
+      }),
+      providesTags: ['EmployeeLedger', 'PayoutOrder']
     })
   })
 });
@@ -48,6 +83,11 @@ export const {
   useGetVaultQuery,
   useAdjustVaultMutation,
   useManageEmployeeLedgerMutation,
-  useGetMyStatementQuery
+  useGetMyStatementQuery,
+  useConfirmPayoutReceiptMutation,
+  useGetPayrollSchedulesQuery,
+  useUpdatePayrollScheduleMutation,
+  useGenerateTranchePayoutsMutation,
+  useGetMonthlyReportQuery
 } = financeApi;
 

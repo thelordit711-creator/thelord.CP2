@@ -39,6 +39,7 @@ import {
 import { toast } from 'sonner';
 import { useSocket } from '../../../../providers/SocketProvider';
 import { AccessRole, WorkStatus } from '@lord/shared-types';
+import { AuditLogsViewer } from '../../../../components/admin/AuditLogsViewer';
 
 interface StaffStatusItem {
   _id: string;
@@ -609,6 +610,9 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Centralized Security Audit Trail Section */}
+      <AuditLogsViewer />
 
       {/* Invite Modal */}
       {isInviteModalOpen && (

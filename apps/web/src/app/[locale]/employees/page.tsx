@@ -45,6 +45,8 @@ import { SuspendEmployeeModal } from '../../../components/employees/modals/Suspe
 import { DeleteEmployeeModal } from '../../../components/employees/modals/DeleteEmployeeModal';
 import { SalaryActionModal } from '../../../components/employees/modals/SalaryActionModal';
 import { PayslipModal } from '../../../components/employees/modals/PayslipModal';
+import { PayrollScheduleModal } from '../../../components/employees/modals/PayrollScheduleModal';
+import { MonthlyReportModal } from '../../../components/employees/modals/MonthlyReportModal';
 
 // Sample enterprise employees to populate if DB is fresh
 const SAMPLE_EMPLOYEES: any[] = [
@@ -156,6 +158,8 @@ export default function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isPayslipOpen, setIsPayslipOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Admin Security Modals States
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -574,8 +578,30 @@ export default function EmployeesPage() {
                     className="flex items-center justify-center gap-1 text-gray-300 border-gray-700 hover:border-gray-600 rounded-xl text-xs"
                   >
                     <FileText className="w-3.5 h-3.5 ml-1" />
-                    <span>كشف الراتب (Payslip)</span>
+                    <span>كشف الراتب</span>
                   </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedEmployee(emp);
+                      setIsScheduleModalOpen(true);
+                    }}
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-lord-gold/15 hover:bg-lord-gold text-lord-gold hover:text-obsidian-primary border border-lord-gold/40 text-xs font-bold transition-all"
+                  >
+                    <Calendar className="w-3.5 h-3.5 ml-0.5" />
+                    <span>تجزئة الراتب والبدلات 📅</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedEmployee(emp);
+                      setIsReportModalOpen(true);
+                    }}
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-cyber-blue/15 hover:bg-cyber-blue text-cyber-blue hover:text-white border border-cyber-blue/40 text-xs font-bold transition-all"
+                  >
+                    <Coins className="w-3.5 h-3.5 ml-0.5" />
+                    <span>تقرير الصندوق الشهري 📊</span>
+                  </button>
                 </div>
 
                 {/* Administrative Account Controls (Delete, Change Password, Suspend Access) */}
@@ -689,6 +715,21 @@ export default function EmployeesPage() {
           setSelectedEmployee(null);
           refetch();
         }}
+      />
+
+      {/* 10-Day Payroll Tranches & Allowances Modal */}
+      <PayrollScheduleModal
+        employee={selectedEmployee}
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Treasury Monthly Financial Statement Modal */}
+      <MonthlyReportModal
+        employee={selectedEmployee}
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
       />
     </div>
   );

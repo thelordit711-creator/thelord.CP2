@@ -24,9 +24,14 @@ const PayoutOrderSchema = new Schema<IPayoutOrderDocument>({
 
   category: {
     type: String,
-    enum: ['SALARY', 'BONUS', 'ADVANCE', 'TG_ADS', 'TG_CHANNEL_PROMO', 'SOFTWARE_SUBSCRIPTION', 'GENERAL'],
+    enum: ['SALARY', 'BONUS', 'ADVANCE', 'ALLOWANCE', 'TG_ADS', 'TG_CHANNEL_PROMO', 'SOFTWARE_SUBSCRIPTION', 'GENERAL'],
     required: true,
     index: true
+  },
+  payrollTranche: {
+    type: String,
+    enum: ['TRANCHE_1', 'TRANCHE_2', 'TRANCHE_3', 'FULL_MONTH', 'MONTHLY_ALLOWANCE', 'NONE'],
+    default: 'NONE'
   },
   summaryForTreasury: { type: String, required: true },
 
@@ -43,6 +48,24 @@ const PayoutOrderSchema = new Schema<IPayoutOrderDocument>({
     txHashOrReferenceNumber: { type: String },
     receiptScreenshot: MediaAttachmentSchema,
     executedByTreasuryId: { type: Schema.Types.ObjectId, ref: 'User' }
+  },
+
+  // Employee Receipt Confirmation (Admin can configure if mandatory or optional)
+  requireConfirmation: { type: Boolean, default: false },
+  sendProofToEmployee: { type: Boolean, default: true },
+  employeeConfirmation: {
+    isConfirmed: { type: Boolean, default: false },
+    confirmedAt: { type: Date },
+    confirmationNote: { type: String }
+  },
+
+  // Task budget expense breakdown and settlement (Optional, filled by employee)
+  taskExpenseSettlement: {
+    isSettled: { type: Boolean, default: false },
+    settledAmount: { type: Number },
+    expenseDetails: { type: String },
+    invoicesOrProofs: [MediaAttachmentSchema],
+    settledAt: { type: Date }
   }
 }, { timestamps: true });
 

@@ -4,6 +4,7 @@ import { Task } from '../models/Task.model';
 import { User } from '../models/User.model';
 import { PayoutOrder } from '../models/PayoutOrder.model';
 import { SocketService } from '../services/socket.service';
+import { AuditService } from '../services/audit.service';
 import { ICreateTaskDto, ISubmitStageDto, IReviewStageDto } from '@lord/shared-types';
 
 export class TasksController {
@@ -581,6 +582,78 @@ export class TasksController {
         success: true,
         data: updated,
         message: 'تهانينا! تم قبول المهمة وإضافتها إلى قائمة مهامك بنجاح! 🚀'
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // 10. Settle Task Budget & Submit Expense Breakdown (Employee)
+  public static async settleTaskBudget(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { spentAmount, breakdownDetails, invoicesAndReceipts } = req.body;
+
+      const task = await Task.findById(id).populate('financialRequirement.payoutOrderId');
+      if (!task) {
+        res.status(404).json({ success: false, error: 'المهمة غير موجودة' });
+        return;
+      }
+
+      (task as any).budgetSettlement = {
+        isSettled: true,
+        spentAmount: Number(spentAmount) || 0,
+        breakdownDetails: breakdownDetails?.trim() || '',
+        invoicesAndReceipts: invoicesAndReceipts || [],
+        submittedAt: new Date()
+      };
+      await task.save();
+
+      // If related payout order exists, sync settlement to payout order as well
+      if (task.financialRequirement?.payoutOrderId) {
+        const orderId = (task.financialRequirement.payoutOrderId as any)._id || task.financialRequirement.payoutOrderId;
+        await PayoutOrder.findByIdAndUpdate(orderId, {
+          'taskExpenseSettlement.isSettled': true,
+          'taskExpenseSettlement.settledAmount': Number(spentAmount) || 0,
+          'taskExpenseSettlement.expenseDetails': breakdownDetails?.trim() || '',
+          'taskExpenseSettlement.invoicesOrProofs': invoicesAndReceipts || [],
+          'taskExpenseSettlement.settledAt': new Date()
+        });
+      }
+
+      // Audit Trail
+      if (req.user) {
+        await AuditService.logAction({
+          userId: req.user._id,
+          userName: req.user.fullName,
+          userEmail: req.user.email,
+          userRole: req.user.accessRole,
+          actionType: 'TASK_BUDGET_SETTLED',
+          targetId: String(task._id),
+          targetName: task.title,
+          targetType: 'TASK',
+          severity: 'INFO',
+          details: {
+            spentAmount,
+            allocatedAmount: task.financialRequirement?.amount,
+            notes: breakdownDetails
+          },
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      }
+
+      const updated = await Task.findById(id)
+        .populate('assignedTo', 'fullName email avatarUrl jobTitles')
+        .populate('createdBy', 'fullName email avatarUrl')
+        .populate('financialRequirement.payoutOrderId');
+
+      SocketService.broadcast('task:updated', updated);
+
+      res.json({
+        success: true,
+        data: updated,
+        message: 'تم حفظ وتوثيق تسوية ميزانية ومصروفات المهمة بنجاح! 📋'
       });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });

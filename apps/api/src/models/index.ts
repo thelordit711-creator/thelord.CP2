@@ -12,5 +12,7 @@ export * from './Project.model';
 export * from './DailyReport.model';
 export * from './AttendanceSession.model';
 export * from './SystemSettings.model';
+export * from './AuditLog.model';
+export * from './PayrollSchedule.model';
 
 
