@@ -42,6 +42,10 @@ import {
 } from '../../../store/api/meetingApi';
 import { useGetMeQuery, useGetAllEmployeesQuery } from '../../../store/api/usersApi';
 import { toast } from 'sonner';
+import { lordToast } from '../../../lib/lordToast';
+import { MeetingStandbyHub } from '../../../components/meeting/MeetingStandbyHub';
+import { MeetingNotesPanel } from '../../../components/meeting/MeetingNotesPanel';
+import { MeetingInviteModal } from '../../../components/meeting/MeetingInviteModal';
 
 // WebRTC Remote Video Tile Component
 const RemotePeerVideo: React.FC<{ stream: MediaStream; isMuted?: boolean; className?: string }> = ({
@@ -624,121 +628,14 @@ export default function MeetingPage() {
 
       {activeTab === 'meeting' ? (
         !isRoomActive ? (
-          /* STANDBY HUB VIEW - Room is OFF by default until user clicks the button */
-          <div className="rounded-3xl bg-gradient-to-b from-obsidian-surface via-obsidian-card to-obsidian-surface border-2 border-lord-gold/40 p-6 sm:p-10 shadow-[0_0_60px_rgba(0,0,0,0.85),0_0_25px_rgba(212,175,55,0.12)] space-y-8 animate-fade-in">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-gray-800/80 pb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-3xl bg-lord-gold/15 border-2 border-lord-gold/40 flex items-center justify-center text-lord-gold shadow-gold-glow shrink-0">
-                  <Radio className="w-8 h-8 text-lord-gold" />
-                </div>
-                <div className="space-y-1 text-right">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-3 py-1 rounded-full bg-gray-800/90 border border-gray-700 text-gray-300 font-bold text-xs flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-red-500" />
-                      <span>وضع الاستعداد: الغرفة متوقفة مؤقتاً</span>
-                    </span>
-                    <span className="px-2.5 py-1 rounded-full bg-lord-gold/15 border border-lord-gold/30 text-lord-gold text-xs font-mono font-bold">
-                      WEBRTC SECURE
-                    </span>
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-black text-white">
-                    {meetingRoom?.title || 'قاعة الاجتماعات والبث المباشر THE LORD'}
-                  </h2>
-                  <p className="text-xs text-gray-400">
-                    الغرفة مغلقة ومؤمنة لحماية خصوصيتك ولن يتم تشغيل الكاميرا أو الميكروفون إلا عند الضغط على زر التشغيل.
-                  </p>
-                </div>
-              </div>
-
-              {/* Start Room Button */}
-              <div className="flex flex-col items-center sm:items-end gap-2 shrink-0">
-                <Button
-                  variant="gold"
-                  size="lg"
-                  onClick={handleStartBroadcastRoom}
-                  className="rounded-2xl px-8 py-4 font-black text-base shadow-[0_0_30px_rgba(212,175,55,0.4)] hover:shadow-[0_0_45px_rgba(212,175,55,0.6)] flex items-center gap-2.5 transform hover:scale-105 active:scale-95 transition-all"
-                >
-                  <Play className="w-5 h-5 fill-current" />
-                  <span>تشغيل الغرفة والانضمام للبث المباشر 🔴</span>
-                </Button>
-                <span className="text-[11px] text-gray-500 font-mono">
-                  انقر للبدء وبث الصوت والفيديو المباشر
-                </span>
-              </div>
-            </div>
-
-            {/* Pre-Join Hardware Checks & Meeting Overview Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* 1. Hardware Preferences */}
-              <div className="p-4 rounded-2xl bg-obsidian-surface border border-gray-800 space-y-3">
-                <span className="text-xs font-bold text-lord-gold uppercase tracking-wider flex items-center gap-2">
-                  <Settings className="w-4 h-4 text-lord-gold" />
-                  <span>تفضيلات الأجهزة عند بدء البث:</span>
-                </span>
-                <div className="space-y-2 pt-1">
-                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-obsidian-card border border-gray-800/80 cursor-pointer hover:border-lord-gold/40 transition-colors">
-                    <span className="text-xs text-gray-300 font-bold flex items-center gap-2">
-                      <Video className="w-4 h-4 text-cyber-blue" />
-                      <span>تشغيل الكاميرا عند الدخول</span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={startWithVideo}
-                      onChange={(e) => setStartWithVideo(e.target.checked)}
-                      className="w-4 h-4 accent-amber-400 rounded"
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-obsidian-card border border-gray-800/80 cursor-pointer hover:border-lord-gold/40 transition-colors">
-                    <span className="text-xs text-gray-300 font-bold flex items-center gap-2">
-                      <Mic className="w-4 h-4 text-emerald-400" />
-                      <span>تشغيل الميكروفون عند الدخول</span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={startWithAudio}
-                      onChange={(e) => setStartWithAudio(e.target.checked)}
-                      className="w-4 h-4 accent-amber-400 rounded"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* 2. Agenda & Topic */}
-              <div className="p-4 rounded-2xl bg-obsidian-surface border border-gray-800 space-y-2">
-                <span className="text-xs font-bold text-lord-gold uppercase tracking-wider flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-lord-gold" />
-                  <span>جدول الأعمال ومحاور اللقاء:</span>
-                </span>
-                <p className="text-xs text-gray-300 leading-relaxed bg-obsidian-card p-3 rounded-xl border border-gray-800 min-h-[72px]">
-                  {meetingRoom?.agenda || 'متابعة خطط التنفيذ، مناقشة نتائج العمل، واعتماد القرارات الاستراتيجية.'}
-                </p>
-              </div>
-
-              {/* 3. Attendees & Room State */}
-              <div className="p-4 rounded-2xl bg-obsidian-surface border border-gray-800 space-y-2">
-                <span className="text-xs font-bold text-lord-gold uppercase tracking-wider flex items-center gap-2">
-                  <Users className="w-4 h-4 text-lord-gold" />
-                  <span>الأعضاء المسجلون بالقاعة ({participants.length}):</span>
-                </span>
-                <div className="p-3 rounded-xl bg-obsidian-card border border-gray-800 min-h-[72px] flex items-center gap-2 flex-wrap">
-                  {participants.length > 0 ? (
-                    participants.map((p: any, pIdx: number) => (
-                      <span
-                        key={pIdx}
-                        className="px-2.5 py-1 rounded-xl bg-gray-800/80 border border-gray-700 text-gray-200 text-xs font-bold flex items-center gap-1.5"
-                      >
-                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                        <span>{p.fullName || 'عضو'}</span>
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-500 font-mono">لا يوجد أعضاء داخل الغرفة حالياً</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          <MeetingStandbyHub
+            meetingRoom={meetingRoom}
+            startWithVideo={startWithVideo}
+            setStartWithVideo={setStartWithVideo}
+            startWithAudio={startWithAudio}
+            setStartWithAudio={setStartWithAudio}
+            onStartBroadcast={handleStartBroadcastRoom}
+          />
         ) : (
           /* ACTIVE MEETING & VIDEO BROADCAST GRID */
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
@@ -981,76 +878,14 @@ export default function MeetingPage() {
           </div>
 
           {/* Right Panel: Meeting Notes & AI Meeting-to-Tasks (Persisted in MongoDB) */}
-          <div className="bg-obsidian-card border border-obsidian-border rounded-3xl p-6 flex flex-col justify-between space-y-4 shadow-xl">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-lord-gold" />
-                  <h3 className="text-sm font-bold text-white">محضر الاجتماع المعتمد</h3>
-                </div>
-                <Badge variant="gold">MongoDB + AI</Badge>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5 font-semibold">
-                  أجندة وهدف الاجتماع:
-                </label>
-                <input
-                  type="text"
-                  value={meetingAgenda}
-                  onChange={(e) => setMeetingAgenda(e.target.value)}
-                  placeholder="مثال: مناقشة إعلانات تليجرام وإشارات صفقات الذهب"
-                  className="w-full bg-obsidian-primary border border-gray-800 rounded-2xl px-3 py-2 text-xs text-white focus:border-lord-gold transition-colors"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs text-gray-400 font-semibold">
-                    النقاط والقرارات المتفق عليها (محضر رسمي):
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleSaveNotes}
-                    disabled={isSavingNotes}
-                    className="text-[11px] text-lord-gold hover:underline flex items-center gap-1 font-bold"
-                  >
-                    {isSavingNotes ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                    حفظ في القاعدة
-                  </button>
-                </div>
-                <textarea
-                  rows={8}
-                  value={meetingNotes}
-                  onChange={(e) => setMeetingNotes(e.target.value)}
-                  placeholder="اكتب كل قرار في سطر منفصل ليقوم TheLordAI بتحويله لمهمة رسمية بمراحلها..."
-                  className="w-full bg-obsidian-primary border border-gray-800 rounded-2xl p-3 text-xs text-white leading-relaxed focus:border-lord-gold transition-colors"
-                />
-              </div>
-
-              <div className="p-3 bg-obsidian-surface rounded-2xl border border-gray-800 text-xs text-gray-300 space-y-1">
-                <span className="text-lord-gold font-bold block">🤖 أتمتة TheLordAI:</span>
-                <p className="text-[11px] text-gray-400">
-                  عند الضغط أدناه، ستقوم المنظومة آلياً بإنشاء مهام حقيقية معتمدة في قاعدة بيانات MongoDB مع تكليف الموظفين وتحديد مراحل الإنجاز.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              variant="gold"
-              size="md"
-              onClick={handleConvertMeetingToTasks}
-              disabled={isConverting || !meetingNotes.trim()}
-              className="w-full rounded-2xl flex items-center justify-center gap-2 shadow-gold-glow mt-4"
-            >
-              {isConverting ? (
-                <Loader2 className="w-4 h-4 animate-spin ml-1" />
-              ) : (
-                <Sparkles className="w-4 h-4 ml-1" />
-              )}
-              <span>تحويل المخرجات إلى مهام فورية في MongoDB</span>
-            </Button>
-          </div>
+          <MeetingNotesPanel
+            meetingNotes={meetingNotes}
+            setMeetingNotes={setMeetingNotes}
+            onSaveNotes={handleSaveNotes}
+            isSavingNotes={isSavingNotes}
+            onConvertNotesToTasks={handleConvertMeetingToTasks}
+            isConverting={isConverting}
+          />
         </div>
         )
       ) : (
@@ -1062,75 +897,15 @@ export default function MeetingPage() {
           />
         </div>
       )}
-      {/* INVITE MEMBER MODAL */}
-      {isInviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-obsidian-surface border-2 border-lord-gold/50 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <div className="flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-lord-gold" />
-                <h3 className="text-base font-bold text-white">دعوة عضو إلى الاجتماع الحي</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsInviteModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="p-3 bg-obsidian-card rounded-2xl border border-gray-800 flex items-center justify-between text-xs">
-              <span className="text-gray-300 font-mono truncate">
-                {typeof window !== 'undefined' ? window.location.href : '/meeting'}
-              </span>
-              <button
-                type="button"
-                onClick={handleCopyMeetingLink}
-                className="text-lord-gold font-bold flex items-center gap-1 hover:underline shrink-0 ml-2"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                <span>نسخ الرابط</span>
-              </button>
-            </div>
-
-            <span className="text-xs font-bold text-gray-400 block">
-              اختر عضواً لإرسال إشعار فوري له بالانضمام:
-            </span>
-
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {allEmployees.map(emp => (
-                <div
-                  key={emp._id}
-                  className="p-2.5 rounded-2xl bg-obsidian-card border border-gray-800 flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="w-8 h-8 rounded-xl bg-obsidian-surface border border-gray-700 flex items-center justify-center font-bold text-lord-gold shrink-0">
-                      {emp.fullName?.charAt(0) || '👤'}
-                    </span>
-                    <div className="truncate text-right">
-                      <strong className="text-white block truncate">{emp.fullName}</strong>
-                      <span className="text-[10px] text-gray-400 block font-mono">
-                        {emp.primaryDepartment || 'عام'} • {emp.accessRole}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="gold"
-                    size="sm"
-                    disabled={isInviting}
-                    onClick={() => handleInvite(emp._id, emp.fullName)}
-                    className="rounded-xl shadow-sm"
-                  >
-                    دعوة 🔔
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reusable Portal Modal: Invite Member to Meeting */}
+      <MeetingInviteModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        allEmployees={allEmployees}
+        isInviting={isInviting}
+        onInvite={handleInvite}
+      />
     </div>
   );
 }
