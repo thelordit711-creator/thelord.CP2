@@ -455,23 +455,42 @@ export const TopBar: React.FC = () => {
 
           {/* User Badge: Compact Avatar on Mobile, Full Badge on Desktop */}
           {currentUser && (
-            <Link
-              href={`/${locale}/profile`}
-              className="flex items-center gap-2 p-1 sm:p-1.5 rounded-xl bg-obsidian-card border border-obsidian-border hover:border-lord-gold/50 transition-all group"
-              title="الملف الشخصي"
-            >
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold group-hover:scale-105 transition-transform">
-                {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
+            currentUser.accessRole === 'TREASURY' ? (
+              <div
+                className="flex items-center gap-2 p-1 sm:p-1.5 rounded-xl bg-obsidian-card border border-amber-500/30"
+                title="أمين الصندوق والخزينة"
+              >
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-xs text-amber-400">
+                  {currentUser.fullName ? currentUser.fullName.charAt(0) : 'T'}
+                </div>
+                <div className="hidden lg:flex flex-col text-right">
+                  <span className="text-xs font-bold text-white max-w-[260px] truncate">
+                    {currentUser.fullName}
+                  </span>
+                  <span className="text-[10px] text-amber-400 font-bold">
+                    أمين الصندوق (النظام المحاسبي)
+                  </span>
+                </div>
               </div>
-              <div className="hidden lg:flex flex-col text-right">
-                <span className="text-xs font-bold text-white group-hover:text-lord-gold transition-colors max-w-[260px] truncate">
-                  {currentUser.fullName}
-                </span>
-                <span className="text-[10px] text-gray-400">
-                  {currentUser.accessRole === 'SUPER_ADMIN' ? 'المدير العام' : currentUser.accessRole === 'TREASURY' ? 'أمين الصندوق' : 'موظف'}
-                </span>
-              </div>
-            </Link>
+            ) : (
+              <Link
+                href={`/${locale}/profile`}
+                className="flex items-center gap-2 p-1 sm:p-1.5 rounded-xl bg-obsidian-card border border-obsidian-border hover:border-lord-gold/50 transition-all group"
+                title="الملف الشخصي"
+              >
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold group-hover:scale-105 transition-transform">
+                  {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
+                </div>
+                <div className="hidden lg:flex flex-col text-right">
+                  <span className="text-xs font-bold text-white group-hover:text-lord-gold transition-colors max-w-[260px] truncate">
+                    {currentUser.fullName}
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    {currentUser.accessRole === 'SUPER_ADMIN' ? 'المدير العام' : 'موظف'}
+                  </span>
+                </div>
+              </Link>
+            )
           )}
 
           {/* Logout Button (Desktop only; on mobile it is in the Drawer) */}

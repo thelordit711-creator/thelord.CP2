@@ -116,11 +116,11 @@ export const Sidebar: React.FC = () => {
       allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
     },
     {
-      title: 'الصندوق المعزول (Treasury)',
-      titleEn: 'Isolated Payout Desk',
+      title: 'النظام المحاسبي والصندوق',
+      titleEn: 'Accounting & Treasury',
       href: `/${locale}/payout-desk`,
       icon: Coins,
-      badge: 'صرف',
+      badge: 'مالية',
       allowedRoles: ['SUPER_ADMIN', 'TREASURY']
     },
     {
@@ -161,7 +161,7 @@ export const Sidebar: React.FC = () => {
       href: `/${locale}/leaderboard`,
       icon: Trophy,
       badge: 'شرف',
-      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE', 'TREASURY']
+      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
     },
     {
       title: 'الملف الشخصي والمحافظ',
@@ -169,7 +169,7 @@ export const Sidebar: React.FC = () => {
       href: `/${locale}/profile`,
       icon: User,
       badge: 'هويتي',
-      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE', 'TREASURY']
+      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
     },
     {
       title: 'إعدادات المنظومة والسياسات',
