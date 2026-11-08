@@ -170,14 +170,14 @@ ${allEmployees.map(m => {
         return;
       }
 
-      const techStaff = await User.find({
-        accessRole: { $in: ['EMPLOYEE', 'SUPER_ADMIN'] }
-      }).limit(5);
+      const employees = await User.find({ accessRole: 'EMPLOYEE' });
+      if (employees.length === 0) {
+        return;
+      }
 
-      if (techStaff.length === 0) return;
-
-      const adminUser = techStaff.find(u => u.accessRole === 'SUPER_ADMIN') || techStaff[0];
-      const assignees = techStaff.slice(0, 2).map(u => u._id);
+      const adminUser = await User.findOne({ accessRole: 'SUPER_ADMIN' });
+      if (!adminUser) return;
+      const assignees = employees.slice(0, 2).map(u => u._id);
 
       const routineTask = await Task.create({
         title: 'الفحص الصباحي لخوادم البوتات واستقرار الـ API 💻',
