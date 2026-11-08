@@ -5,12 +5,35 @@
 :root {
   --bg-obsidian-primary: #07090E;
   --bg-card-surface: #0F141C;
+  --bg-card-secondary: #141B26;
+  --border-primary: #1F2937;
+  --text-primary: #F1F5F9;
+  --text-muted: #94A3B8;
   --lord-gold-primary: #D4AF37;
   --lord-gold-hover: #F3E5AB;
   --cyber-blue-accent: #00A8FF;
   --status-processing: #F59E0B;
   --status-disbursed: #10B981;
   --status-danger: #EF4444;
+}
+
+/* Corporate Executive Light Mode */
+html.light, body.light {
+  --bg-obsidian-primary: #F8FAFC;
+  --bg-card-surface: #FFFFFF;
+  --bg-card-secondary: #F1F5F9;
+  --border-primary: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-muted: #64748B;
+  --lord-gold-primary: #B8860B;
+  --lord-gold-hover: #D4AF37;
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
+html.light select, html.light option {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
 }
 
 * {

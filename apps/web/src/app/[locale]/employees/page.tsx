@@ -5,11 +5,17 @@ import {
   useGetAllEmployeesQuery,
   useToggleUserSuspensionMutation
 } from '../../../store/api/usersApi';
-import { Users, Search } from 'lucide-react';
+import { Users, Search, Filter } from 'lucide-react';
 import { lordToast } from '../../../lib/lordToast';
 
 // Modular Subcomponents & Modals
 import { EmployeeCard } from '../../../components/employees/cards/EmployeeCard';
+import { EmployeeTodayDetailsModal } from '../../../components/employees/modals/EmployeeTodayDetailsModal';
+import { QuickContactModal } from '../../../components/employees/modals/QuickContactModal';
+import { AssignQuickTaskModal } from '../../../components/employees/modals/AssignQuickTaskModal';
+import { EmployeeManagementDossierModal } from '../../../components/employees/modals/EmployeeManagementDossierModal';
+
+// Existing Sub-modals for HR & Ledger actions
 import { ChangePasswordModal } from '../../../components/employees/modals/ChangePasswordModal';
 import { SuspendEmployeeModal } from '../../../components/employees/modals/SuspendEmployeeModal';
 import { DeleteEmployeeModal } from '../../../components/employees/modals/DeleteEmployeeModal';
@@ -124,7 +130,13 @@ export default function EmployeesPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL');
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
 
-  // Modals state
+  // 4 Core New Executive Modals
+  const [isTodayDetailsOpen, setIsTodayDetailsOpen] = useState(false);
+  const [isQuickContactOpen, setIsQuickContactOpen] = useState(false);
+  const [isAssignTaskOpen, setIsAssignTaskOpen] = useState(false);
+  const [isDossierOpen, setIsDossierOpen] = useState(false);
+
+  // Administrative Sub-modals triggered from Dossier
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isPayslipOpen, setIsPayslipOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -167,51 +179,44 @@ export default function EmployeesPage() {
   };
 
   return (
-    <div className="flex-1 max-w-7xl w-full mx-auto px-4 py-8 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5 text-right">
+      {/* Executive Clean Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-800/80 pb-4">
         <div>
-          <span className="text-xs font-bold text-lord-gold tracking-widest uppercase">
-            ENTERPRISE TALENT MATRIX & PAYROLL ERP
+          <span className="text-[10px] font-bold text-lord-gold tracking-widest uppercase">
+            ENTERPRISE TALENT ROSTER • الموارد البشرية
           </span>
-          <h1 className="text-2xl md:text-3xl font-black text-white mt-1">
-            إدارة الموظفين والرواتب والمستحقات
+          <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5">
+            دليل الكادر الوظيفي والعمليات
           </h1>
-          <p className="text-xs text-gray-400 mt-1">
-            مصفوفة المسميات الـ 11، احتساب صافي الرواتب، المكافآت، الخصومات، والإنذارات الإدارية
+          <p className="text-xs text-gray-400 mt-0.5">
+            متابعة حالة الكادر اللحظية، مهام وطلبات اليوم، والتواصل السريع وإسناد المهام
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-obsidian-card border border-obsidian-border px-4 py-2 rounded-2xl flex items-center gap-2">
-            <Users className="w-4 h-4 text-lord-gold" />
-            <span className="text-xs text-gray-400">إجمالي الكادر:</span>
-            <strong className="text-sm font-bold text-white">{employees.length} موظف</strong>
-          </div>
+        {/* Quick Search */}
+        <div className="relative w-full sm:w-64">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="بحث بالاسم أو البريد..."
+            className="w-full pl-3 pr-8 py-1.5 rounded-xl bg-obsidian-card border border-obsidian-border text-xs text-white placeholder-gray-500 focus:border-lord-gold outline-none"
+          />
+          <Search className="w-3.5 h-3.5 text-gray-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="flex flex-col lg:flex-row items-center justify-between gap-4 bg-obsidian-card p-4 rounded-3xl border border-obsidian-border">
-        <div className="relative w-full lg:w-72">
-          <Search className="w-4 h-4 text-gray-500 absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="بحث بالاسم أو البريد الإلكتروني..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full bg-obsidian-primary border border-gray-800 rounded-xl pr-9 pl-4 py-2 text-xs text-white focus:outline-none focus:border-lord-gold"
-          />
-        </div>
-
-        {/* Status Filter (All / Active / Suspended) */}
-        <div className="flex items-center gap-1.5 bg-obsidian-surface/80 p-1 rounded-2xl border border-gray-800 text-xs">
+      {/* Department & Status Filters */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        {/* Status Filters */}
+        <div className="flex items-center gap-1.5 bg-obsidian-card/80 p-1 rounded-2xl border border-obsidian-border">
           <button
             type="button"
             onClick={() => setStatusFilter('ALL')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+            className={`px-3 py-1 rounded-xl font-bold transition-all ${
               statusFilter === 'ALL'
-                ? 'bg-lord-gold text-obsidian-primary shadow-xs'
+                ? 'bg-lord-gold text-black font-black shadow-xs'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -220,43 +225,43 @@ export default function EmployeesPage() {
           <button
             type="button"
             onClick={() => setStatusFilter('ACTIVE')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1 ${
               statusFilter === 'ACTIVE'
-                ? 'bg-emerald-500 text-obsidian-primary font-black shadow-xs'
+                ? 'bg-emerald-500 text-black font-black shadow-xs'
                 : 'text-gray-400 hover:text-emerald-400'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>مصرّح بالدخول</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>مصرّح</span>
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('SUSPENDED')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1 ${
               statusFilter === 'SUSPENDED'
                 ? 'bg-red-500 text-white font-black shadow-xs'
                 : 'text-gray-400 hover:text-red-400'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-red-400" />
-            <span>محظور ⛔</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+            <span>محظور</span>
           </button>
         </div>
 
         {/* Department Filters */}
-        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto text-xs pb-1 lg:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
           {[
             { id: 'ALL', label: 'كافة الأقسام' },
-            { id: 'TRADING', label: 'التداول والتحليل' },
-            { id: 'CONTENT_MEDIA', label: 'صناعة المحتوى' },
-            { id: 'MARKETING', label: 'التسويق والإعلانات' },
-            { id: 'DEVELOPMENT', label: 'البرمجة والبوتات' }
+            { id: 'TRADING', label: 'التداول' },
+            { id: 'CONTENT_MEDIA', label: 'المحتوى' },
+            { id: 'MARKETING', label: 'التسويق' },
+            { id: 'DEVELOPMENT', label: 'البرمجة' }
           ].map(dept => (
             <button
               key={dept.id}
               type="button"
               onClick={() => setDepartmentFilter(dept.id)}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap ${
+              className={`px-3 py-1 rounded-xl font-bold transition-all whitespace-nowrap ${
                 departmentFilter === dept.id
                   ? 'bg-lord-gold/20 text-lord-gold border border-lord-gold/40'
                   : 'bg-obsidian-surface text-gray-400 hover:text-white'
@@ -268,46 +273,90 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* Employees Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+      {/* Clean Minimalist Employees Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map(emp => (
           <EmployeeCard
             key={emp._id}
             emp={emp}
-            onManageLedger={(selected) => {
+            onOpenTodayDetails={(selected) => {
               setSelectedEmployee(selected);
-              setIsActionModalOpen(true);
+              setIsTodayDetailsOpen(true);
             }}
-            onViewPayslip={(selected) => {
+            onOpenQuickContact={(selected) => {
               setSelectedEmployee(selected);
-              setIsPayslipOpen(true);
+              setIsQuickContactOpen(true);
             }}
-            onOpenSchedule={(selected) => {
+            onOpenAssignTask={(selected) => {
               setSelectedEmployee(selected);
-              setIsScheduleModalOpen(true);
+              setIsAssignTaskOpen(true);
             }}
-            onOpenReport={(selected) => {
+            onOpenDossier={(selected) => {
               setSelectedEmployee(selected);
-              setIsReportModalOpen(true);
-            }}
-            onChangePassword={(selected) => {
-              setSelectedEmployee(selected);
-              setIsPasswordModalOpen(true);
-            }}
-            onSuspend={(selected) => {
-              setSelectedEmployee(selected);
-              setIsSuspendModalOpen(true);
-            }}
-            onDirectUnsuspend={handleDirectUnsuspend}
-            onDeleteUser={(selected) => {
-              setSelectedEmployee(selected);
-              setIsDeleteModalOpen(true);
+              setIsDossierOpen(true);
             }}
           />
         ))}
       </div>
 
-      {/* Modal 1: Salary Action Modal */}
+      {/* 1. Modal: Today's Details (Tasks & Requests) */}
+      <EmployeeTodayDetailsModal
+        isOpen={isTodayDetailsOpen}
+        onClose={() => setIsTodayDetailsOpen(false)}
+        employee={selectedEmployee}
+      />
+
+      {/* 2. Modal: Quick Contact (Chat / Video / Phone) */}
+      <QuickContactModal
+        isOpen={isQuickContactOpen}
+        onClose={() => setIsQuickContactOpen(false)}
+        employee={selectedEmployee}
+      />
+
+      {/* 3. Modal: Assign Quick Task */}
+      <AssignQuickTaskModal
+        isOpen={isAssignTaskOpen}
+        onClose={() => setIsAssignTaskOpen(false)}
+        employee={selectedEmployee}
+      />
+
+      {/* 4. Modal: Master Administrative & Financial Dossier */}
+      <EmployeeManagementDossierModal
+        isOpen={isDossierOpen}
+        onClose={() => setIsDossierOpen(false)}
+        employee={selectedEmployee}
+        onOpenSalaryAction={(emp) => {
+          setSelectedEmployee(emp);
+          setIsActionModalOpen(true);
+        }}
+        onOpenPayslip={(emp) => {
+          setSelectedEmployee(emp);
+          setIsPayslipOpen(true);
+        }}
+        onOpenSchedule={(emp) => {
+          setSelectedEmployee(emp);
+          setIsScheduleModalOpen(true);
+        }}
+        onOpenReport={(emp) => {
+          setSelectedEmployee(emp);
+          setIsReportModalOpen(true);
+        }}
+        onChangePassword={(emp) => {
+          setSelectedEmployee(emp);
+          setIsPasswordModalOpen(true);
+        }}
+        onSuspend={(emp) => {
+          setSelectedEmployee(emp);
+          setIsSuspendModalOpen(true);
+        }}
+        onDirectUnsuspend={handleDirectUnsuspend}
+        onDeleteUser={(emp) => {
+          setSelectedEmployee(emp);
+          setIsDeleteModalOpen(true);
+        }}
+      />
+
+      {/* Nested Action Modals */}
       <SalaryActionModal
         isOpen={isActionModalOpen}
         onClose={() => setIsActionModalOpen(false)}
@@ -315,14 +364,12 @@ export default function EmployeesPage() {
         onSuccess={refetch}
       />
 
-      {/* Modal 2: Payslip Modal */}
       <PayslipModal
         isOpen={isPayslipOpen}
         onClose={() => setIsPayslipOpen(false)}
         employee={selectedEmployee}
       />
 
-      {/* Modal 3: Payroll Schedule & 10-day Tranches */}
       <PayrollScheduleModal
         isOpen={isScheduleModalOpen}
         onClose={() => setIsScheduleModalOpen(false)}
@@ -330,14 +377,12 @@ export default function EmployeesPage() {
         onSuccess={refetch}
       />
 
-      {/* Modal 4: Monthly Report */}
       <MonthlyReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         employee={selectedEmployee}
       />
 
-      {/* Modal 5: Change Password Modal */}
       <ChangePasswordModal
         isOpen={isPasswordModalOpen}
         onClose={() => setIsPasswordModalOpen(false)}
@@ -345,7 +390,6 @@ export default function EmployeesPage() {
         onSuccess={refetch}
       />
 
-      {/* Modal 6: Suspend Modal */}
       <SuspendEmployeeModal
         isOpen={isSuspendModalOpen}
         onClose={() => setIsSuspendModalOpen(false)}
@@ -353,7 +397,6 @@ export default function EmployeesPage() {
         onSuccess={refetch}
       />
 
-      {/* Modal 7: Delete Modal */}
       <DeleteEmployeeModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

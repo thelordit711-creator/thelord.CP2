@@ -8,9 +8,24 @@ import { toast } from 'sonner';
 
 export const TheLordAIFloatingAssistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Check user preference (Default: Hidden to keep interface clean)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkVisibility = () => {
+        setIsVisible(localStorage.getItem('lord_show_floating_ai') === 'true');
+      };
+      checkVisibility();
+      window.addEventListener('lord_floating_tools_updated', checkVisibility);
+      return () => {
+        window.removeEventListener('lord_floating_tools_updated', checkVisibility);
+      };
+    }
+  }, []);
 
   // Responsive Draggable Position State
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 20, y: 450 });
@@ -174,6 +189,8 @@ export const TheLordAIFloatingAssistant: React.FC = () => {
     ]);
     toast.info('تم مسح سجل المحادثة');
   };
+
+  if (!isVisible) return null;
 
   return (
     <>

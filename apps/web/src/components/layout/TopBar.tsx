@@ -6,16 +6,17 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import {
   Bell,
-  Search,
   Globe,
-  Shield,
-  Briefcase,
-  Coins,
   LogOut,
+  Menu,
+  Sun,
+  Moon,
+  SlidersHorizontal,
+  Bot,
   Layers,
-  Smartphone
+  X,
+  Check
 } from 'lucide-react';
-import { Badge } from '../ui/Badge';
 import { WorkStatus, INotification } from '@lord/shared-types';
 import { useSocket } from '../../providers/SocketProvider';
 import {
@@ -26,7 +27,6 @@ import { NotificationDrawer } from '../notifications/NotificationDrawer';
 import { lordToast } from '../../lib/lordToast';
 
 // Modular Subcomponents
-import { CryptoTickerChips } from './CryptoTickerChips';
 import { WorkStatusSelector } from './WorkStatusSelector';
 import { MobileFloatingHud } from './MobileFloatingHud';
 
@@ -41,11 +41,17 @@ export const TopBar: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Floating Overlay & HUD states (Desktop PiP & Mobile HUD)
-  const [showMobileOverlay, setShowMobileOverlay] = useState(true);
+  // Theme State: 'dark' | 'light'
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Floating Tools Popover State
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const [showFloatingAi, setShowFloatingAi] = useState(false);
+  const [showFloatingHud, setShowFloatingHud] = useState(false);
+
+  // HUD Visibility (controlled by toggle)
   const [isMobileOverlayMinimized, setIsMobileOverlayMinimized] = useState(true);
   const [hasNativeNotificationPermission, setHasNativeNotificationPermission] = useState(false);
-  const pipWindowRef = useRef<any>(null);
 
   // RTK Query Notifications
   const { data: notificationsData, refetch: refetchNotifications } = useGetMyNotificationsQuery();
@@ -54,9 +60,27 @@ export const TopBar: React.FC = () => {
   const notificationsList: INotification[] = notificationsData?.data || [];
   const unreadCount = notificationsData?.meta?.unreadCount ?? notificationsList.filter(n => !n.readStatus).length;
 
-  // Register PWA Service Worker & Check Notification Permission
+  // Initialize theme & floating preferences from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // 1. Theme
+      const savedTheme = (localStorage.getItem('lord_theme') as 'dark' | 'light') || 'dark';
+      setTheme(savedTheme);
+      if (savedTheme === 'light') {
+        document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      }
+
+      // 2. Floating Tools (Default: FALSE / Hidden to keep mobile & desktop completely clean)
+      const savedAi = localStorage.getItem('lord_show_floating_ai') === 'true';
+      const savedHud = localStorage.getItem('lord_show_floating_hud') === 'true';
+      setShowFloatingAi(savedAi);
+      setShowFloatingHud(savedHud);
+
+      // 3. PWA Push Notifications
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch((err) => {
           console.warn('SW registration:', err);
@@ -123,60 +147,40 @@ export const TopBar: React.FC = () => {
     }
   };
 
-  // Desktop Always-On-Top Floating HUD (Document Picture-in-Picture API)
-  const toggleFloatingOverlay = async () => {
+  // Toggle Theme (Dark / Light)
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lord_theme', next);
+      if (next === 'light') {
+        document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
+        lordToast.gold('الوضع النهاري الفاتح مفعّل ☀️');
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+        lordToast.gold('الوضع الليلي الرسمي مفعّل 🌙');
+      }
+    }
+  };
+
+  // Toggle Floating Tools (AI Assistant & HUD)
+  const toggleFloatingTool = (tool: 'ai' | 'hud') => {
     if (typeof window === 'undefined') return;
 
-    if ('documentPictureInPicture' in window) {
-      try {
-        if (pipWindowRef.current && !pipWindowRef.current.closed) {
-          pipWindowRef.current.close();
-          pipWindowRef.current = null;
-          lordToast.gold('تم إغلاق النافذة العائمة المستقلة');
-          return;
-        }
-
-        const pipWindow = await (window as any).documentPictureInPicture.requestWindow({
-          width: 360,
-          height: 380
-        });
-
-        pipWindowRef.current = pipWindow;
-
-        pipWindow.document.body.style.cssText = 'margin:0; padding:16px; background:#07090e; color:#ffffff; font-family:system-ui, -apple-system, sans-serif; direction:rtl; overflow-y:auto;';
-        pipWindow.document.title = 'THE LORD • الرقابة اللحظية العائمة';
-
-        const container = pipWindow.document.createElement('div');
-        container.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(212,175,55,0.3); padding-bottom:10px; margin-bottom:12px;">
-            <div style="font-weight:900; color:#d4af37; font-size:13px; display:flex; align-items:center; gap:6px;">
-              <span>🦁</span> <span>THE LORD OF CRYPTO</span>
-            </div>
-            <div style="font-size:10px; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); padding:2px 8px; border-radius:99px; font-weight:bold;">
-              ● متصل لحظياً
-            </div>
-          </div>
-          <div id="pip-notifications-list" style="display:flex; flex-direction:column; gap:8px;">
-            ${notificationsList.slice(0, 5).map(n => `
-              <div style="background:rgba(20, 26, 40, 0.8); border:1px solid rgba(255,255,255,0.1); padding:8px 10px; border-radius:10px; font-size:11px;">
-                <div style="font-weight:bold; color:#fbbf24; margin-bottom:3px;">${n.title}</div>
-                <div style="color:#9ca3af; font-size:10px; line-height:1.3;">${n.message}</div>
-              </div>
-            `).join('')}
-          </div>
-        `;
-
-        pipWindow.document.body.appendChild(container);
-        lordToast.success('تم تفعيل النافذة العائمة المستقلة فوق كل الشاشات!');
-      } catch (err) {
-        setIsMobileOverlayMinimized(false);
-        setShowMobileOverlay(true);
-        lordToast.gold('تم تفعيل اللوحة العائمة المدمجة');
-      }
+    if (tool === 'ai') {
+      const next = !showFloatingAi;
+      setShowFloatingAi(next);
+      localStorage.setItem('lord_show_floating_ai', next ? 'true' : 'false');
+      window.dispatchEvent(new Event('lord_floating_tools_updated'));
+      lordToast.gold(next ? 'تم إظهار المساعد الذكي TheLordAI 🦁' : 'تم إخفاء المساعد الذكي');
     } else {
-      setIsMobileOverlayMinimized(false);
-      setShowMobileOverlay(true);
-      lordToast.gold('تم تفعيل اللوحة العائمة المدمجة');
+      const next = !showFloatingHud;
+      setShowFloatingHud(next);
+      localStorage.setItem('lord_show_floating_hud', next ? 'true' : 'false');
+      window.dispatchEvent(new Event('lord_floating_tools_updated'));
+      lordToast.gold(next ? 'تم إظهار لوحة الرقابة اللحظية HUD 🦁' : 'تم إخفاء لوحة الرقابة');
     }
   };
 
@@ -188,7 +192,6 @@ export const TopBar: React.FC = () => {
       playNotificationChime();
       lordToast.gold(notification.title, notification.message);
 
-      // Post message to Service Worker for background native alert
       if (typeof window !== 'undefined' && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: 'SHOW_NOTIFICATION',
@@ -297,7 +300,7 @@ export const TopBar: React.FC = () => {
         });
       }
     } catch (_err) {
-      // ignore error on logout
+      // ignore
     }
 
     localStorage.removeItem('lord_auth_token');
@@ -316,23 +319,40 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 w-full bg-obsidian-surface/90 backdrop-blur-md border-b border-obsidian-border px-4 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        {/* Left Side: Live Tickers */}
-        <CryptoTickerChips />
+    <header className="sticky top-0 z-30 w-full bg-obsidian-surface/95 backdrop-blur-md border-b border-obsidian-border px-3 sm:px-4 py-2.5">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+        {/* Left Side: Mobile Drawer Hamburger & Official Logo */}
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('lord_toggle_mobile_sidebar'));
+              }
+            }}
+            className="md:hidden p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold transition-all"
+            title="فتح القائمة الرئيسية"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
 
-        {/* Search Bar */}
-        <div className="flex-1 max-w-xs xl:max-w-sm relative hidden md:block">
-          <Search className="w-4 h-4 text-gray-500 absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="بحث سريع... (Ctrl+K)"
-            className="w-full bg-obsidian-card border border-gray-800 rounded-xl pr-9 pl-4 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-lord-gold transition-all"
-          />
+          <Link href={`/${locale}`} className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full border border-lord-gold/50 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+              <img src="/logo.png" alt="THE LORD" className="w-full h-full object-cover" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
+                THE LORD <span className="text-lord-gold">C.P</span>
+              </span>
+              <span className="text-[9px] text-gray-400 font-mono hidden sm:inline">
+                ENTERPRISE & OPERATIONS
+              </span>
+            </div>
+          </Link>
         </div>
 
-        {/* Right Controls: Work Status Switcher + Language + Logout */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        {/* Right Controls: Work Status Switcher + Floating Tools + Theme Toggle + Notifications + Profile */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Work Status Dropdown Switcher */}
           <WorkStatusSelector
             workStatus={workStatus}
@@ -340,15 +360,101 @@ export const TopBar: React.FC = () => {
             onStatusChange={handleStatusChange}
           />
 
-          {/* Floating HUD Trigger */}
+          {/* Floating Tools Controls Popover Trigger */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowToolsMenu((prev) => !prev)}
+              className={`p-2 rounded-xl border transition-all ${
+                showToolsMenu || showFloatingAi || showFloatingHud
+                  ? 'bg-lord-gold/15 border-lord-gold/50 text-lord-gold'
+                  : 'bg-obsidian-card border-obsidian-border text-gray-400 hover:text-white'
+              }`}
+              title="تخصيص العناصر والأيقونات العائمة"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </button>
+
+            {/* Floating Tools Popover */}
+            {showToolsMenu && (
+              <div className="absolute left-0 mt-2 w-64 bg-[#0a0d16] border border-lord-gold/40 rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 text-right select-none">
+                <div className="flex items-center justify-between border-b border-gray-800 pb-2 mb-2.5">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-lord-gold" />
+                    <span>العناصر العائمة على الشاشة</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowToolsMenu(false)}
+                    className="p-1 rounded-lg text-gray-400 hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {/* AI Assistant Toggle */}
+                  <div
+                    onClick={() => toggleFloatingTool('ai')}
+                    className="p-2.5 rounded-xl bg-gray-900/60 hover:bg-gray-800/80 border border-gray-800 cursor-pointer flex items-center justify-between transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🦁</span>
+                      <div>
+                        <div className="text-xs font-bold text-white">المساعد TheLordAI</div>
+                        <div className="text-[10px] text-gray-400">تحليل الصفقات وصياغة المهام</div>
+                      </div>
+                    </div>
+                    <div
+                      className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
+                        showFloatingAi
+                          ? 'bg-lord-gold border-lord-gold text-black font-bold'
+                          : 'border-gray-700 bg-gray-800 text-transparent'
+                      }`}
+                    >
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  </div>
+
+                  {/* Live HUD Toggle */}
+                  <div
+                    onClick={() => toggleFloatingTool('hud')}
+                    className="p-2.5 rounded-xl bg-gray-900/60 hover:bg-gray-800/80 border border-gray-800 cursor-pointer flex items-center justify-between transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🔔</span>
+                      <div>
+                        <div className="text-xs font-bold text-white">لوحة الرقابة اللحظية</div>
+                        <div className="text-[10px] text-gray-400">تنبيهات الصندوق والمهام</div>
+                      </div>
+                    </div>
+                    <div
+                      className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
+                        showFloatingHud
+                          ? 'bg-lord-gold border-lord-gold text-black font-bold'
+                          : 'border-gray-700 bg-gray-800 text-transparent'
+                      }`}
+                    >
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-gray-800/80 text-[10px] text-gray-400 text-center">
+                  مخفية افتراضياً لتوفير مساحة نقية على الهاتف
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Theme Switcher (Dark / Light) */}
           <button
             type="button"
-            onClick={toggleFloatingOverlay}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-lord-gold/30 bg-lord-gold/5 hover:bg-lord-gold/15 text-lord-gold text-xs font-bold transition-all shadow-sm"
-            title="تفعيل النافذة العائمة المستقلة فوق كل الشاشات"
+            onClick={toggleTheme}
+            className="p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-400 hover:text-amber-400 hover:border-amber-500/40 transition-all"
+            title={theme === 'dark' ? 'التحويل للوضع النهاري الأبيض ☀️' : 'التحويل للوضع الليلي الرسمي 🌙'}
           >
-            <Layers className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">النافذة العائمة</span>
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
           </button>
 
           {/* Notification Bell */}
@@ -357,6 +463,7 @@ export const TopBar: React.FC = () => {
               type="button"
               onClick={() => setShowNotifications(true)}
               className="relative p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-400 hover:text-lord-gold hover:border-lord-gold/40 transition-all"
+              title="التنبيهات والإشعارات"
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
@@ -371,7 +478,8 @@ export const TopBar: React.FC = () => {
           <button
             type="button"
             onClick={() => switchLanguage(locale === 'ar' ? 'en' : 'ar')}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-obsidian-card border border-obsidian-border text-xs text-gray-300 hover:text-white transition-all"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-obsidian-card border border-obsidian-border text-xs text-gray-300 hover:text-white transition-all"
+            title="تبديل اللغة"
           >
             <Globe className="w-3.5 h-3.5 text-cyber-blue" />
             <span className="font-bold">{locale.toUpperCase()}</span>
@@ -382,6 +490,7 @@ export const TopBar: React.FC = () => {
             <Link
               href={`/${locale}/profile`}
               className="flex items-center gap-2 p-1.5 rounded-xl bg-obsidian-card border border-obsidian-border hover:border-lord-gold/50 transition-all group"
+              title="الملف الشخصي"
             >
               <div className="w-7 h-7 rounded-lg bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold group-hover:scale-105 transition-transform">
                 {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
@@ -417,19 +526,25 @@ export const TopBar: React.FC = () => {
         onPlayChime={playNotificationChime}
       />
 
-      {/* Mobile Floating HUD */}
-      <MobileFloatingHud
-        showMobileOverlay={showMobileOverlay}
-        setShowMobileOverlay={setShowMobileOverlay}
-        isMobileOverlayMinimized={isMobileOverlayMinimized}
-        setIsMobileOverlayMinimized={setIsMobileOverlayMinimized}
-        unreadCount={unreadCount}
-        hasNativeNotificationPermission={hasNativeNotificationPermission}
-        requestNotificationPermission={requestNotificationPermission}
-        notificationsList={notificationsList}
-        playNotificationChime={playNotificationChime}
-        onMarkAllAsRead={handleMarkAllRead}
-      />
+      {/* Mobile Floating HUD (Rendered only if explicitly enabled by user) */}
+      {showFloatingHud && (
+        <MobileFloatingHud
+          showMobileOverlay={showFloatingHud}
+          setShowMobileOverlay={(show) => {
+            setShowFloatingHud(show);
+            localStorage.setItem('lord_show_floating_hud', show ? 'true' : 'false');
+            window.dispatchEvent(new Event('lord_floating_tools_updated'));
+          }}
+          isMobileOverlayMinimized={isMobileOverlayMinimized}
+          setIsMobileOverlayMinimized={setIsMobileOverlayMinimized}
+          unreadCount={unreadCount}
+          hasNativeNotificationPermission={hasNativeNotificationPermission}
+          requestNotificationPermission={requestNotificationPermission}
+          notificationsList={notificationsList}
+          playNotificationChime={playNotificationChime}
+          onMarkAllAsRead={handleMarkAllRead}
+        />
+      )}
     </header>
   );
 };

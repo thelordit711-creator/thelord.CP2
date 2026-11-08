@@ -11,19 +11,15 @@ import {
   Coins,
   MessageSquare,
   Bot,
-  UserPlus,
-  Shield,
   Briefcase,
   ChevronRight,
   ChevronLeft,
-  Sparkles,
-  Activity,
-  Layers,
   Video,
   FolderKanban,
   Trophy,
   User,
-  Settings
+  Settings,
+  X
 } from 'lucide-react';
 import { useSocket } from '../../providers/SocketProvider';
 import { AccessRole } from '@lord/shared-types';
@@ -34,6 +30,7 @@ export const Sidebar: React.FC = () => {
   const isRtl = locale === 'ar';
   const { isConnected } = useSocket();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [userRole, setUserRole] = useState<AccessRole>('SUPER_ADMIN');
   const [userName, setUserName] = useState<string>('The Lord Admin');
 
@@ -49,6 +46,14 @@ export const Sidebar: React.FC = () => {
           console.error(e);
         }
       }
+
+      const handleToggleMobile = () => {
+        setMobileOpen((prev) => !prev);
+      };
+      window.addEventListener('lord_toggle_mobile_sidebar', handleToggleMobile);
+      return () => {
+        window.removeEventListener('lord_toggle_mobile_sidebar', handleToggleMobile);
+      };
     }
   }, []);
 
@@ -75,7 +80,7 @@ export const Sidebar: React.FC = () => {
       href: `/${locale}/workspace`,
       icon: Briefcase,
       badge: 'إنجاز',
-      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
+      allowedRoles: ['EMPLOYEE'] // Only for employees; hidden from General Manager
     },
     {
       title: 'محرك المهام والمراحل',
@@ -155,158 +160,262 @@ export const Sidebar: React.FC = () => {
     item.allowedRoles.includes(userRole)
   );
 
-  return (
-    <aside
-      className={`hidden md:flex relative flex-col justify-between bg-obsidian-card border-l border-obsidian-border transition-all duration-300 z-40 select-none ${
-        collapsed ? 'w-20' : 'w-72'
-      }`}
-      style={{
-        borderLeft: isRtl ? '1px solid #1F2937' : 'none',
-        borderRight: isRtl ? 'none' : '1px solid #1F2937'
-      }}
-    >
-      {/* Brand Header */}
-      <div>
-        <div
-          className={`border-b border-obsidian-border transition-all ${
-            collapsed
-              ? 'py-4 px-2 flex flex-col items-center justify-center gap-3'
-              : 'p-4 sm:p-5 flex items-center justify-between'
-          }`}
-        >
+  const renderNavLinks = (onItemClick?: () => void) => (
+    <nav className="p-3 space-y-1.5 overflow-y-auto max-h-[calc(100vh-220px)]">
+      {visibleNavItems.map((item, idx) => {
+        const Icon = item.icon;
+        const isActive = pathname === item.href;
+        return (
           <Link
-            href={`/${locale}`}
-            className={`flex items-center gap-3 ${collapsed ? 'justify-center' : 'overflow-hidden min-w-0'}`}
-            title="THE LORD SYSTEM"
+            key={idx}
+            href={item.href}
+            onClick={onItemClick}
+            className={`flex items-center p-3 rounded-2xl transition-all duration-200 group ${
+              collapsed ? 'justify-center px-0' : 'justify-between px-3.5'
+            } ${
+              isActive
+                ? 'bg-lord-gold text-obsidian-primary font-black shadow-gold-glow'
+                : 'text-gray-400 hover:text-white hover:bg-obsidian-surface'
+            }`}
+            title={collapsed ? (isRtl ? item.title : item.titleEn) : undefined}
           >
-            <div
-              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, maxWidth: 44, maxHeight: 44 }}
-              className="relative shrink-0 rounded-full overflow-hidden border-2 border-lord-gold/60 shadow-gold-glow flex items-center justify-center bg-obsidian-surface"
-            >
-              <img
-                src="/logo.png"
-                alt="THE LORD SYSTEM"
-                style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, objectFit: 'cover' }}
-                className="rounded-full shrink-0"
+            <div className={`flex items-center gap-3 min-w-0 ${collapsed ? 'justify-center' : ''}`}>
+              <Icon
+                className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${
+                  isActive ? 'text-obsidian-primary stroke-[2.5]' : 'text-gray-400 group-hover:text-lord-gold'
+                }`}
               />
-            </div>
-            {!collapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-black text-white tracking-wider truncate flex items-center gap-1.5">
-                  THE LORD <span className="text-lord-gold">C.P</span>
+              {!collapsed && (
+                <span className="text-xs font-bold tracking-wide truncate">
+                  {isRtl ? item.title : item.titleEn}
                 </span>
-                <span className="text-[10px] text-lord-gold/80 font-mono truncate">ENTERPRISE & OPERATIONS</span>
-              </div>
+              )}
+            </div>
+
+            {!collapsed && item.badge && (
+              <span
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg whitespace-nowrap shrink-0 transition-colors ${
+                  isActive
+                    ? 'bg-obsidian-primary text-lord-gold shadow-xs'
+                    : 'bg-obsidian-surface text-gray-400 group-hover:text-white border border-gray-800/80'
+                }`}
+              >
+                {item.badge}
+              </span>
             )}
           </Link>
-          <button
-            type="button"
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-obsidian-surface transition-colors border border-transparent hover:border-gray-800 shrink-0"
-            title={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
-          >
-            {isRtl ? (
-              collapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
-            ) : (
-              collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />
-            )}
-          </button>
-        </div>
+        );
+      })}
+    </nav>
+  );
 
-        {/* Live System Indicator */}
-        {!collapsed && (
-          <div className="px-5 py-3 bg-obsidian-surface/60 border-b border-obsidian-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
-              <span className="text-[11px] text-gray-300 font-semibold">
-                {isConnected ? 'الخادم متصل لحظياً' : 'جاري الاتصال...'}
+  return (
+    <>
+      {/* 1. Desktop Executive Laptop Sidebar */}
+      <aside
+        className={`hidden md:flex relative flex-col justify-between bg-obsidian-card border-l border-obsidian-border transition-all duration-300 z-40 select-none ${
+          collapsed ? 'w-20' : 'w-72'
+        }`}
+        style={{
+          borderLeft: isRtl ? '1px solid #1F2937' : 'none',
+          borderRight: isRtl ? 'none' : '1px solid #1F2937'
+        }}
+      >
+        {/* Brand Header */}
+        <div>
+          <div
+            className={`border-b border-obsidian-border transition-all ${
+              collapsed
+                ? 'py-4 px-2 flex flex-col items-center justify-center gap-3'
+                : 'p-4 sm:p-5 flex items-center justify-between'
+            }`}
+          >
+            <Link
+              href={`/${locale}`}
+              className={`flex items-center gap-3 ${collapsed ? 'justify-center' : 'overflow-hidden min-w-0'}`}
+              title="THE LORD SYSTEM"
+            >
+              <div
+                style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, maxWidth: 44, maxHeight: 44 }}
+                className="relative shrink-0 rounded-full overflow-hidden border-2 border-lord-gold/60 shadow-gold-glow flex items-center justify-center bg-obsidian-surface"
+              >
+                <img
+                  src="/logo.png"
+                  alt="THE LORD SYSTEM"
+                  style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, objectFit: 'cover' }}
+                  className="rounded-full shrink-0"
+                />
+              </div>
+              {!collapsed && (
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-black text-white tracking-wider truncate flex items-center gap-1.5">
+                    THE LORD <span className="text-lord-gold">C.P</span>
+                  </span>
+                  <span className="text-[10px] text-lord-gold/80 font-mono truncate">ENTERPRISE & OPERATIONS</span>
+                </div>
+              )}
+            </Link>
+            <button
+              type="button"
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-obsidian-surface transition-colors border border-transparent hover:border-gray-800 shrink-0"
+              title={collapsed ? 'توسيع القائمة' : 'طي القائمة'}
+            >
+              {isRtl ? (
+                collapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+              ) : (
+                collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Live System Indicator */}
+          {!collapsed && (
+            <div className="px-5 py-3 bg-obsidian-surface/60 border-b border-obsidian-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+                <span className="text-[11px] text-gray-300 font-semibold">
+                  {isConnected ? 'الخادم متصل لحظياً' : 'جاري الاتصال...'}
+                </span>
+              </div>
+              <span className="text-[10px] text-lord-gold font-mono bg-lord-gold/10 px-2.5 py-0.5 rounded-full border border-lord-gold/20 whitespace-nowrap shrink-0">
+                {userRole === 'TREASURY' ? 'صندوق معزول 🪙' : 'BEP20 + جيب'}
               </span>
             </div>
-            <span className="text-[10px] text-lord-gold font-mono bg-lord-gold/10 px-2.5 py-0.5 rounded-full border border-lord-gold/20 whitespace-nowrap shrink-0">
-              {userRole === 'TREASURY' ? 'صندوق معزول 🪙' : 'BEP20 + جيب'}
-            </span>
-          </div>
-        )}
+          )}
 
-        {/* Navigation Links */}
-        <nav className="p-3 space-y-1.5 overflow-y-auto max-h-[calc(100vh-220px)]">
-          {visibleNavItems.map((item, idx) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={idx}
-                href={item.href}
-                className={`flex items-center p-3 rounded-2xl transition-all duration-200 group ${
-                  collapsed ? 'justify-center px-0' : 'justify-between px-3.5'
-                } ${
-                  isActive
-                    ? 'bg-lord-gold text-obsidian-primary font-black shadow-gold-glow'
-                    : 'text-gray-400 hover:text-white hover:bg-obsidian-surface'
-                }`}
-                title={collapsed ? (isRtl ? item.title : item.titleEn) : undefined}
-              >
-                <div className={`flex items-center gap-3 min-w-0 ${collapsed ? 'justify-center' : ''}`}>
-                  <Icon
-                    className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${
-                      isActive ? 'text-obsidian-primary stroke-[2.5]' : 'text-gray-400 group-hover:text-lord-gold'
-                    }`}
-                  />
-                  {!collapsed && (
-                    <span className="text-xs font-bold tracking-wide truncate">
-                      {isRtl ? item.title : item.titleEn}
-                    </span>
-                  )}
+          {/* Navigation Links */}
+          {renderNavLinks()}
+        </div>
+
+        {/* Bottom Profile / Role Badge */}
+        <div className="p-3.5 border-t border-obsidian-border bg-obsidian-surface/50">
+          {!collapsed ? (
+            <div className="flex items-center justify-between gap-2.5 p-2 rounded-2xl bg-obsidian-card/80 border border-gray-800/80">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-lord-gold/15 border border-lord-gold/35 flex items-center justify-center font-bold text-sm text-lord-gold shrink-0 shadow-xs">
+                  {userRole === 'SUPER_ADMIN' ? '👑' : userRole === 'TREASURY' ? '🪙' : '💼'}
                 </div>
-
-                {!collapsed && item.badge && (
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg whitespace-nowrap shrink-0 transition-colors ${
-                      isActive
-                        ? 'bg-obsidian-primary text-lord-gold shadow-xs'
-                        : 'bg-obsidian-surface text-gray-400 group-hover:text-white border border-gray-800/80'
-                    }`}
-                  >
-                    {item.badge}
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-black text-white truncate">
+                    {userName}
                   </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Bottom Profile / Role Badge */}
-      <div className="p-3.5 border-t border-obsidian-border bg-obsidian-surface/50">
-        {!collapsed ? (
-          <div className="flex items-center justify-between gap-2.5 p-2 rounded-2xl bg-obsidian-card/80 border border-gray-800/80">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-lord-gold/15 border border-lord-gold/35 flex items-center justify-center font-bold text-sm text-lord-gold shrink-0 shadow-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold">{userRole}</span>
+                  </div>
+                </div>
+              </div>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-emerald-500/50 shadow-sm shrink-0" title="جلسة آمنة ومتصلة" />
+            </div>
+          ) : (
+            <div className="flex justify-center py-1">
+              <div
+                className="w-9 h-9 rounded-xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-sm shadow-xs cursor-pointer hover:scale-105 transition-transform"
+                title={`${userName} (${userRole})`}
+              >
                 {userRole === 'SUPER_ADMIN' ? '👑' : userRole === 'TREASURY' ? '🪙' : '💼'}
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-black text-white truncate">
-                  {userName}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="text-[10px] text-emerald-400 font-mono font-bold">{userRole}</span>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* 2. Unified Mobile Drawer (Exactly matching Laptop Sidebar) */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-[99999] flex select-none">
+          {/* Backdrop */}
+          <div
+            onClick={() => setMobileOpen(false)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+          />
+
+          {/* Drawer Container */}
+          <div
+            className={`relative z-10 w-72 max-w-[85vw] h-full bg-[#090c15] border-r border-lord-gold/30 shadow-2xl flex flex-col justify-between animate-in ${
+              isRtl ? 'slide-in-from-right' : 'slide-in-from-left'
+            } duration-200`}
+          >
+            {/* Mobile Brand Header */}
+            <div>
+              <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full border border-lord-gold/50 overflow-hidden shrink-0">
+                    <img src="/logo.png" alt="THE LORD" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white">THE LORD C.P</h3>
+                    <p className="text-[10px] text-lord-gold/80 font-mono">القائمة الرئيسية الموحدة</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(false)}
+                  className="p-1.5 rounded-xl bg-gray-800/80 text-gray-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Status */}
+              <div className="px-4 py-2 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>متصل لحظياً</span>
+                </div>
+                <span className="text-[10px] text-lord-gold font-mono">{userRole}</span>
+              </div>
+
+              {/* All Official Nav Items */}
+              <div className="p-2 overflow-y-auto max-h-[calc(100vh-190px)] space-y-1">
+                {visibleNavItems.map((item, idx) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={idx}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center justify-between p-3 rounded-2xl transition-all ${
+                        isActive
+                          ? 'bg-lord-gold text-black font-black shadow-md'
+                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-5 h-5 ${isActive ? 'text-black' : 'text-lord-gold'}`} />
+                        <span className="text-xs font-bold">{isRtl ? item.title : item.titleEn}</span>
+                      </div>
+                      {item.badge && (
+                        <span
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                            isActive ? 'bg-black text-lord-gold' : 'bg-gray-800 text-gray-400'
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mobile Footer User Chip */}
+            <div className="p-3 border-t border-gray-800 bg-[#06080e]">
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-gray-900/80 border border-gray-800">
+                <div className="w-8 h-8 rounded-lg bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold">
+                  {userRole === 'SUPER_ADMIN' ? '👑' : userRole === 'TREASURY' ? '🪙' : '💼'}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold text-white truncate">{userName}</span>
+                  <span className="text-[9px] text-gray-400">{userRole}</span>
                 </div>
               </div>
             </div>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-emerald-500/50 shadow-sm shrink-0" title="جلسة آمنة ومتصلة" />
           </div>
-        ) : (
-          <div className="flex justify-center py-1">
-            <div
-              className="w-9 h-9 rounded-xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-sm shadow-xs cursor-pointer hover:scale-105 transition-transform"
-              title={`${userName} (${userRole})`}
-            >
-              {userRole === 'SUPER_ADMIN' ? '👑' : userRole === 'TREASURY' ? '🪙' : '💼'}
-            </div>
-          </div>
-        )}
-      </div>
-    </aside>
+        </div>
+      )}
+    </>
   );
 };
