@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AppModalPortal } from '../../ui/AppModalPortal';
 import { useCreateOrProposeTaskMutation } from '../../../store/api/tasksApi';
+import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
 import {
   CheckSquare,
   Coins,
@@ -19,7 +20,8 @@ import {
   Code2,
   Zap,
   Calendar,
-  Wallet
+  Wallet,
+  UserCheck
 } from 'lucide-react';
 import { lordToast } from '../../../lib/lordToast';
 
@@ -39,12 +41,19 @@ interface QuickStageItem {
   fieldLabel: string;
 }
 
+type TemplateType = 'SINGLE' | 'TRADING' | 'MEDIA' | 'DEV';
+
 export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
   isOpen,
   onClose,
   employee
 }) => {
   const [createTask, { isLoading }] = useCreateOrProposeTaskMutation();
+  const { data: employeesData } = useGetAllEmployeesQuery();
+  const allEmployees: any[] = employeesData?.data || [];
+
+  // Selected Assignee (defaults to passed employee)
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>('');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -52,8 +61,9 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
   const [dueDate, setDueDate] = useState<string>('');
   const [budgetAmount, setBudgetAmount] = useState<number | ''>('');
   const [payoutMethod, setPayoutMethod] = useState<'BEP20_USDT' | 'JEEB_WALLET' | 'JAWALI_WALLET'>('BEP20_USDT');
+  const [activeTemplate, setActiveTemplate] = useState<TemplateType>('SINGLE');
 
-  // Dynamic Stages
+  // Default: EXACTLY 1 STAGE
   const [stages, setStages] = useState<QuickStageItem[]>([
     {
       stageOrder: 1,
@@ -64,8 +74,42 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
     }
   ]);
 
-  // Presets Templates
-  const applyStageTemplate = (type: 'SINGLE' | 'TRADING' | 'MEDIA' | 'DEV') => {
+  // Clean reset every time modal opens or employee changes
+  useEffect(() => {
+    if (isOpen && employee) {
+      setSelectedAssigneeId(employee._id || employee.id || '');
+      setTitle('');
+      setDescription('');
+      setPriority('HIGH');
+      setDueDate('');
+      setBudgetAmount('');
+      setPayoutMethod('BEP20_USDT');
+      setActiveTemplate('SINGLE');
+
+      // Strict enforcement: Default is ALWAYS 1 single stage
+      setStages([
+        {
+          stageOrder: 1,
+          stageTitle: 'المرحلة 1: التنفيذ وإرفاق المخرجات المباشرة',
+          instructions: 'إنجاز متطلبات المهمة بدقة وإرفاق الإثبات أو رابط المخرجات',
+          expectedType: 'IMAGE',
+          fieldLabel: 'مرفق أو إثبات إنجاز المرحلة'
+        }
+      ]);
+    }
+  }, [isOpen, employee]);
+
+  // Find currently selected employee object
+  const currentAssignee = useMemo(() => {
+    if (!selectedAssigneeId) return employee;
+    const found = allEmployees.find((e: any) => String(e._id) === String(selectedAssigneeId));
+    return found || employee;
+  }, [allEmployees, selectedAssigneeId, employee]);
+
+  // Apply Presets Templates
+  const applyStageTemplate = (type: TemplateType) => {
+    setActiveTemplate(type);
+
     if (type === 'SINGLE') {
       setStages([
         {
@@ -76,14 +120,14 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
           fieldLabel: 'مرفق أو إثبات إنجاز المرحلة'
         }
       ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب المرحلة الواحدة السريعة ⚡');
+      lordToast.gold('قالب المراحل', 'تم اعتماد قالب المرحلة الواحدة السريعة ⚡');
     } else if (type === 'TRADING') {
       if (!title) setTitle('تحليل فني وصفقة تداول احترافية 📈');
       setStages([
         {
           stageOrder: 1,
           stageTitle: 'تحضير التحليل الفني ولقطة الشارت',
-          instructions: 'تحديد مستويات الدخول، أمر الوقف (SL)، والأهداف بدقة عالية مع نسبة مخاطرة 1:3',
+          instructions: 'تحديد مستويات الدخول، أمر الوقف (SL)، والأهداف بدقة مع نسبة مخاطرة 1:3',
           expectedType: 'IMAGE',
           fieldLabel: 'لقطة شاشة الشارت والتحليل الفني'
         },
@@ -102,7 +146,7 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
           fieldLabel: 'رابط المنشور الرسمي في القناة'
         }
       ]);
-      lordToast.gold('قالب التداول', 'تم تطبيق قالب مهام التداول والشارتات (3 مراحل) 📈');
+      lordToast.gold('قالب التداول', 'تم تطبيق قالب مهام التداول (3 مراحل) 📈');
     } else if (type === 'MEDIA') {
       if (!title) setTitle('إنتاج ونشر محتوى ترويجي للقنوات 📱');
       setStages([
@@ -128,7 +172,7 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
           fieldLabel: 'رابط المنشور المباشر'
         }
       ]);
-      lordToast.gold('قالب الميديا', 'تم تطبيق قالب مهام الميديا والمحتوى (3 مراحل) 📱');
+      lordToast.gold('قالب الميديا', 'تم تطبيق قالب مهام الميديا (3 مراحل) 📱');
     } else if (type === 'DEV') {
       if (!title) setTitle('صيانة وتحديث خوادم البوتات والـ API 💻');
       setStages([
@@ -154,7 +198,7 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
           fieldLabel: 'رابط فحص الخدمة الحية'
         }
       ]);
-      lordToast.gold('قالب البرمجة', 'تم تطبيق قالب مهام التطوير والبرمجة (3 مراحل) 💻');
+      lordToast.gold('قالب البرمجة', 'تم تطبيق قالب مهام البرمجة (3 مراحل) 💻');
     }
   };
 
@@ -210,6 +254,12 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
       return;
     }
 
+    const assigneeId = selectedAssigneeId || employee._id;
+    if (!assigneeId) {
+      lordToast.error('يرجى تحديد الموظف المكلف بالمهمة');
+      return;
+    }
+
     try {
       const formattedStages = stages.map((st, idx) => ({
         stageOrder: idx + 1,
@@ -230,8 +280,8 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
         description: description.trim() || title.trim(),
         targetPlatform: 'GENERAL_SYSTEM',
         serviceCategory: 'OPERATIONAL',
-        targetDepartment: employee.primaryDepartment || undefined,
-        assignedTo: [employee._id],
+        targetDepartment: currentAssignee?.primaryDepartment || employee?.primaryDepartment || undefined,
+        assignedTo: [assigneeId],
         executionType: 'ADMIN_ASSIGNED',
         priority,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
@@ -245,11 +295,9 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
         }
       } as any).unwrap();
 
-      lordToast.success(`تم إسناد المهمة بنجاح وبناء ${stages.length} مراحل إلى ${employee.fullName}! 🚀`);
-      setTitle('');
-      setDescription('');
-      setBudgetAmount('');
-      setDueDate('');
+      lordToast.success(
+        `تم إسناد المهمة بنجاح (${stages.length} مراحل) إلى ${currentAssignee?.fullName || employee?.fullName}! 🚀`
+      );
       onClose();
     } catch (err: any) {
       lordToast.error(err?.data?.error || err.message || 'تعذر إسناد المهمة');
@@ -262,18 +310,18 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800/80 pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center font-black text-lord-gold text-lg shadow-sm">
-              {employee.fullName?.charAt(0) || '👤'}
+            <div className="w-10 h-10 rounded-2xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center font-black text-lord-gold text-lg shadow-sm">
+              <CheckSquare className="w-5 h-5 text-lord-gold" />
             </div>
             <div>
               <h3 className="text-base font-black text-white flex items-center gap-2">
-                <span>إسناد مهمة مرحلية للموظف</span>
+                <span>إسناد مهمة جديدة للموظف</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-lord-gold/15 border border-lord-gold/40 text-lord-gold font-bold">
                   مرحلية مبسطة ⚡
                 </span>
               </h3>
-              <p className="text-xs text-gray-400 font-mono mt-0.5">
-                المكلف بالتنفيذ: <strong className="text-white">{employee.fullName}</strong> • ({employee.primaryDepartment || 'قسم العمليات'})
+              <p className="text-xs text-gray-400">
+                حدد تفاصيل ومراحل المهمة ليتم تكليف الموظف بها ومتابعتها لحظياً
               </p>
             </div>
           </div>
@@ -286,30 +334,84 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
           </button>
         </div>
 
-        {/* Quick Stage Templates Row */}
-        <div className="mb-5 p-3 rounded-2xl bg-gray-900/60 border border-gray-800/90">
+        {/* 1. Bar: Prominent Assignee Card (يظهر لمن يتم الإسناد بوضوح تام مع إمكانية التبديل) */}
+        <div className="mb-4 p-3.5 rounded-2xl bg-[#0f1422] border-2 border-lord-gold/40 flex items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-lord-gold/20 border border-lord-gold/50 flex items-center justify-center font-black text-lord-gold text-base shrink-0 shadow-inner">
+              {currentAssignee?.fullName?.charAt(0) || '👤'}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] text-lord-gold font-black flex items-center gap-1.5 uppercase tracking-wider mb-0.5">
+                <UserCheck className="w-3.5 h-3.5 text-lord-gold" />
+                <span>الموظف المكلف بالتنفيذ المباشر:</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+              </div>
+              <div className="text-sm font-black text-white truncate flex items-center gap-2">
+                <span>{currentAssignee?.fullName || employee?.fullName}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-gray-800 text-gray-300 font-mono">
+                  {currentAssignee?.primaryDepartment || employee?.primaryDepartment || 'العمليات'}
+                </span>
+              </div>
+              <div className="text-[11px] text-gray-400 font-mono truncate">
+                {currentAssignee?.jobTitles?.[0] || employee?.jobTitles?.[0] || 'كادر معتمد'}
+                {currentAssignee?.email ? ` • ${currentAssignee.email}` : ''}
+              </div>
+            </div>
+          </div>
+
+          {/* Switch Assignee Dropdown */}
+          {allEmployees.length > 1 && (
+            <div className="shrink-0 text-left">
+              <label className="block text-[10px] text-gray-400 font-bold mb-1">تبديل الموظف:</label>
+              <select
+                value={selectedAssigneeId}
+                onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                className="px-2.5 py-1.5 rounded-xl bg-gray-900 border border-gray-700 text-xs text-lord-gold font-bold hover:border-lord-gold outline-none cursor-pointer max-w-[150px] sm:max-w-[200px] truncate"
+              >
+                {allEmployees.map((emp: any) => (
+                  <option key={emp._id} value={emp._id}>
+                    {emp.fullName} ({emp.primaryDepartment || 'عام'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* 2. Quick Stage Templates Row (الافتراضي: مرحلة واحدة سريعة) */}
+        <div className="mb-4 p-3 rounded-2xl bg-gray-900/60 border border-gray-800/90">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-lord-gold" />
-              <span>قوالب المراحل الجاهزة (بنقرة واحدة):</span>
+              <span>هيكلية المراحل (الافتراضي مرحلة واحدة):</span>
             </span>
-            <span className="text-[10px] text-gray-500">تطبيق هيكل المراحل تلقائياً</span>
+            <span className="text-[10px] text-lord-gold font-bold">
+              {activeTemplate === 'SINGLE' ? '⚡ مرحلة واحدة معتمدة' : '3 مراحل تخصصية'}
+            </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => applyStageTemplate('SINGLE')}
-              className="p-2 rounded-xl bg-gray-800/70 hover:bg-lord-gold/20 hover:border-lord-gold/50 border border-gray-700 text-xs font-bold text-gray-200 hover:text-lord-gold transition-all flex items-center justify-center gap-1.5"
+              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                activeTemplate === 'SINGLE'
+                  ? 'bg-lord-gold/25 border-lord-gold text-lord-gold shadow-md font-black ring-1 ring-lord-gold/50'
+                  : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800'
+              }`}
             >
               <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>مرحلة سريعة ⚡</span>
+              <span>مرحلة سريعة (الافتراضي) ⚡</span>
             </button>
 
             <button
               type="button"
               onClick={() => applyStageTemplate('TRADING')}
-              className="p-2 rounded-xl bg-gray-800/70 hover:bg-lord-gold/20 hover:border-lord-gold/50 border border-gray-700 text-xs font-bold text-gray-200 hover:text-lord-gold transition-all flex items-center justify-center gap-1.5"
+              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                activeTemplate === 'TRADING'
+                  ? 'bg-lord-gold/25 border-lord-gold text-lord-gold shadow-md font-black ring-1 ring-lord-gold/50'
+                  : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800'
+              }`}
             >
               <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
               <span>تداول وشارتات 📈</span>
@@ -318,7 +420,11 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
             <button
               type="button"
               onClick={() => applyStageTemplate('MEDIA')}
-              className="p-2 rounded-xl bg-gray-800/70 hover:bg-lord-gold/20 hover:border-lord-gold/50 border border-gray-700 text-xs font-bold text-gray-200 hover:text-lord-gold transition-all flex items-center justify-center gap-1.5"
+              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                activeTemplate === 'MEDIA'
+                  ? 'bg-lord-gold/25 border-lord-gold text-lord-gold shadow-md font-black ring-1 ring-lord-gold/50'
+                  : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800'
+              }`}
             >
               <Share2 className="w-3.5 h-3.5 text-sky-400" />
               <span>ميديا ونشر 📱</span>
@@ -327,7 +433,11 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
             <button
               type="button"
               onClick={() => applyStageTemplate('DEV')}
-              className="p-2 rounded-xl bg-gray-800/70 hover:bg-lord-gold/20 hover:border-lord-gold/50 border border-gray-700 text-xs font-bold text-gray-200 hover:text-lord-gold transition-all flex items-center justify-center gap-1.5"
+              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                activeTemplate === 'DEV'
+                  ? 'bg-lord-gold/25 border-lord-gold text-lord-gold shadow-md font-black ring-1 ring-lord-gold/50'
+                  : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800'
+              }`}
             >
               <Code2 className="w-3.5 h-3.5 text-purple-400" />
               <span>برمجة وسيرفرات 💻</span>
@@ -335,7 +445,7 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
           </div>
         </div>
 
-        {/* Form */}
+        {/* 3. Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
           <div>
@@ -367,7 +477,9 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-white flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-lord-gold" />
-                <span>هيكلة مراحل التنفيذ ومخرجاتها ({stages.length} مراحل)</span>
+                <span>
+                  هيكلة مراحل التنفيذ ومخرجاتها ({stages.length} {stages.length === 1 ? 'مرحلة - الافتراضي' : 'مراحل'})
+                </span>
               </span>
 
               <button
@@ -376,7 +488,7 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
                 className="px-2.5 py-1 rounded-xl bg-lord-gold/15 hover:bg-lord-gold/25 border border-lord-gold/40 text-lord-gold text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>إضافة مرحلة</span>
+                <span>إضافة مرحلة جديدة</span>
               </button>
             </div>
 
@@ -392,6 +504,9 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
                         {idx + 1}
                       </span>
                       <span>المرحلة {idx + 1}</span>
+                      {stages.length === 1 && (
+                        <span className="text-[10px] text-gray-400 font-normal">(مرحلة تنفيذ مباشرة)</span>
+                      )}
                     </span>
 
                     {stages.length > 1 && (
@@ -556,7 +671,7 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
               ) : (
                 <>
                   <Send className="w-3.5 h-3.5" />
-                  <span>إسناد المهمة وبدء المراحل 🚀</span>
+                  <span>إسناد المهمة إلى {currentAssignee?.fullName?.split(' ')[0] || 'الموظف'} 🚀</span>
                 </>
               )}
             </button>
