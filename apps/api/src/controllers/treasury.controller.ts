@@ -151,4 +151,133 @@ export class TreasuryController {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
   }
+
+  public static async createCustomSubVault(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { name, code, parentVault, monthlyAllocated, alertThresholdPercent } = req.body;
+      const vault = await AccountingService.createCustomSubVault(
+        name,
+        code,
+        parentVault,
+        Number(monthlyAllocated),
+        Number(alertThresholdPercent),
+        req.user?._id?.toString() || ''
+      );
+      res.json({ success: true, message: 'تم إنشاء الصندوق الفرعي بنجاح', data: vault });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async transferToSubVault(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { subVaultCode, amount, reason } = req.body;
+      const vault = await AccountingService.transferToSubVault(
+        subVaultCode,
+        Number(amount),
+        reason,
+        req.user?._id?.toString() || ''
+      );
+      res.json({ success: true, message: 'تم تخصيص السيولة للصندوق الفرعي بنجاح', data: vault });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async requestOrderModification(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { requestedAction, reason, proposedNote } = req.body;
+      const order = await AccountingService.requestOrderModification(
+        id,
+        requestedAction,
+        reason,
+        proposedNote,
+        req.user?._id?.toString() || ''
+      );
+      res.json({ success: true, message: 'تم رفع طلب التعديل/الإلغاء إلى المسؤول بنجاح', data: order });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async decideOrderModification(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { decision, adminDecisionNote } = req.body;
+      const result = await AccountingService.decideOrderModification(
+        id,
+        decision,
+        adminDecisionNote,
+        req.user?._id?.toString() || ''
+      );
+      res.json({ success: true, message: 'تم تسجيل قرار الإدارة بنجاح', data: result });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async updateEmployeeSalary(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { baseSalary, salaryCurrency, payoutDayOfMonth } = req.body;
+      const user = await AccountingService.updateEmployeeCompensation(
+        id,
+        Number(baseSalary),
+        salaryCurrency,
+        Number(payoutDayOfMonth),
+        req.user?._id?.toString() || ''
+      );
+      res.json({ success: true, message: 'تم تحديث راتب الموظف بنجاح', data: user });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async getRecurringExpenses(_req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const expenses = await AccountingService.getRecurringExpenses();
+      res.json({ success: true, data: expenses });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async createRecurringExpense(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const expense = await AccountingService.createRecurringExpense(req.body, req.user?._id?.toString() || '');
+      res.json({ success: true, message: 'تمت إضافة المصروف الدوري بنجاح', data: expense });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async deleteRecurringExpense(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      await AccountingService.deleteRecurringExpense(id);
+      res.json({ success: true, message: 'تم حذف المصروف الدوري بنجاح' });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async executeRecurringExpense(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await AccountingService.executeRecurringExpense(id, req.user?._id?.toString() || '');
+      res.json({ success: true, message: 'تم صرف المصروف الدوري وخصمه من رصيد الصندوق بنجاح', data: result });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async getAccountingReports(_req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const reports = await AccountingService.getAccountingReports();
+      res.json({ success: true, data: reports });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
 }

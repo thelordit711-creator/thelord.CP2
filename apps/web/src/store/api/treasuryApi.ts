@@ -44,6 +44,110 @@ export const treasuryApi = baseApi.injectEndpoints({
         method: 'POST',
         body
       })
+    }),
+
+    // Custom Sub-vaults
+    createCustomSubVault: builder.mutation<
+      IApiResponse<any>,
+      { name: string; code: string; parentVault: string; monthlyAllocated: number; alertThresholdPercent: number }
+    >({
+      query: (body) => ({
+        url: '/treasury/sub-vaults',
+        method: 'POST',
+        body
+      }),
+      invalidatesTags: ['CompanyVault']
+    }),
+
+    transferToSubVault: builder.mutation<
+      IApiResponse<any>,
+      { subVaultCode: string; amount: number; reason: string }
+    >({
+      query: (body) => ({
+        url: '/treasury/sub-vaults/transfer',
+        method: 'POST',
+        body
+      }),
+      invalidatesTags: ['CompanyVault']
+    }),
+
+    // Transaction modification/cancellation requests
+    requestOrderModification: builder.mutation<
+      IApiResponse<any>,
+      { id: string; requestedAction: 'CANCEL' | 'EDIT_DETAILS'; reason: string; proposedNote?: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/treasury/orders/${id}/request-modification`,
+        method: 'POST',
+        body
+      }),
+      invalidatesTags: ['PayoutOrder']
+    }),
+
+    decideOrderModification: builder.mutation<
+      IApiResponse<any>,
+      { id: string; decision: 'APPROVED' | 'REJECTED'; adminDecisionNote?: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/treasury/orders/${id}/decide-modification`,
+        method: 'PATCH',
+        body
+      }),
+      invalidatesTags: ['PayoutOrder', 'CompanyVault']
+    }),
+
+    // Employee salary update
+    updateEmployeeSalary: builder.mutation<
+      IApiResponse<any>,
+      { id: string; baseSalary: number; salaryCurrency?: string; payoutDayOfMonth?: number }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/treasury/employees/${id}/salary`,
+        method: 'PATCH',
+        body
+      }),
+      invalidatesTags: ['User']
+    }),
+
+    // Recurring monthly expenses
+    getRecurringExpenses: builder.query<IApiResponse<any[]>, void>({
+      query: () => ({
+        url: '/treasury/recurring-expenses'
+      }),
+      providesTags: ['PayoutOrder']
+    }),
+
+    createRecurringExpense: builder.mutation<IApiResponse<any>, any>({
+      query: (body) => ({
+        url: '/treasury/recurring-expenses',
+        method: 'POST',
+        body
+      }),
+      invalidatesTags: ['PayoutOrder']
+    }),
+
+    deleteRecurringExpense: builder.mutation<IApiResponse<any>, string>({
+      query: (id) => ({
+        url: `/treasury/recurring-expenses/${id}`,
+        method: 'DELETE'
+      }),
+      invalidatesTags: ['PayoutOrder']
+    }),
+
+    executeRecurringExpense: builder.mutation<IApiResponse<any>, string>({
+      query: (id) => ({
+        url: `/treasury/recurring-expenses/${id}/execute`,
+        method: 'POST'
+      }),
+      invalidatesTags: ['PayoutOrder', 'CompanyVault']
+    }),
+
+    // Reports
+    getAccountingReports: builder.query<IApiResponse<any>, void>({
+      query: () => ({
+        url: '/treasury/reports'
+      }),
+      providesTags: ['CompanyVault', 'PayoutOrder']
     })
   })
 });
@@ -52,6 +156,16 @@ export const {
   useGetTreasuryOrdersQuery,
   useStartPayoutProcessingMutation,
   useConfirmPayoutDisbursedMutation,
-  useAuditReceiptImageMutation
+  useAuditReceiptImageMutation,
+  useCreateCustomSubVaultMutation,
+  useTransferToSubVaultMutation,
+  useRequestOrderModificationMutation,
+  useDecideOrderModificationMutation,
+  useUpdateEmployeeSalaryMutation,
+  useGetRecurringExpensesQuery,
+  useCreateRecurringExpenseMutation,
+  useDeleteRecurringExpenseMutation,
+  useExecuteRecurringExpenseMutation,
+  useGetAccountingReportsQuery
 } = treasuryApi;
 

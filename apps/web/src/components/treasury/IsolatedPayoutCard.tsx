@@ -5,9 +5,10 @@ import { IPayoutOrder } from '@lord/shared-types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { AppModalPortal } from '../ui/AppModalPortal';
-import { Copy, Check, QrCode, Smartphone, Coins, CheckCircle, Clock, UploadCloud, Sparkles, CheckCheck } from 'lucide-react';
+import { Copy, Check, QrCode, Smartphone, Coins, CheckCircle, Clock, UploadCloud, Sparkles, CheckCheck, ShieldAlert } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuditReceiptImageMutation } from '../../store/api/treasuryApi';
+import { RequestOrderModificationModal } from './modals/RequestOrderModificationModal';
 import { toast } from 'sonner';
 
 interface IsolatedPayoutCardProps {
@@ -24,6 +25,7 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModificationModalOpen, setIsModificationModalOpen] = useState(false);
   const [referenceInput, setReferenceInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -259,7 +261,16 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
       </div>
 
       {/* Action Buttons for Treasury Operator */}
-      <div className="pt-2 border-t border-obsidian-border">
+      <div className="pt-2 border-t border-obsidian-border space-y-2">
+        {order.modificationRequest && order.modificationRequest.status === 'PENDING' && (
+          <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-[11px] text-amber-300 flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>
+              طلب {order.modificationRequest.requestedAction === 'CANCEL' ? 'إلغاء' : 'تعديل'} معلق بانتظار موافقة المسؤول ({order.modificationRequest.reason})
+            </span>
+          </div>
+        )}
+
         {order.executionStatus === 'WAITING_TREASURY' && (
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -300,7 +311,26 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
             </code>
           </div>
         )}
+
+        {/* Audit Modification / Cancellation Request to Admin */}
+        <div className="flex items-center justify-between pt-1 border-t border-gray-800/80">
+          <button
+            type="button"
+            onClick={() => setIsModificationModalOpen(true)}
+            className="text-[10px] text-gray-400 hover:text-amber-400 flex items-center gap-1 transition-colors"
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>طلب تعديل / إلغاء إلى المسؤول 🛡️</span>
+          </button>
+        </div>
       </div>
+
+      {/* Modal for Requesting Modification or Cancellation to Admin */}
+      <RequestOrderModificationModal
+        order={order}
+        isOpen={isModificationModalOpen}
+        onClose={() => setIsModificationModalOpen(false)}
+      />
 
       {/* Modal for Disbursement Reference Confirmation & Gemini Vision Receipt Auditor */}
       <AppModalPortal

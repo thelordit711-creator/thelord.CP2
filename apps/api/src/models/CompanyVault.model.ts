@@ -28,6 +28,17 @@ const VaultSegmentSchema = new Schema({
   alertThresholdPercent: { type: Number, default: 20 }
 }, { _id: false });
 
+const CustomSubVaultSchema = new Schema({
+  name: { type: String, required: true },
+  code: { type: String, required: true },
+  parentVault: { type: String, default: 'TREASURY_MASTER' },
+  balance: { type: Number, default: 0 },
+  monthlyAllocated: { type: Number, default: 0 },
+  totalSpent: { type: Number, default: 0 },
+  alertThresholdPercent: { type: Number, default: 20 },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const CompanyVaultSchema = new Schema<ICompanyVaultDocument>({
   generalBudget: { type: Number, default: 0, required: true },
   treasuryBalance: { type: Number, default: 0, required: true },
@@ -64,6 +75,8 @@ const CompanyVaultSchema = new Schema<ICompanyVaultDocument>({
       })
     }
   },
+
+  customSubVaults: [CustomSubVaultSchema],
 
   totalSpentByCategory: {
     salaries: { type: Number, default: 0 },

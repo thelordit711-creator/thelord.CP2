@@ -3,6 +3,7 @@ import { CompanyVault } from '../models/CompanyVault.model';
 import { PayoutOrder } from '../models/PayoutOrder.model';
 import { EmployeeLedger } from '../models/EmployeeLedger.model';
 import { User } from '../models/User.model';
+import { RecurringExpense } from '../models/RecurringExpense.model';
 import { SocketService } from './socket.service';
 import { AuditService } from './audit.service';
 import { PayoutCategory, LedgerEntryType } from '@lord/shared-types';
@@ -259,6 +260,12 @@ export class AccountingService {
             0,
             vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].balance - order.amount
           );
+        } else if (vault.customSubVaults && vault.customSubVaults.length > 0) {
+          const customSub = vault.customSubVaults.find((v: any) => v.code === seg || v.name === seg);
+          if (customSub) {
+            customSub.totalSpent += order.amount;
+            customSub.balance = Math.max(0, customSub.balance - order.amount);
+          }
         } else if (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE') {
           if (vault.segmentedVaults.salaries) {
             vault.segmentedVaults.salaries.totalSpent += order.amount;
@@ -422,6 +429,292 @@ export class AccountingService {
       session.endSession();
       throw error;
     }
+  }
+
+  /**
+   * Create a dynamic custom sub-vault
+   */
+  public static async createCustomSubVault(
+    name: string,
+    code: string,
+    parentVault: string,
+    monthlyAllocated: number,
+    alertThresholdPercent: number,
+    _userId: string
+  ) {
+    const vault = await this.getOrCreateVault();
+    if (!vault.customSubVaults) {
+      vault.customSubVaults = [] as any;
+    }
+    const subVaults = vault.customSubVaults || [];
+    const cleanCode = code.toUpperCase().replace(/\s+/g, '_');
+    const existing = subVaults.find((v: any) => v.code === cleanCode);
+    if (existing) {
+      throw new Error(`الصندوق الفرعي ذو الرمز (${cleanCode}) موجود بالفعل`);
+    }
+
+    subVaults.push({
+      name,
+      code: cleanCode,
+      parentVault: parentVault || 'صندوق الصرف الرئيسي',
+      balance: 0,
+      monthlyAllocated: monthlyAllocated || 0,
+      totalSpent: 0,
+      alertThresholdPercent: alertThresholdPercent || 20,
+      createdAt: new Date()
+    } as any);
+    vault.customSubVaults = subVaults;
+
+    await vault.save();
+    SocketService.emitToAdmins('vault:updated', vault);
+    return vault;
+  }
+
+  /**
+   * Transfer liquidity from Master Treasury to a Sub-Vault
+   */
+  public static async transferToSubVault(
+    subVaultCode: string,
+    amount: number,
+    reason: string,
+    userId: string
+  ) {
+    if (amount <= 0) throw new Error('المبلغ يجب أن يكون أكبر من الصفر');
+    const vault = await this.getOrCreateVault();
+    if (vault.treasuryBalance < amount) {
+      throw new Error(`رصيد صندوق الصرف المتاح (${vault.treasuryBalance} USDT) لا يكفي لنقل (${amount} USDT)`);
+    }
+
+    if (subVaultCode === 'salaries' && vault.segmentedVaults?.salaries) {
+      vault.segmentedVaults.salaries.balance += amount;
+    } else if (subVaultCode === 'marketing' && vault.segmentedVaults?.marketing) {
+      vault.segmentedVaults.marketing.balance += amount;
+    } else if (subVaultCode === 'operationalReserve' && vault.segmentedVaults?.operationalReserve) {
+      vault.segmentedVaults.operationalReserve.balance += amount;
+    } else {
+      const customSub = vault.customSubVaults?.find((v: any) => v.code === subVaultCode);
+      if (!customSub) {
+        throw new Error(`الصندوق الفرعي (${subVaultCode}) غير موجود`);
+      }
+      customSub.balance += amount;
+    }
+
+    vault.manualAdjustmentsLog.push({
+      adjustedBy: userId as any,
+      targetBalance: 'TRANSFER_BETWEEN_BUDGETS',
+      operation: 'SET',
+      amount,
+      reason: reason || `تخصيص سيولة إلى الصندوق الفرعي: ${subVaultCode}`,
+      createdAt: new Date()
+    });
+
+    await vault.save();
+    SocketService.emitToAdmins('vault:updated', vault);
+    return vault;
+  }
+
+  /**
+   * Request modification or cancellation of a transaction (treasury -> admin)
+   */
+  public static async requestOrderModification(
+    orderId: string,
+    requestedAction: 'CANCEL' | 'EDIT_DETAILS',
+    reason: string,
+    proposedNote: string,
+    userId: string
+  ) {
+    const order = await PayoutOrder.findById(orderId);
+    if (!order) throw new Error('أمر الصرف غير موجود');
+
+    order.modificationRequest = {
+      status: 'PENDING',
+      requestedAction,
+      requestedBy: userId as any,
+      reason,
+      proposedNote: proposedNote || '',
+      decidedAt: undefined
+    };
+
+    await order.save();
+
+    SocketService.emitToAdmins('payout:modification_requested', {
+      orderId: order._id,
+      requestedAction,
+      reason,
+      amount: order.amount
+    });
+
+    return order;
+  }
+
+  /**
+   * Decide modification request (admin approves or rejects)
+   */
+  public static async decideOrderModification(
+    orderId: string,
+    decision: 'APPROVED' | 'REJECTED',
+    adminDecisionNote: string,
+    _adminId: string
+  ) {
+    const order = await PayoutOrder.findById(orderId);
+    if (!order) throw new Error('أمر الصرف غير موجود');
+    if (!order.modificationRequest || order.modificationRequest.status !== 'PENDING') {
+      throw new Error('لا يوجد طلب تعديل معلق لهذا الأمر');
+    }
+
+    order.modificationRequest.status = decision;
+    order.modificationRequest.adminDecisionNote = adminDecisionNote;
+    order.modificationRequest.decidedAt = new Date();
+
+    if (decision === 'APPROVED') {
+      if (order.modificationRequest.requestedAction === 'CANCEL') {
+        if (order.executionStatus === 'WAITING_TREASURY' || order.executionStatus === 'IN_PROGRESS') {
+          await PayoutOrder.findByIdAndDelete(orderId);
+          return { message: 'تم إلغاء وحذف العملية بنجاح بعد موافقة المسؤول' };
+        } else if (order.executionStatus === 'DISBURSED') {
+          const vault = await this.getOrCreateVault();
+          vault.treasuryBalance += order.amount;
+          await vault.save();
+          await PayoutOrder.findByIdAndDelete(orderId);
+          return { message: 'تم إلغاء العملية واسترداد المبلغ لخزينة الصندوق بنجاح' };
+        }
+      }
+    }
+
+    await order.save();
+    return order;
+  }
+
+  /**
+   * Update Employee Base Salary & Compensation (Treasury / Admin)
+   */
+  public static async updateEmployeeCompensation(
+    employeeId: string,
+    baseSalary: number,
+    salaryCurrency: 'USDT' | 'USD' | 'SAR' | 'YER',
+    payoutDayOfMonth: number,
+    _updaterId: string
+  ) {
+    const user = await User.findById(employeeId);
+    if (!user) throw new Error('الموظف غير موجود');
+
+    if (!user.compensation) {
+      user.compensation = {
+        baseSalary: 0,
+        salaryCurrency: 'USDT',
+        payoutDayOfMonth: 1,
+        activeBonuses: 0,
+        activeDeductions: 0,
+        activeAdvances: 0,
+        warningsCount: 0
+      };
+    }
+
+    user.compensation.baseSalary = baseSalary;
+    user.compensation.salaryCurrency = salaryCurrency || 'USDT';
+    user.compensation.payoutDayOfMonth = payoutDayOfMonth || 1;
+
+    await user.save();
+    SocketService.broadcast('employee:salary_updated', {
+      employeeId: user._id,
+      baseSalary,
+      currency: salaryCurrency
+    });
+
+    return user;
+  }
+
+  /**
+   * Recurring Expenses Management
+   */
+  public static async getRecurringExpenses() {
+    return RecurringExpense.find().sort({ dueDayOfMonth: 1 });
+  }
+
+  public static async createRecurringExpense(data: any, _userId: string) {
+    const expense = await RecurringExpense.create(data);
+    return expense;
+  }
+
+  public static async deleteRecurringExpense(id: string) {
+    return RecurringExpense.findByIdAndDelete(id);
+  }
+
+  public static async executeRecurringExpense(id: string, treasuryUserId: string) {
+    const expense = await RecurringExpense.findById(id);
+    if (!expense) throw new Error('المصروف الدوري غير موجود');
+
+    const vault = await this.getOrCreateVault();
+    if (vault.treasuryBalance < expense.amount) {
+      throw new Error(`رصيد الصندوق (${vault.treasuryBalance} USDT) لا يكفي لصرف المصروف (${expense.amount} USDT)`);
+    }
+
+    vault.treasuryBalance -= expense.amount;
+    vault.totalSpentByCategory.otherExpenses += expense.amount;
+    await vault.save();
+
+    expense.lastDisbursedAt = new Date();
+    await expense.save();
+
+    try {
+      const treasuryUser = await User.findById(treasuryUserId);
+      await AuditService.logAction({
+        userId: treasuryUserId,
+        userName: treasuryUser?.fullName || 'أمين الصندوق',
+        userEmail: treasuryUser?.email || 'treasury@thelordofcrypto.com',
+        userRole: 'TREASURY',
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetName: `صرف دوري: ${expense.title}`,
+        targetType: 'SYSTEM',
+        severity: 'INFO',
+        details: {
+          expenseId: expense._id,
+          amount: expense.amount,
+          category: expense.category,
+          beneficiary: expense.beneficiaryName
+        }
+      });
+    } catch {}
+
+    SocketService.emitToAdmins('vault:updated', vault);
+    return { expense, vault };
+  }
+
+  /**
+   * Reports by Category & Vault
+   */
+  public static async getAccountingReports() {
+    const vault = await this.getOrCreateVault();
+    const orders = await PayoutOrder.find({ executionStatus: 'DISBURSED' });
+    const employees = await User.find({ accessRole: 'EMPLOYEE' }).select('fullName email compensation');
+
+    const totalSalaries = orders.filter(o => o.category === 'SALARY').reduce((sum, o) => sum + o.amount, 0);
+    const totalBonuses = orders.filter(o => o.category === 'BONUS').reduce((sum, o) => sum + o.amount, 0);
+    const totalAdvances = orders.filter(o => o.category === 'ADVANCE').reduce((sum, o) => sum + o.amount, 0);
+    const totalAds = orders.filter(o => o.category === 'TG_ADS' || o.category === 'TG_CHANNEL_PROMO').reduce((sum, o) => sum + o.amount, 0);
+    const totalSoftware = orders.filter(o => o.category === 'SOFTWARE_SUBSCRIPTION').reduce((sum, o) => sum + o.amount, 0);
+    const totalOther = orders.filter(o => (o.category as string) === 'GENERAL' || (o.category as string) === 'ALLOWANCE').reduce((sum, o) => sum + o.amount, 0);
+
+    const monthlyCommittedPayroll = employees.reduce((sum, e) => sum + (e.compensation?.baseSalary || 0), 0);
+
+    return {
+      vaultOverview: {
+        generalBudget: vault.generalBudget,
+        treasuryBalance: vault.treasuryBalance,
+        totalDisbursedAllTime: orders.reduce((sum, o) => sum + o.amount, 0),
+        monthlyCommittedPayroll
+      },
+      categoryBreakdown: {
+        salaries: totalSalaries,
+        bonuses: totalBonuses,
+        advances: totalAdvances,
+        ads: totalAds,
+        software: totalSoftware,
+        other: totalOther
+      },
+      segmentedVaults: vault.segmentedVaults,
+      customSubVaults: vault.customSubVaults || []
+    };
   }
 }
 

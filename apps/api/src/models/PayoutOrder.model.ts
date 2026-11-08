@@ -54,6 +54,24 @@ const PayoutOrderSchema = new Schema<IPayoutOrderDocument>({
     executedByTreasuryId: { type: Schema.Types.ObjectId, ref: 'User' }
   },
 
+  modificationRequest: {
+    status: {
+      type: String,
+      enum: ['NONE', 'PENDING', 'APPROVED', 'REJECTED'],
+      default: 'NONE',
+      index: true
+    },
+    requestedAction: {
+      type: String,
+      enum: ['CANCEL', 'EDIT_DETAILS']
+    },
+    requestedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    reason: { type: String },
+    proposedNote: { type: String },
+    adminDecisionNote: { type: String },
+    decidedAt: { type: Date }
+  },
+
   // Employee Receipt Confirmation (Admin can configure if mandatory or optional)
   requireConfirmation: { type: Boolean, default: false },
   sendProofToEmployee: { type: Boolean, default: true },

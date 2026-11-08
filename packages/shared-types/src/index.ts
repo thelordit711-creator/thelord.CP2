@@ -319,6 +319,16 @@ export interface ITransferProof {
   executedByTreasuryId?: string | Partial<IUser>;
 }
 
+export interface IPayoutOrderModificationRequest {
+  status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedAction: 'CANCEL' | 'EDIT_DETAILS';
+  requestedBy?: string | Partial<IUser>;
+  reason: string;
+  proposedNote?: string;
+  adminDecisionNote?: string;
+  decidedAt?: Date | string;
+}
+
 export interface IPayoutOrder {
   _id: string;
   relatedTaskId?: string | Partial<ITask>;
@@ -328,13 +338,14 @@ export interface IPayoutOrder {
   payoutMethod: PayoutMethod;
   destinationDetails: IPayoutDestinationDetails;
   category: PayoutCategory;
-  targetVaultSegment?: 'salaries' | 'marketing' | 'operationalReserve';
+  targetVaultSegment?: 'salaries' | 'marketing' | 'operationalReserve' | string;
   payrollTranche?: 'TRANCHE_1' | 'TRANCHE_2' | 'TRANCHE_3' | 'FULL_MONTH' | 'MONTHLY_ALLOWANCE' | 'NONE';
   summaryForTreasury: string;
   executionStatus: PayoutExecutionStatus;
   inProgressClickedAt?: Date | string;
   disbursedClickedAt?: Date | string;
   transferProof?: ITransferProof;
+  modificationRequest?: IPayoutOrderModificationRequest;
   requireConfirmation?: boolean;
   sendProofToEmployee?: boolean;
   employeeConfirmation?: {
@@ -371,6 +382,35 @@ export interface IVaultSegment {
   alertThresholdPercent: number;
 }
 
+export interface ICustomSubVault {
+  _id?: string;
+  name: string;
+  code: string;
+  parentVault: string;
+  balance: number;
+  monthlyAllocated: number;
+  totalSpent: number;
+  alertThresholdPercent: number;
+  createdAt?: Date | string;
+}
+
+export interface IRecurringExpense {
+  _id: string;
+  title: string;
+  category: 'SALARY' | 'INTERNET' | 'SERVERS' | 'SOFTWARE' | 'MARKETING' | 'RENT' | 'OTHER';
+  amount: number;
+  currency: Currency;
+  targetVault: string;
+  beneficiaryName: string;
+  payoutMethod: PayoutMethod;
+  destinationAddress?: string;
+  dueDayOfMonth: number;
+  isAutoDisburse: boolean;
+  lastDisbursedAt?: Date | string;
+  status: 'ACTIVE' | 'PAUSED';
+  createdAt: Date | string;
+}
+
 export interface ICompanyVault {
   _id: string;
   generalBudget: number;
@@ -380,6 +420,7 @@ export interface ICompanyVault {
     marketing: IVaultSegment;
     operationalReserve: IVaultSegment;
   };
+  customSubVaults?: ICustomSubVault[];
   totalSpentByCategory: {
     salaries: number;
     bonuses: number;

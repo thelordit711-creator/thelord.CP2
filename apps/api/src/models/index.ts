@@ -14,5 +14,6 @@ export * from './AttendanceSession.model';
 export * from './SystemSettings.model';
 export * from './AuditLog.model';
 export * from './PayrollSchedule.model';
+export * from './RecurringExpense.model';
 
 
