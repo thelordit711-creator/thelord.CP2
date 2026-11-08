@@ -283,10 +283,6 @@ export default function EmployeesPage() {
               setSelectedEmployee(selected);
               setIsTodayDetailsOpen(true);
             }}
-            onOpenQuickContact={(selected) => {
-              setSelectedEmployee(selected);
-              setIsQuickContactOpen(true);
-            }}
             onOpenAssignTask={(selected) => {
               setSelectedEmployee(selected);
               setIsAssignTaskOpen(true);

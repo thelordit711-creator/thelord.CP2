@@ -464,10 +464,10 @@ export const TopBar: React.FC = () => {
                 {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
               </div>
               <div className="hidden lg:flex flex-col text-right">
-                <span className="text-xs font-bold text-white group-hover:text-lord-gold transition-colors truncate max-w-[140px]">
+                <span className="text-xs font-bold text-white group-hover:text-lord-gold transition-colors max-w-[260px] truncate">
                   {currentUser.fullName}
                 </span>
-                <span className="text-[10px] text-gray-400 truncate">
+                <span className="text-[10px] text-gray-400">
                   {currentUser.accessRole === 'SUPER_ADMIN' ? 'المدير العام' : currentUser.accessRole === 'TREASURY' ? 'أمين الصندوق' : 'موظف'}
                 </span>
               </div>
