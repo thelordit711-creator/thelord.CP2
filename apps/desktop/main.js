@@ -126,3 +126,4 @@ app.on('window-all-closed', () => {
     // Keep running in tray on Windows unless explicitly exited
   }
 });
+

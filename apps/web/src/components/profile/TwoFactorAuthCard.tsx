@@ -339,3 +339,4 @@ export const TwoFactorAuthCard: React.FC = () => {
     </div>
   );
 };
+

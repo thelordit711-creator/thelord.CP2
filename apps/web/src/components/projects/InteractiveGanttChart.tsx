@@ -236,3 +236,4 @@ export const InteractiveGanttChart: React.FC<InteractiveGanttChartProps> = ({ pr
     </div>
   );
 };
+

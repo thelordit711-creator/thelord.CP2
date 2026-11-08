@@ -141,3 +141,4 @@ export const SegmentedVaultsOverview: React.FC = () => {
     </div>
   );
 };
+

@@ -7,3 +7,4 @@ contextBridge.exposeInMainWorld('electronDesktop', {
     new Notification(title, { body });
   }
 });
+

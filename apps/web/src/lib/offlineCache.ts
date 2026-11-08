@@ -115,3 +115,4 @@ class OfflineCacheManager {
 }
 
 export const offlineCache = new OfflineCacheManager();
+
