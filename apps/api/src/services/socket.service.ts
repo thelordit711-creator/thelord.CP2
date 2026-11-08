@@ -92,18 +92,20 @@ export class SocketService {
         });
       });
 
-      // 1-to-1 WebRTC Direct Audio Call Signaling
-      socket.on('call:invite', (data: { toUserId: string; caller: { _id: string; fullName: string; avatarUrl?: string } }) => {
+      // 1-to-1 WebRTC Direct Audio & Video Call Signaling (Telegram-like Direct P2P)
+      socket.on('call:invite', (data: { toUserId: string; caller: { _id: string; fullName: string; avatarUrl?: string }; callType?: 'audio' | 'video' }) => {
         this.io?.to(`room:user:${data.toUserId}`).emit('call:incoming', {
           caller: data.caller,
-          callerSocketId: socket.id
+          callerSocketId: socket.id,
+          callType: data.callType || 'audio'
         });
       });
 
-      socket.on('call:accept', (data: { toUserId: string; acceptor: { _id: string; fullName: string } }) => {
+      socket.on('call:accept', (data: { toUserId: string; acceptor: { _id: string; fullName: string }; callType?: 'audio' | 'video' }) => {
         this.io?.to(`room:user:${data.toUserId}`).emit('call:accepted', {
           acceptor: data.acceptor,
-          acceptorSocketId: socket.id
+          acceptorSocketId: socket.id,
+          callType: data.callType || 'audio'
         });
       });
 

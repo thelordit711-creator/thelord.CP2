@@ -67,35 +67,49 @@ export const EmployeeCard: React.FC<EmployeeCardProps> = ({
                   <MessageSquare className="w-3.5 h-3.5" />
                 </button>
 
-                {/* 2. Direct Video Meeting */}
+                {/* 2. Direct Video Meeting & Screen Share (Telegram style) */}
                 <button
                   type="button"
-                  onClick={() => router.push(`/${locale}/meeting?room=call_${emp._id}`)}
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('lord_start_call', {
+                      detail: {
+                        targetUser: {
+                          _id: emp._id,
+                          fullName: emp.fullName,
+                          avatarUrl: emp.avatarUrl,
+                          primaryDepartment: emp.primaryDepartment
+                        },
+                        callType: 'video'
+                      }
+                    }));
+                  }}
                   className="p-1.5 rounded-lg hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 transition-all active:scale-95"
-                  title={`بدء اجتماع فيديو مع ${emp.fullName}`}
+                  title={`اتصال فيديو وشاشة مباشر مع ${emp.fullName} (مثل تليجرام)`}
                 >
                   <Video className="w-3.5 h-3.5" />
                 </button>
 
-                {/* 3. Direct Phone or Audio Call */}
-                {emp.phoneNumber ? (
-                  <a
-                    href={`tel:${emp.phoneNumber}`}
-                    className="p-1.5 rounded-lg hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 transition-all active:scale-95"
-                    title={`اتصال هاتفي مباشر: ${emp.phoneNumber}`}
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/${locale}/meeting?room=audio_${emp._id}`)}
-                    className="p-1.5 rounded-lg hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 transition-all active:scale-95"
-                    title={`اتصال صوتي مع ${emp.fullName}`}
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                {/* 3. Direct Phone or Audio Call (Telegram style) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('lord_start_call', {
+                      detail: {
+                        targetUser: {
+                          _id: emp._id,
+                          fullName: emp.fullName,
+                          avatarUrl: emp.avatarUrl,
+                          primaryDepartment: emp.primaryDepartment
+                        },
+                        callType: 'audio'
+                      }
+                    }));
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 transition-all active:scale-95"
+                  title={`اتصال صوتي مباشر مع ${emp.fullName} (صوت ورنين تليجرام)`}
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 

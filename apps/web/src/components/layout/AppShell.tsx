@@ -8,6 +8,7 @@ import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
 import { TheLordAIFloatingAssistant } from '../ai/TheLordAIFloatingAssistant';
 import { DynamicIslandNotification } from '../notifications/DynamicIslandNotification';
+import { TelegramDirectCallModal, CallTargetUser, IncomingCallPayload } from '../call/TelegramDirectCallModal';
 import { useSocket } from '../../providers/SocketProvider';
 import { toast } from 'sonner';
 
@@ -19,6 +20,60 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const locale = useLocale();
   const { socket } = useSocket();
   const [authorized, setAuthorized] = useState(false);
+
+  // Global Telegram Direct Call System States
+  const [isCallOpen, setIsCallOpen] = useState(false);
+  const [callTargetUser, setCallTargetUser] = useState<CallTargetUser | null>(null);
+  const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null);
+  const [activeCallType, setActiveCallType] = useState<'audio' | 'video'>('audio');
+  const [currentSessionUser, setCurrentSessionUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('lord_current_user');
+      if (userStr) {
+        try {
+          setCurrentSessionUser(JSON.parse(userStr));
+        } catch (e) {}
+      }
+    }
+  }, []);
+
+  // Listen for incoming call events from Socket.io across the entire platform
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleIncomingCall = (data: IncomingCallPayload) => {
+      setIncomingCall(data);
+      setCallTargetUser(null);
+      setActiveCallType(data.callType || 'audio');
+      setIsCallOpen(true);
+    };
+
+    socket.on('call:incoming', handleIncomingCall);
+
+    return () => {
+      socket.off('call:incoming', handleIncomingCall);
+    };
+  }, [socket]);
+
+  // Listen for global custom trigger event: window.dispatchEvent(new CustomEvent('lord_start_call', ...))
+  useEffect(() => {
+    const handleStartCall = (e: any) => {
+      if (e.detail?.targetUser) {
+        setIncomingCall(null);
+        setCallTargetUser(e.detail.targetUser);
+        setActiveCallType(e.detail.callType || 'audio');
+        setIsCallOpen(true);
+      }
+    };
+
+    window.addEventListener('lord_start_call' as any, handleStartCall);
+
+    return () => {
+      window.removeEventListener('lord_start_call' as any, handleStartCall);
+    };
+  }, []);
 
   // Immediate security enforcement: revoke session if admin bans or deletes account
   useEffect(() => {
@@ -147,6 +202,24 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <BottomNav />
       <DynamicIslandNotification />
       <TheLordAIFloatingAssistant />
+
+      {/* Telegram-style Direct WebRTC Video & Audio Call Modal */}
+      {isCallOpen && (
+        <TelegramDirectCallModal
+          isOpen={isCallOpen}
+          onClose={() => {
+            setIsCallOpen(false);
+            setIncomingCall(null);
+            setCallTargetUser(null);
+          }}
+          socket={socket}
+          currentUserId={currentSessionUser?._id || ''}
+          currentUserName={currentSessionUser?.fullName || 'عضو في الفريق'}
+          targetUser={callTargetUser}
+          incomingCall={incomingCall}
+          initialCallType={activeCallType}
+        />
+      )}
     </div>
   );
 };

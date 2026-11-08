@@ -132,15 +132,51 @@ export const ChatMessageStream: React.FC<ChatMessageStreamProps> = ({
           )}
 
           {activeChat.type === 'dm' && activeChat.memberId && (
-            <button
-              type="button"
-              onClick={onStartCall}
-              className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold"
-              title="إجراء مكالمة صوتية مباشرة"
-            >
-              <Phone className="w-4 h-4 text-emerald-400" />
-              <span className="hidden sm:inline">اتصال صوتي</span>
-            </button>
+            <>
+              {/* Direct Telegram-like Audio Call */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('lord_start_call', {
+                    detail: {
+                      targetUser: {
+                        _id: activeChat.memberId,
+                        fullName: activeChat.name,
+                        primaryDepartment: activeChat.department
+                      },
+                      callType: 'audio'
+                    }
+                  }));
+                }}
+                className="p-2 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold active:scale-95"
+                title="إجراء اتصال صوتي مباشر (صوت ورنين تليجرام)"
+              >
+                <Phone className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline">اتصال صوتي</span>
+              </button>
+
+              {/* Direct Telegram-like Video & Screen Share Call */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('lord_start_call', {
+                    detail: {
+                      targetUser: {
+                        _id: activeChat.memberId,
+                        fullName: activeChat.name,
+                        primaryDepartment: activeChat.department
+                      },
+                      callType: 'video'
+                    }
+                  }));
+                }}
+                className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors flex items-center gap-1.5 text-xs font-semibold active:scale-95"
+                title="اتصال فيديو وشاشة مباشر (مثل تليجرام)"
+              >
+                <Video className="w-4 h-4 text-emerald-400" />
+                <span className="hidden sm:inline">فيديو وشاشة</span>
+              </button>
+            </>
           )}
 
           <button
