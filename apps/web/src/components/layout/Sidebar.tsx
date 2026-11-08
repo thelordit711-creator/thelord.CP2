@@ -68,23 +68,6 @@ export const Sidebar: React.FC = () => {
     }
   }, []);
 
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lord_theme', next);
-      if (next === 'light') {
-        document.documentElement.classList.add('light');
-        document.documentElement.classList.remove('dark');
-        lordToast.gold('الوضع النهاري الفاتح ☀️');
-      } else {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-        lordToast.gold('الوضع الليلي الرسمي 🌙');
-      }
-    }
-  };
-
   const switchLanguage = () => {
     const nextLocale = locale === 'ar' ? 'en' : 'ar';
     const newPath = pathname.replace(`/${locale}`, `/${nextLocale}`);
@@ -399,27 +382,17 @@ export const Sidebar: React.FC = () => {
                 </button>
               </div>
 
-              {/* Mobile Quick Utilities Bar (Theme + Language) */}
-              <div className="px-4 py-2.5 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={toggleTheme}
-                    className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-amber-400 flex items-center gap-1 text-[11px] font-bold"
-                  >
-                    {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5 text-sky-400" />}
-                    <span>{theme === 'dark' ? 'نهاري' : 'ليلي'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={switchLanguage}
-                    className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center gap-1 text-[11px] font-bold font-mono"
-                  >
-                    <Globe className="w-3.5 h-3.5 text-cyber-blue" />
-                    <span>{locale.toUpperCase()}</span>
-                  </button>
-                </div>
+              {/* Mobile Quick Utilities Bar (Language + Status) */}
+              <div className="px-4 py-2 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={switchLanguage}
+                  className="p-1.5 px-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center gap-1.5 text-[11px] font-bold font-mono"
+                  title="تبديل لغة الواجهة"
+                >
+                  <Globe className="w-3.5 h-3.5 text-cyber-blue" />
+                  <span>{locale === 'ar' ? 'English' : 'العربية'}</span>
+                </button>
 
                 <div className="flex items-center gap-1.5 text-emerald-400 text-[10px] font-bold">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />

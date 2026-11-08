@@ -39,9 +39,6 @@ export const TopBar: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Theme State: 'dark' | 'light'
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
   // Floating Tools Popover State
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [showFloatingAi, setShowFloatingAi] = useState(false);
@@ -58,21 +55,14 @@ export const TopBar: React.FC = () => {
   const notificationsList: INotification[] = notificationsData?.data || [];
   const unreadCount = notificationsData?.meta?.unreadCount ?? notificationsList.filter(n => !n.readStatus).length;
 
-  // Initialize theme & floating preferences from localStorage
+  // Always enforce official obsidian black dark mode
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // 1. Theme
-      const savedTheme = (localStorage.getItem('lord_theme') as 'dark' | 'light') || 'dark';
-      setTheme(savedTheme);
-      if (savedTheme === 'light') {
-        document.documentElement.classList.add('light');
-        document.documentElement.classList.remove('dark');
-      } else {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-      }
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      localStorage.setItem('lord_theme', 'dark');
 
-      // 2. Floating Tools (Default: FALSE / Hidden to keep interface clean)
+      // Floating Tools (Default: FALSE / Hidden to keep interface clean)
       const savedAi = localStorage.getItem('lord_show_floating_ai') === 'true';
       const savedHud = localStorage.getItem('lord_show_floating_hud') === 'true';
       setShowFloatingAi(savedAi);
@@ -153,24 +143,6 @@ export const TopBar: React.FC = () => {
       osc2.stop(ctx.currentTime + 0.85);
     } catch (e) {
       console.warn('Audio synthesis warning:', e);
-    }
-  };
-
-  // Toggle Theme (Dark / Light)
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lord_theme', next);
-      if (next === 'light') {
-        document.documentElement.classList.add('light');
-        document.documentElement.classList.remove('dark');
-        lordToast.gold('الوضع النهاري الفاتح مفعّل ☀️');
-      } else {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-        lordToast.gold('الوضع الليلي الرسمي مفعّل 🌙');
-      }
     }
   };
 
@@ -452,16 +424,6 @@ export const TopBar: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Theme Switcher (Desktop only; on mobile it is inside the Drawer) */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="hidden md:flex p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-400 hover:text-amber-400 hover:border-amber-500/40 transition-all"
-            title={theme === 'dark' ? 'التحويل للوضع النهاري الأبيض ☀️' : 'التحويل للوضع الليلي الرسمي 🌙'}
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
-          </button>
 
           {/* Notification Bell (Always Visible on Mobile & Desktop) */}
           <div className="relative">

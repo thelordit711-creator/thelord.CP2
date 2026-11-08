@@ -17,25 +17,6 @@
   --status-danger: #EF4444;
 }
 
-/* Corporate Executive Light Mode */
-html.light, body.light {
-  --bg-obsidian-primary: #F8FAFC;
-  --bg-card-surface: #FFFFFF;
-  --bg-card-secondary: #F1F5F9;
-  --border-primary: #E2E8F0;
-  --text-primary: #0F172A;
-  --text-muted: #64748B;
-  --lord-gold-primary: #B8860B;
-  --lord-gold-hover: #D4AF37;
-  background-color: #F8FAFC;
-  color: #0F172A;
-}
-
-html.light select, html.light option {
-  background-color: #FFFFFF !important;
-  color: #0F172A !important;
-}
-
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
