@@ -156,7 +156,26 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
 
         {/* Beneficiary Details */}
         <div className="mb-4">
-          <p className="text-xs text-gray-400">المستفيد:</p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-gray-400">المستفيد:</p>
+            {/* Designated Segment Vault Badge */}
+            {order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE' ? (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1 shadow-xs">
+                <span>💼</span>
+                <span>صندوق الرواتب والأجور</span>
+              </span>
+            ) : order.category === 'TG_ADS' || order.category === 'TG_CHANNEL_PROMO' ? (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-cyber-blue/15 text-cyber-blue border border-cyber-blue/30 flex items-center gap-1 shadow-xs">
+                <span>📣</span>
+                <span>صندوق التسويق والإعلانات</span>
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shadow-xs">
+                <span>🛡️</span>
+                <span>صندوق الاحتياطي التشغيلي</span>
+              </span>
+            )}
+          </div>
           <h4 className="text-base font-bold text-white">{beneficiaryName}</h4>
           <p className="text-xs text-gray-400 mt-1">{order.summaryForTreasury}</p>
         </div>
