@@ -116,7 +116,7 @@ export default function EmployeeWorkspacePage() {
       {/* Header & Navigation Tabs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-cyber-blue tracking-widest uppercase">
+          <span className="text-xs font-bold text-lord-gold tracking-widest uppercase">
             EMPLOYEE WORKSPACE & TALENT HUB
           </span>
           <h1 className="text-2xl md:text-3xl font-black text-white mt-1">
@@ -124,14 +124,14 @@ export default function EmployeeWorkspacePage() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 p-1.5 bg-obsidian-surface rounded-2xl border border-obsidian-border text-xs">
+        <div className="flex items-center gap-2 p-1.5 bg-[#0a0d16] rounded-2xl border border-gray-800 text-xs">
           <button
             type="button"
             onClick={() => setActiveTab('tasks')}
-            className={`px-4 py-2 rounded-xl font-bold transition-all ${
+            className={`px-4 py-2 rounded-xl font-black transition-all ${
               activeTab === 'tasks'
-                ? 'bg-cyber-blue text-white shadow-blue-glow'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-lord-gold text-black shadow-gold-glow'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
             }`}
           >
             مهامي ومراحلي
@@ -142,22 +142,22 @@ export default function EmployeeWorkspacePage() {
               setActiveTab('propose');
               setIsProposeModalOpen(true);
             }}
-            className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-xl font-black transition-all flex items-center gap-1.5 ${
               activeTab === 'propose'
-                ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-lord-gold text-black shadow-gold-glow'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>+ اقتراح مهمة ومراحلها 💡</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('statement')}
-            className={`px-4 py-2 rounded-xl font-bold transition-all ${
+            className={`px-4 py-2 rounded-xl font-black transition-all ${
               activeTab === 'statement'
-                ? 'bg-emerald-500 text-white'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-lord-gold text-black shadow-gold-glow'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
             }`}
           >
             كشف حسابي الشخصي
@@ -179,7 +179,7 @@ export default function EmployeeWorkspacePage() {
           <div className="lg:col-span-1 space-y-3">
             <h3 className="text-sm font-bold text-gray-300">قائمة المهام المسندة إليك:</h3>
             {tasks.length === 0 ? (
-              <div className="p-6 bg-obsidian-card rounded-2xl border border-obsidian-border text-center text-xs text-gray-500">
+              <div className="p-6 bg-[#0a0d16] rounded-2xl border border-gray-800 text-center text-xs text-gray-500">
                 لا توجد مهام مسندة إليك حالياً. يمكنك اقتراح مهمة جديدة!
               </div>
             ) : (
@@ -189,15 +189,15 @@ export default function EmployeeWorkspacePage() {
                   onClick={() => setSelectedTask(t)}
                   className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                     selectedTask?._id === t._id
-                      ? 'border-cyber-blue bg-cyber-blue/10'
-                      : 'border-obsidian-border bg-obsidian-card hover:border-gray-700'
+                      ? 'border-lord-gold/60 bg-[#101524] shadow-md'
+                      : 'border-gray-800/80 bg-[#0a0d16] hover:border-gray-700'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
                     <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
                       <span>{t.title}</span>
                       {t.isDailyRecurring && (
-                        <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[9px] font-bold">
+                        <span className="px-2 py-0.5 rounded-full bg-gray-800 text-lord-gold border border-lord-gold/30 text-[9px] font-bold">
                           🔄 روتين يومي
                         </span>
                       )}
@@ -210,7 +210,7 @@ export default function EmployeeWorkspacePage() {
                   <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
                     <span>المراحل: {t.stages?.length || 0}</span>
                     {t.dueDate && (
-                      <span className="text-[10px] text-amber-400 font-mono">
+                      <span className="text-[10px] text-gray-400 font-mono">
                         ⏰ {new Date(t.dueDate).toLocaleDateString('ar-YE', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     )}

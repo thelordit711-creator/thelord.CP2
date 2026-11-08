@@ -47,7 +47,7 @@ export const TaskTableView: React.FC<TaskTableViewProps> = ({
                     <div className="flex items-center gap-2">
                       <strong className="text-white font-bold">{task.title}</strong>
                       {task.isDailyRecurring && (
-                        <span className="px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[9px] font-bold">
+                        <span className="px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-[9px] font-mono">
                           روتين يومي
                         </span>
                       )}

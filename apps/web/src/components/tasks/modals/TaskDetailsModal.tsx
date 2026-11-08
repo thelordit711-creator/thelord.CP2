@@ -146,8 +146,8 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
                 {/* Routine Recurring Tag */}
                 {task.isDailyRecurring && (
-                  <span className="px-2.5 py-1 rounded-xl bg-purple-500/15 border border-purple-500/35 text-purple-300 text-xs font-bold flex items-center gap-1.5">
-                    <Repeat className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="px-2.5 py-1 rounded-xl bg-gray-800 text-gray-300 border border-gray-700 text-xs font-mono flex items-center gap-1.5">
+                    <Repeat className="w-3.5 h-3.5 text-lord-gold" />
                     <span>مهمة روتينية يومية ({task.dailyRecurrenceTime || '09:00 ص'})</span>
                   </span>
                 )}
@@ -243,7 +243,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             {/* 2. Assigned Employee */}
             <div className="p-3.5 rounded-2xl bg-obsidian-card/90 border border-gray-800/90 space-y-2">
               <span className="text-xs text-gray-400 font-bold flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-cyber-blue" />
+                <User className="w-3.5 h-3.5 text-lord-gold" />
                 <span>الموظف المسند إليه:</span>
               </span>
               {task.assignedTo && task.assignedTo.length > 0 ? (
@@ -322,7 +322,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                     : isProcessing
                     ? 'bg-gradient-to-l from-amber-950/25 via-obsidian-card to-obsidian-surface border-amber-500/50 shadow-amber-500/10'
                     : isWaitingTreasury
-                    ? 'bg-gradient-to-l from-cyan-950/25 via-obsidian-card to-obsidian-surface border-cyber-blue/50 shadow-cyan-500/10'
+                    ? 'bg-gradient-to-l from-amber-950/20 via-obsidian-card to-obsidian-surface border-lord-gold/40'
                     : isRejected
                     ? 'bg-gradient-to-l from-red-950/25 via-obsidian-card to-obsidian-surface border-red-500/50'
                     : 'bg-gradient-to-l from-yellow-950/25 via-obsidian-card to-obsidian-surface border-yellow-500/40'
@@ -367,8 +367,8 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                         <span>جاري معالجة التحويل والصرف من الخزينة ⏳</span>
                       </span>
                     ) : isWaitingTreasury ? (
-                      <span className="px-3.5 py-1.5 rounded-xl bg-cyber-blue/20 border border-cyber-blue/50 text-cyber-blue font-black text-xs flex items-center gap-2 shadow-sm">
-                        <Building2 className="w-4 h-4 text-cyber-blue" />
+                      <span className="px-3.5 py-1.5 rounded-xl bg-lord-gold/15 border border-lord-gold/40 text-lord-gold font-black text-xs flex items-center gap-2 shadow-sm">
+                        <Building2 className="w-4 h-4 text-lord-gold" />
                         <span>معتمد إدارياً — بانتظار صرف الخزينة 🏦</span>
                       </span>
                     ) : isRejected ? (
@@ -429,7 +429,7 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                               href={`https://bscscan.com/tx/${payoutOrder.transferProof.txHashOrReferenceNumber}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="px-2.5 py-1 rounded-md bg-cyber-blue/15 border border-cyber-blue/30 text-cyber-blue hover:underline text-xs font-bold flex items-center gap-1 transition-colors"
+                              className="px-2.5 py-1 rounded-md bg-lord-gold/15 border border-lord-gold/30 text-lord-gold hover:underline text-xs font-bold flex items-center gap-1 transition-colors"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                               <span>BscScan</span>

@@ -85,7 +85,7 @@ export const SubmittedDeliverablesView: React.FC<SubmittedDeliverablesViewProps>
                     href={rawText}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-3 py-2 rounded-lg bg-cyber-blue/10 border border-cyber-blue/30 text-cyber-blue hover:underline flex items-center gap-2 font-mono text-xs break-all group transition-colors"
+                    className="px-3 py-2 rounded-lg bg-lord-gold/10 border border-lord-gold/30 text-lord-gold hover:underline flex items-center gap-2 font-mono text-xs break-all group transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform" />
                     <span className="truncate">{rawText}</span>
@@ -145,8 +145,8 @@ export const SubmittedDeliverablesView: React.FC<SubmittedDeliverablesViewProps>
 
       {/* Voice Note Player */}
       {stage.employeeVoiceNote && (
-        <div className="p-3 rounded-xl bg-obsidian-card border border-cyber-blue/30 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-cyber-blue/15 border border-cyber-blue/30 flex items-center justify-center text-cyber-blue shrink-0">
+        <div className="p-3 rounded-xl bg-obsidian-card border border-lord-gold/30 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold shrink-0">
             <Volume2 className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">

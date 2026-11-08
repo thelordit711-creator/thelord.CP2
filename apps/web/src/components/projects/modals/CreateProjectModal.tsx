@@ -74,7 +74,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             onClick={() => setCreateMode('MANUAL')}
             className={`flex-1 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
               createMode === 'MANUAL'
-                ? 'bg-purple-600 text-white shadow-sm'
+                ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
             }`}
           >

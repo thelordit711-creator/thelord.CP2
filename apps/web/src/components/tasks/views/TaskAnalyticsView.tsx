@@ -48,14 +48,14 @@ export const TaskAnalyticsView: React.FC<TaskAnalyticsViewProps> = ({ tasks }) =
         </div>
 
         {/* Card 2: Total Approved Budgets */}
-        <div className="bg-obsidian-card border border-blue-500/30 rounded-3xl p-6 shadow-2xl space-y-3">
+        <div className="bg-obsidian-card border border-lord-gold/30 rounded-3xl p-6 shadow-2xl space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400 font-semibold">
               إجمالي ميزانيات المهام
             </span>
-            <Coins className="w-4 h-4 text-cyber-blue" />
+            <Coins className="w-4 h-4 text-lord-gold" />
           </div>
-          <div className="text-3xl font-black text-cyber-blue font-mono">
+          <div className="text-3xl font-black text-lord-gold font-mono">
             ${totalBudget.toLocaleString()} USDT
           </div>
           <p className="text-[11px] text-gray-400">

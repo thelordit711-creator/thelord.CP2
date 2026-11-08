@@ -345,7 +345,7 @@ export const MobileFloatingHud: React.FC<MobileFloatingHudProps> = ({
               onClick={() => setActiveTab('ADMIN')}
               className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1 ${
                 activeTab === 'ADMIN'
-                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-sm'
+                  ? 'bg-lord-gold/20 text-lord-gold border border-lord-gold/40 shadow-sm'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
               }`}
             >

@@ -175,7 +175,7 @@ export const InteractiveGanttChart: React.FC<InteractiveGanttChartProps> = ({ pr
                             ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-md'
                             : proj.status === 'ACTIVE'
                             ? 'bg-gradient-to-r from-lord-gold via-amber-400 to-yellow-500 shadow-gold-glow'
-                            : 'bg-gradient-to-r from-cyber-blue to-blue-400'
+                            : 'bg-gray-700 text-gray-200'
                         }`}
                         style={{
                           left: `${startPct}%`,

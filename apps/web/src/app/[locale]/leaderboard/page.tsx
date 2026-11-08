@@ -59,14 +59,14 @@ export default function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Time Filter Pills */}
+          {/* Time Filter Pills - Unified Imperial Gold */}
           <div className="flex items-center bg-obsidian-primary p-1 rounded-2xl border border-gray-800 text-xs">
             <button
               type="button"
               onClick={() => setFilterPeriod('ALL')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
                 filterPeriod === 'ALL'
-                  ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
+                  ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -77,7 +77,7 @@ export default function LeaderboardPage() {
               onClick={() => setFilterPeriod('MONTH')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
                 filterPeriod === 'MONTH'
-                  ? 'bg-blue-600 text-white shadow-blue-glow'
+                  ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -88,7 +88,7 @@ export default function LeaderboardPage() {
               onClick={() => setFilterPeriod('WEEK')}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
                 filterPeriod === 'WEEK'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                   : 'text-gray-400 hover:text-white'
               }`}
             >

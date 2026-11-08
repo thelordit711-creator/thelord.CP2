@@ -439,7 +439,7 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
                   : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800'
               }`}
             >
-              <Code2 className="w-3.5 h-3.5 text-purple-400" />
+              <Code2 className="w-3.5 h-3.5 text-lord-gold" />
               <span>برمجة وسيرفرات 💻</span>
             </button>
           </div>

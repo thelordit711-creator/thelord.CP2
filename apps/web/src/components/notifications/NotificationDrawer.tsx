@@ -214,7 +214,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
             onClick={() => setActiveTab('TASKS')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'TASKS'
-                ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -227,7 +227,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
             onClick={() => setActiveTab('CHAT')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'CHAT'
-                ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+                ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -300,7 +300,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
                       {new Date(n.createdAt).toLocaleDateString('ar-YE')}
                     </span>
                     {n.relatedUrl && (
-                      <span className="text-cyber-blue group-hover:underline flex items-center gap-1 font-bold">
+                      <span className="text-lord-gold group-hover:underline flex items-center gap-1 font-bold">
                         <span>فتح الرابط</span>
                         <ExternalLink className="w-3 h-3" />
                       </span>

@@ -52,8 +52,8 @@ export const TaskKanbanCard: React.FC<TaskKanbanCardProps> = React.memo(
 
           <div className="flex items-center gap-1">
             {task.isDailyRecurring && (
-              <span className="px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-bold flex items-center gap-1">
-                <Repeat className="w-3 h-3" />
+              <span className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-300 border border-gray-700 text-[10px] font-mono flex items-center gap-1">
+                <Repeat className="w-3 h-3 text-lord-gold" />
                 <span>{task.dailyRecurrenceTime || '09:00'}</span>
               </span>
             )}

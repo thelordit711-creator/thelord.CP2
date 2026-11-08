@@ -105,7 +105,7 @@ export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
               : isProcessing
               ? 'bg-gradient-to-l from-amber-950/25 via-obsidian-card to-obsidian-surface border-amber-500/50 shadow-amber-500/10'
               : isWaitingTreasury
-              ? 'bg-gradient-to-l from-cyan-950/25 via-obsidian-card to-obsidian-surface border-cyber-blue/50 shadow-cyan-500/10'
+              ? 'bg-gradient-to-l from-amber-950/20 via-obsidian-card to-obsidian-surface border-lord-gold/40'
               : isRejected
               ? 'bg-gradient-to-l from-red-950/25 via-obsidian-card to-obsidian-surface border-red-500/50'
               : 'bg-gradient-to-l from-yellow-950/25 via-obsidian-card to-obsidian-surface border-yellow-500/40'
@@ -151,8 +151,8 @@ export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
                   <span>جاري التحويل والصرف من الخزينة ⏳</span>
                 </span>
               ) : isWaitingTreasury ? (
-                <span className="px-3 py-1 rounded-xl bg-cyber-blue/20 border border-cyber-blue/50 text-cyber-blue font-bold text-xs flex items-center gap-1.5 shadow-sm">
-                  <Building2 className="w-3.5 h-3.5 text-cyber-blue" />
+                <span className="px-3 py-1 rounded-xl bg-lord-gold/15 border border-lord-gold/40 text-lord-gold font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                  <Building2 className="w-3.5 h-3.5 text-lord-gold" />
                   <span>معتمد إدارياً — بانتظار صرف الخزينة 🏦</span>
                 </span>
               ) : isRejected ? (
@@ -208,7 +208,7 @@ export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
                         href={`https://bscscan.com/tx/${payoutOrder.transferProof.txHashOrReferenceNumber}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-2 py-0.5 rounded bg-cyber-blue/15 text-cyber-blue hover:underline text-xs font-bold flex items-center gap-1"
+                        className="px-2 py-0.5 rounded bg-lord-gold/15 text-lord-gold hover:underline text-xs font-bold flex items-center gap-1"
                       >
                         <ExternalLink className="w-3 h-3" />
                         <span>BscScan</span>
@@ -321,13 +321,13 @@ export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
             <div className="p-3.5 rounded-xl bg-obsidian-surface border border-gray-800 space-y-2.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-white flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-cyber-blue" />
+                  <FileText className="w-4 h-4 text-lord-gold" />
                   <span>بيان وتسوية مصروفات الميزانية (اختياري للمهمة)</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowExpenseBox(!showExpenseBox)}
-                  className="text-[11px] font-bold text-cyber-blue hover:underline"
+                  className="text-[11px] font-bold text-lord-gold hover:underline"
                 >
                   {showExpenseBox
                     ? 'إخفاء ▲'
@@ -338,7 +338,7 @@ export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
               </div>
 
               {selectedTask.budgetSettlement?.isSettled && !showExpenseBox && (
-                <div className="p-2.5 rounded-lg bg-cyber-blue/10 border border-cyber-blue/30 text-xs text-cyber-blue flex items-center justify-between gap-2">
+                <div className="p-2.5 rounded-lg bg-lord-gold/10 border border-lord-gold/30 text-xs text-lord-gold flex items-center justify-between gap-2">
                   <div>
                     <span className="font-bold block">
                       تم توثيق بيان الصرف: ${selectedTask.budgetSettlement.spentAmount} USDT

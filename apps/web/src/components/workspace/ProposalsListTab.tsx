@@ -42,7 +42,7 @@ export const ProposalsListTab: React.FC<ProposalsListTabProps> = ({
                 <span>تفريغ وهيكلة صوتية TheLord AI Voice-to-Task</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded-xl bg-obsidian-primary/60 border border-gray-800">
-                <span className="w-6 h-6 rounded-lg bg-cyber-blue/15 text-cyber-blue flex items-center justify-center font-bold text-xs">📋</span>
+                <span className="w-6 h-6 rounded-lg bg-lord-gold/15 text-lord-gold flex items-center justify-center font-bold text-xs">📋</span>
                 <span>بناء مراحل تنفيذ تفصيلية وشروط استلام المخرجات</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded-xl bg-obsidian-primary/60 border border-gray-800">
@@ -50,7 +50,7 @@ export const ProposalsListTab: React.FC<ProposalsListTabProps> = ({
                 <span>طلب ميزانية معتمدة وصرفها عبر USDT أو جيب/جوالي</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded-xl bg-obsidian-primary/60 border border-gray-800">
-                <span className="w-6 h-6 rounded-lg bg-purple-500/15 text-purple-400 flex items-center justify-center font-bold text-xs">👥</span>
+                <span className="w-6 h-6 rounded-lg bg-gray-800 text-gray-300 flex items-center justify-center font-bold text-xs">👥</span>
                 <span>تنفيذ ذاتي 🙋‍♂️ أو تكليف زملاء الكادر وإشعارهم لحظياً</span>
               </div>
             </div>
@@ -120,7 +120,7 @@ export const ProposalsListTab: React.FC<ProposalsListTabProps> = ({
                         ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                         : t.status === 'REJECTED'
                         ? 'bg-red-500/15 text-red-400 border-red-500/30'
-                        : 'bg-cyber-blue/15 text-cyber-blue border-cyber-blue/30'
+                        : 'bg-lord-gold/15 text-lord-gold border-lord-gold/30'
                     }`}
                   >
                     {t.status === 'PENDING_ADMIN_REVIEW'

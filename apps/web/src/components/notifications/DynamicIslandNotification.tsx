@@ -169,20 +169,20 @@ export const DynamicIslandNotification: React.FC = () => {
       case 'TASK':
         return {
           icon: CheckSquare,
-          glow: 'shadow-[0_0_25px_rgba(6,182,212,0.4)] border-cyan-500/50',
-          accent: 'text-cyan-400',
-          badgeBg: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40',
+          glow: 'shadow-gold-glow border-lord-gold/50',
+          accent: 'text-lord-gold',
+          badgeBg: 'bg-lord-gold/15 text-lord-gold border border-lord-gold/30',
           label: 'المهام والمشاريع',
-          btnBg: 'bg-cyan-500 text-black hover:bg-cyan-400'
+          btnBg: 'bg-lord-gold text-black hover:bg-lord-gold/90'
         };
       case 'CHAT':
         return {
           icon: MessageSquare,
-          glow: 'shadow-[0_0_25px_rgba(168,85,247,0.4)] border-purple-500/50',
-          accent: 'text-purple-400',
-          badgeBg: 'bg-purple-500/20 text-purple-300 border border-purple-500/40',
+          glow: 'shadow-gold-glow border-lord-gold/50',
+          accent: 'text-lord-gold',
+          badgeBg: 'bg-lord-gold/15 text-lord-gold border border-lord-gold/30',
           label: 'محادثة مباشرة',
-          btnBg: 'bg-purple-600 text-white hover:bg-purple-500'
+          btnBg: 'bg-lord-gold text-black hover:bg-lord-gold/90'
         };
       case 'URGENT':
         return {

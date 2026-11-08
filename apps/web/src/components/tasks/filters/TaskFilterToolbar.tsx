@@ -56,7 +56,7 @@ export const TaskFilterToolbar: React.FC<TaskFilterToolbarProps> = ({
             onClick={() => setActiveView('board')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${
               activeView === 'board'
-                ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
+                ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -69,7 +69,7 @@ export const TaskFilterToolbar: React.FC<TaskFilterToolbarProps> = ({
             onClick={() => setActiveView('list')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${
               activeView === 'list'
-                ? 'bg-blue-600 text-white shadow-blue-glow'
+                ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -82,7 +82,7 @@ export const TaskFilterToolbar: React.FC<TaskFilterToolbarProps> = ({
             onClick={() => setActiveView('timeline')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${
               activeView === 'timeline'
-                ? 'bg-purple-600 text-white'
+                ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -95,7 +95,7 @@ export const TaskFilterToolbar: React.FC<TaskFilterToolbarProps> = ({
             onClick={() => setActiveView('analytics')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all ${
               activeView === 'analytics'
-                ? 'bg-emerald-500 text-white'
+                ? 'bg-lord-gold text-black font-black shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -169,7 +169,7 @@ export const TaskFilterToolbar: React.FC<TaskFilterToolbarProps> = ({
           onClick={() => setOnlyDailyFilter(!onlyDailyFilter)}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap ${
             onlyDailyFilter
-              ? 'bg-purple-600 text-white border-purple-500 shadow-md'
+              ? 'bg-lord-gold text-black font-black border-lord-gold shadow-md'
               : 'bg-obsidian-surface text-gray-400 border-gray-800 hover:text-white'
           }`}
         >

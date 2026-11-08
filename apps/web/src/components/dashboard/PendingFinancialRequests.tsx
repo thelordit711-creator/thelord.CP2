@@ -118,7 +118,7 @@ export const PendingFinancialRequests: React.FC<PendingFinancialRequestsProps> =
                 <p className="text-xs text-gray-400">
                   المقدم: <strong className="text-gray-200">{req.createdBy?.fullName || 'عضو'}</strong> |
                   المبلغ: <strong className="text-emerald-400 font-mono font-bold">{req.financialRequirement?.amount} USDT</strong> |
-                  الوسيلة المطلوبة: <strong className="text-cyber-blue font-mono">{req.financialRequirement?.payoutMethodRequested}</strong>
+                  الوسيلة المطلوبة: <strong className="text-lord-gold font-mono">{req.financialRequirement?.payoutMethodRequested}</strong>
                 </p>
                 {req.financialRequirement?.justification && (
                   <p className="text-xs text-gray-400 mt-1 italic">
@@ -233,12 +233,12 @@ export const PendingFinancialRequests: React.FC<PendingFinancialRequestsProps> =
                   onClick={() => setChosenSegment('marketing')}
                   className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                     chosenSegment === 'marketing'
-                      ? 'bg-cyber-blue/15 border-cyber-blue text-white shadow-md'
+                      ? 'bg-lord-gold/15 border-lord-gold text-white shadow-md'
                       : 'bg-gray-900/60 border-gray-800 hover:border-gray-700 text-gray-300'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <TrendingUp className={`w-5 h-5 ${chosenSegment === 'marketing' ? 'text-cyber-blue' : 'text-gray-400'}`} />
+                    <TrendingUp className={`w-5 h-5 ${chosenSegment === 'marketing' ? 'text-lord-gold' : 'text-gray-400'}`} />
                     <div>
                       <div className="text-xs font-bold text-white">صندوق التسويق والإعلانات</div>
                       <div className="text-[10px] text-gray-400">إعلانات التليجرام الرسمية، ترويج القنوات، والحملات</div>
@@ -257,12 +257,12 @@ export const PendingFinancialRequests: React.FC<PendingFinancialRequestsProps> =
                   onClick={() => setChosenSegment('operationalReserve')}
                   className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                     chosenSegment === 'operationalReserve'
-                      ? 'bg-purple-500/15 border-purple-500 text-white shadow-md'
+                      ? 'bg-lord-gold/15 border-lord-gold text-white shadow-md'
                       : 'bg-gray-900/60 border-gray-800 hover:border-gray-700 text-gray-300'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Cpu className={`w-5 h-5 ${chosenSegment === 'operationalReserve' ? 'text-purple-400' : 'text-gray-400'}`} />
+                    <Cpu className={`w-5 h-5 ${chosenSegment === 'operationalReserve' ? 'text-lord-gold' : 'text-gray-400'}`} />
                     <div>
                       <div className="text-xs font-bold text-white">صندوق الاحتياطي التقني والتشغيلي</div>
                       <div className="text-[10px] text-gray-400">اشتراكات السيرفرات، أدوات التحليل، والنفقات العامة</div>

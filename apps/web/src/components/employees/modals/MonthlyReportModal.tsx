@@ -116,7 +116,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
               variant="outline"
               size="sm"
               onClick={handleExportCSV}
-              className="text-xs text-cyber-blue border-cyber-blue/40 hover:bg-cyber-blue/10"
+              className="text-xs text-lord-gold border-lord-gold/40 hover:bg-lord-gold/10"
             >
               <Download className="w-3.5 h-3.5 ml-1" />
               <span>تصدير Excel/CSV</span>
@@ -194,9 +194,9 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
                 <span className="text-[9px] text-emerald-500 block">تم تحويله بنجاح</span>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-obsidian-card border border-cyber-blue/30 print:border-gray-300">
+              <div className="p-3.5 rounded-2xl bg-obsidian-card border border-gray-800 print:border-gray-300">
                 <span className="text-[10px] text-gray-400 block print:text-gray-600">البدلات المقررة (نت/اتصالات)</span>
-                <span className="text-base sm:text-lg font-black text-cyber-blue font-mono print:text-black">
+                <span className="text-base sm:text-lg font-black text-white font-mono print:text-black">
                   ${(report?.allowances || []).reduce((s: number, a: any) => s + (a.isActive ? a.amount : 0), 0)}
                 </span>
                 <span className="text-[9px] text-gray-500 block">بدلات دورية</span>
@@ -253,7 +253,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
                           <td className="py-2.5 px-3 font-mono font-black text-white print:text-black">
                             ${order.amount} {order.currency}
                           </td>
-                          <td className="py-2.5 px-3 text-cyber-blue font-mono text-[11px] print:text-black">
+                          <td className="py-2.5 px-3 text-gray-300 font-mono text-[11px] print:text-black">
                             {order.payoutMethod}
                           </td>
                           <td className="py-2.5 px-3">

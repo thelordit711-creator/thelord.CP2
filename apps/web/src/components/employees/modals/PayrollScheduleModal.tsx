@@ -211,7 +211,7 @@ export const PayrollScheduleModal: React.FC<PayrollScheduleModalProps> = ({
                 onClick={() => setCycleType('MONTHLY_FULL')}
                 className={`px-3 py-1 rounded-lg font-bold transition-all ${
                   cycleType === 'MONTHLY_FULL'
-                    ? 'bg-purple-600 text-white shadow-sm'
+                    ? 'bg-lord-gold text-black font-black shadow-sm'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -260,9 +260,9 @@ export const PayrollScheduleModal: React.FC<PayrollScheduleModalProps> = ({
         </div>
 
         {/* Quick Tranche Actions for Admin */}
-        <div className="p-4 rounded-2xl bg-obsidian-card border border-cyber-blue/30 space-y-3">
+        <div className="p-4 rounded-2xl bg-obsidian-card border border-lord-gold/30 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-cyber-blue flex items-center gap-1.5">
+            <span className="text-xs font-bold text-lord-gold flex items-center gap-1.5">
               <Coins className="w-4 h-4" />
               <span>إصدار أوامر الصرف الفورية للخزينة:</span>
             </span>

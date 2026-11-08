@@ -135,7 +135,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         {/* Budget & Spend Hard Ceiling Indicator */}
         <div className="p-3 bg-obsidian-surface/60 rounded-2xl border border-gray-800 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-cyber-blue">سقف ميزانية المشروع:</span>
+            <span className="font-bold text-lord-gold">سقف ميزانية المشروع:</span>
             <span className="font-mono text-white font-bold">
               ${(project.spentBudget || 0).toLocaleString()} / ${(project.allocatedBudget || 0).toLocaleString()} USDT
             </span>

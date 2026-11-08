@@ -568,10 +568,10 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         </div>
 
         {/* QUICK PRESETS & DAILY ROUTINE SHORTCUTS */}
-        <div className="p-4 bg-gradient-to-r from-obsidian-card via-purple-950/20 to-obsidian-card rounded-2xl border border-purple-500/30 space-y-2.5">
+        <div className="p-4 bg-[#0a0d16] rounded-2xl border border-gray-800 space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-              <Repeat className="w-4 h-4 text-purple-400" />
+            <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+              <Repeat className="w-4 h-4 text-lord-gold" />
               قوالب المهام اليومية الروتينية (بنقرة واحدة):
             </span>
             <span className="text-[10px] text-gray-400">تعبئة وتحديث تلقائي</span>
@@ -779,7 +779,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                   onClick={() => setAssignmentMode('DEPARTMENT')}
                   className={`px-3 py-1 rounded-lg font-bold transition-all ${
                     assignmentMode === 'DEPARTMENT'
-                      ? 'bg-purple-600 text-white shadow-sm'
+                      ? 'bg-lord-gold text-black font-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
@@ -847,7 +847,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                   <option value="SUPPORT">🛡️ قسم خدمة العملاء والدعم الفني (SUPPORT)</option>
                   <option value="ALL_DEPARTMENTS">🌐 كافة أقسام وكوادر المنظومة (ALL)</option>
                 </select>
-                <p className="text-[11px] text-purple-300 font-semibold">
+                <p className="text-[11px] text-gray-400 font-semibold">
                   🏢 سيتم إدراج المهمة تلقائياً في جداول عمل جميع أعضاء هذا القسم.
                 </p>
               </div>
@@ -862,10 +862,10 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                   type="checkbox"
                   checked={isDailyRecurring}
                   onChange={e => setIsDailyRecurring(e.target.checked)}
-                  className="rounded text-purple-500 w-4 h-4"
+                  className="rounded text-lord-gold w-4 h-4 accent-lord-gold"
                 />
                 <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Repeat className="w-3.5 h-3.5 text-purple-400" />
+                  <Repeat className="w-3.5 h-3.5 text-lord-gold" />
                   <span>مهمة روتينية يومية متكررة (Daily Routine Task)</span>
                 </span>
               </label>

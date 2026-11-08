@@ -42,11 +42,11 @@ export const AccountingReportsModal: React.FC<AccountingReportsModalProps> = ({
 
   return (
     <AppModalPortal isOpen={isOpen} onClose={onClose} maxWidthClassName="max-w-4xl">
-      <div className="bg-[#090c15] border-2 border-cyber-blue/60 rounded-3xl p-6 sm:p-8 text-white text-right space-y-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#090c15] border-2 border-lord-gold/30 rounded-3xl p-6 sm:p-8 text-white text-right space-y-6 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-cyber-blue/15 border border-cyber-blue/40 flex items-center justify-center text-cyber-blue">
+            <div className="w-11 h-11 rounded-2xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
               <BarChart3 className="w-6 h-6" />
             </div>
             <div>
@@ -91,7 +91,7 @@ export const AccountingReportsModal: React.FC<AccountingReportsModalProps> = ({
 
               <div className="p-3.5 rounded-2xl bg-obsidian-surface border border-gray-800">
                 <span className="text-[11px] text-gray-400 block font-bold">رصيد صندوق الصرف</span>
-                <span className="text-base font-black text-cyber-blue font-mono mt-0.5">
+                <span className="text-base font-black text-lord-gold font-mono mt-0.5">
                   ${(overview?.treasuryBalance ?? 0).toLocaleString()} USDT
                 </span>
               </div>
@@ -152,13 +152,13 @@ export const AccountingReportsModal: React.FC<AccountingReportsModalProps> = ({
                         title: 'الإعلانات وترويج قنوات التليجرام (ADS)',
                         vault: 'صندوق التسويق',
                         amount: categories?.ads ?? 0,
-                        color: 'text-cyber-blue'
+                        color: 'text-lord-gold'
                       },
                       {
                         title: 'الاشتراكات البرمجية والتطبيقات (SOFTWARE)',
                         vault: 'صندوق الاحتياطي',
                         amount: categories?.software ?? 0,
-                        color: 'text-purple-400'
+                        color: 'text-gray-300'
                       },
                       {
                         title: 'المصروفات التشغيلية والبدلات (OTHER)',

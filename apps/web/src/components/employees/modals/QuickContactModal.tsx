@@ -100,7 +100,7 @@ export const QuickContactModal: React.FC<QuickContactModalProps> = ({
               className="w-full p-3.5 rounded-2xl bg-gray-900/80 hover:bg-amber-500/10 border border-gray-800 hover:border-amber-500/40 transition-all flex items-center justify-between group"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform">
+                <div className="w-9 h-9 rounded-xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold group-hover:scale-105 transition-transform">
                   <Phone className="w-4 h-4" />
                 </div>
                 <div className="text-right">

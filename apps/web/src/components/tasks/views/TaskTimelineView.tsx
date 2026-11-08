@@ -17,7 +17,7 @@ export const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({
     <div className="bg-obsidian-card border border-obsidian-border rounded-3xl p-6 shadow-2xl space-y-6">
       <div className="flex items-center justify-between border-b border-gray-800 pb-3 flex-wrap gap-2">
         <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-purple-400" />
+          <Calendar className="w-4 h-4 text-lord-gold" />
           <span>المخطط الزمني للمهام والمراحل التنفيذية (Gantt View)</span>
         </h3>
         <span className="text-xs text-gray-400">تتبع تقدم مراحل الفريق أسبوعياً</span>
@@ -40,7 +40,7 @@ export const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({
                   <span className="font-bold text-white">{task.title}</span>
                   <Badge variant="gold">{task.targetPlatform}</Badge>
                   {task.isDailyRecurring && (
-                    <span className="px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-bold">
+                    <span className="px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-[10px] font-mono">
                       روتين يومي
                     </span>
                   )}

@@ -225,25 +225,25 @@ export default function EmployeesPage() {
           <button
             type="button"
             onClick={() => setStatusFilter('ACTIVE')}
-            className={`px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1 ${
+            className={`px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
               statusFilter === 'ACTIVE'
-                ? 'bg-emerald-500 text-black font-black shadow-xs'
-                : 'text-gray-400 hover:text-emerald-400'
+                ? 'bg-lord-gold text-black font-black shadow-xs'
+                : 'text-gray-400 hover:text-white'
             }`}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === 'ACTIVE' ? 'bg-black' : 'bg-emerald-400'}`} />
             <span>مصرّح</span>
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('SUSPENDED')}
-            className={`px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1 ${
+            className={`px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
               statusFilter === 'SUSPENDED'
-                ? 'bg-red-500 text-white font-black shadow-xs'
-                : 'text-gray-400 hover:text-red-400'
+                ? 'bg-lord-gold text-black font-black shadow-xs'
+                : 'text-gray-400 hover:text-white'
             }`}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+            <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === 'SUSPENDED' ? 'bg-black' : 'bg-red-400'}`} />
             <span>محظور</span>
           </button>
         </div>

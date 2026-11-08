@@ -57,7 +57,7 @@ export const PersonalStatementTab: React.FC<PersonalStatementTabProps> = ({ stat
                   <td className="py-3 px-4 font-bold text-white">
                     {entry.amount ? `${entry.amount} USDT` : '—'}
                   </td>
-                  <td className="py-3 px-4 text-cyber-blue font-mono">
+                  <td className="py-3 px-4 text-gray-300 font-mono">
                     {entry.payoutMethodUsed}
                   </td>
                   <td className="py-3 px-4 text-gray-300">{entry.reason}</td>

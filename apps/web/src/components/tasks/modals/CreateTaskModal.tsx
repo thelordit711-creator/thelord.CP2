@@ -486,10 +486,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         </div>
 
         {/* QUICK PRESETS & DAILY ROUTINE SHORTCUTS */}
-        <div className="p-4 bg-gradient-to-r from-obsidian-card via-purple-950/20 to-obsidian-card rounded-2xl border border-purple-500/30 space-y-2.5">
+        <div className="p-4 bg-[#0a0d16] rounded-2xl border border-gray-800 space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-              <Repeat className="w-4 h-4 text-purple-400 animate-spin-slow" />
+            <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+              <Repeat className="w-4 h-4 text-lord-gold" />
               قوالب المهام اليومية الروتينية (بنقرة واحدة):
             </span>
             <span className="text-[10px] text-gray-400">تعبئة وإسناد تلقائي</span>
@@ -686,7 +686,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                     onClick={() => setAssignmentMode('SELF')}
                     className={`px-3 py-1 rounded-lg font-bold transition-all ${
                       assignmentMode === 'SELF'
-                        ? 'bg-cyber-blue text-white shadow-sm'
+                        ? 'bg-lord-gold text-black font-black shadow-sm'
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
@@ -698,7 +698,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   onClick={() => setAssignmentMode('EMPLOYEES')}
                   className={`px-3 py-1 rounded-lg font-bold transition-all ${
                     assignmentMode === 'EMPLOYEES'
-                      ? 'bg-lord-gold text-obsidian-primary shadow-sm'
+                      ? 'bg-lord-gold text-black font-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
@@ -709,7 +709,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   onClick={() => setAssignmentMode('DEPARTMENT')}
                   className={`px-3 py-1 rounded-lg font-bold transition-all ${
                     assignmentMode === 'DEPARTMENT'
-                      ? 'bg-purple-600 text-white shadow-sm'
+                      ? 'bg-lord-gold text-black font-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
@@ -719,18 +719,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
 
             {assignmentMode === 'SELF' ? (
-              <div className="p-3.5 rounded-xl bg-obsidian-primary/80 border border-cyber-blue/30 space-y-2">
-                <div className="flex items-center gap-2 text-cyber-blue font-bold text-xs">
-                  <CheckCircle className="w-4 h-4 text-cyber-blue" />
+              <div className="p-3.5 rounded-xl bg-obsidian-primary/80 border border-lord-gold/30 space-y-2">
+                <div className="flex items-center gap-2 text-lord-gold font-bold text-xs">
+                  <CheckCircle className="w-4 h-4 text-lord-gold" />
                   <span>مبادرة وتنفيذ ذاتي: ستقوم بتنفيذ هذه المهمة ومراحلها بنفسك 🙋‍♂️</span>
                 </div>
                 <p className="text-[11px] text-gray-400 leading-relaxed">
                   سيتم تسجيلك كمنفذ رئيسي للمهمة، وفور مراجعة واعتماد الإدارة للمقترح، ستظهر مباشرة في قائمة مهامك اليومية النشطة لبدء رفع المخرجات والمراحل.
                 </p>
                 {currentUser && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyber-blue/10 border border-cyber-blue/20 text-xs text-white">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-lord-gold/10 border border-lord-gold/20 text-xs text-white">
                     <span className="text-gray-400">المنفذ المقترح:</span>
-                    <strong className="text-cyber-blue">{currentUser.fullName}</strong>
+                    <strong className="text-lord-gold">{currentUser.fullName}</strong>
                     <span className="text-[10px] text-gray-400 font-mono">({currentUser.primaryDepartment || 'كادر TheLord'})</span>
                   </div>
                 )}
@@ -794,7 +794,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   <option value="SUPPORT">🛡️ قسم خدمة العملاء والدعم الفني (SUPPORT)</option>
                   <option value="ALL_DEPARTMENTS">🌐 كافة أقسام وكوادر المنظومة (ALL)</option>
                 </select>
-                <p className="text-[11px] text-purple-300 font-semibold">
+                <p className="text-[11px] text-gray-400 font-semibold">
                   🏢 سيتم إدراج المهمة تلقائياً في جداول عمل جميع أعضاء هذا القسم.
                 </p>
               </div>
@@ -809,10 +809,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   type="checkbox"
                   checked={isDailyRecurring}
                   onChange={e => setIsDailyRecurring(e.target.checked)}
-                  className="rounded text-purple-500 w-4 h-4"
+                  className="rounded text-lord-gold w-4 h-4 accent-lord-gold"
                 />
                 <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Repeat className="w-3.5 h-3.5 text-purple-400" />
+                  <Repeat className="w-3.5 h-3.5 text-lord-gold" />
                   <span>مهمة روتينية يومية متكررة (Daily Routine Task)</span>
                 </span>
               </label>

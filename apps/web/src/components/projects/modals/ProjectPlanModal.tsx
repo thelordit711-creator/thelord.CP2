@@ -137,8 +137,8 @@ export const ProjectPlanModal: React.FC<ProjectPlanModalProps> = ({
 
           {/* Tools & Resources */}
           <div className="p-4 bg-obsidian-card rounded-2xl border border-gray-800 space-y-2">
-            <span className="font-bold text-purple-400 flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-purple-400" />
+            <span className="font-bold text-lord-gold flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-lord-gold" />
               <span>الوسائل والأدوات التقنية:</span>
             </span>
             <ul className="text-gray-300 space-y-1.5 list-disc list-inside">
