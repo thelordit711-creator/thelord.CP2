@@ -290,7 +290,9 @@ export default function ProfilePage() {
         </div>
 
         {/* Zero-Trust Two-Factor Authentication (2FA) Module */}
-        <TwoFactorAuthCard />
+        <div className="lg:col-span-3">
+          <TwoFactorAuthCard />
+        </div>
       </div>
     </div>
   );

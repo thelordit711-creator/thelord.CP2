@@ -86,17 +86,17 @@ export const TwoFactorAuthCard: React.FC = () => {
 
   return (
     <div className="bg-obsidian-card border border-lord-gold/30 rounded-3xl p-6 shadow-xl relative overflow-hidden space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-800">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
             isEnabled
               ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-400'
               : 'bg-amber-500/15 border border-amber-500/40 text-amber-400'
           }`}>
             {isEnabled ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
           </div>
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
+          <div className="min-w-0">
+            <h3 className="text-sm sm:text-base font-bold text-white flex flex-wrap items-center gap-2">
               <span>الأمن المتقدم والتحقق الثنائي (2FA / TOTP)</span>
               {isEnabled ? (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-emerald-500/30">
@@ -114,14 +114,14 @@ export const TwoFactorAuthCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 w-full sm:w-auto flex justify-end">
           {isEnabled ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setIsDisableModalOpen(true)}
-              className="text-xs text-red-400 border-red-500/40 hover:bg-red-500/10 rounded-xl"
+              className="text-xs text-red-400 border-red-500/40 hover:bg-red-500/10 rounded-xl w-full sm:w-auto"
             >
               تعطيل التحقق الثنائي
             </Button>
@@ -132,7 +132,7 @@ export const TwoFactorAuthCard: React.FC = () => {
               size="sm"
               disabled={isGenerating}
               onClick={handleStartSetup}
-              className="text-xs font-bold rounded-xl shadow-gold-glow flex items-center gap-1.5"
+              className="text-xs font-bold rounded-xl shadow-gold-glow flex items-center justify-center gap-1.5 w-full sm:w-auto"
             >
               <QrCode className="w-4 h-4 text-obsidian-primary" />
               <span>{isGenerating ? 'جاري التجهيز...' : 'تفعيل التحقق الثنائي الآن ⚡'}</span>
