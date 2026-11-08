@@ -149,3 +149,4 @@ export const ConfirmDeleteTransactionModal: React.FC<ConfirmDeleteTransactionMod
     </AppModalPortal>
   );
 };
+

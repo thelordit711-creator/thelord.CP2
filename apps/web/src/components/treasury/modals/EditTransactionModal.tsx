@@ -182,3 +182,4 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     </AppModalPortal>
   );
 };
+
