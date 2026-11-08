@@ -130,3 +130,4 @@ export const FinancialMetricsGrid: React.FC<FinancialMetricsGridProps> = ({
     </div>
   );
 };
+

@@ -61,7 +61,12 @@ export class AccountingService {
    * Feed/Transfer funds from General Budget to Treasury Balance
    * Invariant: any addition to Treasury is deducted from General Budget
    */
-  public static async fundTreasuryFromGeneralBudget(amount: number, reason: string, adminId: string) {
+  public static async fundTreasuryFromGeneralBudget(
+    amount: number,
+    reason: string,
+    adminId: string,
+    targetSegment?: 'salaries' | 'marketing' | 'operationalReserve'
+  ) {
     if (amount <= 0) {
       throw new Error('المبلغ المطلوب تحويله لتغذية الصندوق يجب أن يكون أكبر من الصفر');
     }
@@ -76,12 +81,29 @@ export class AccountingService {
     vault.generalBudget -= amount;
     vault.treasuryBalance += amount;
 
+    // Credit the specific sub-vault segment if specified
+    if (targetSegment && vault.segmentedVaults && vault.segmentedVaults[targetSegment]) {
+      vault.segmentedVaults[targetSegment].balance += amount;
+      if (vault.segmentedVaults[targetSegment].balance > vault.segmentedVaults[targetSegment].monthlyAllocated) {
+        vault.segmentedVaults[targetSegment].monthlyAllocated = vault.segmentedVaults[targetSegment].balance;
+      }
+    }
+
+    const segmentLabel =
+      targetSegment === 'salaries'
+        ? ' (صندوق الرواتب والأجور)'
+        : targetSegment === 'marketing'
+        ? ' (صندوق التسويق والإعلانات)'
+        : targetSegment === 'operationalReserve'
+        ? ' (صندوق الاحتياطي التقني والتشغيلي)'
+        : '';
+
     vault.manualAdjustmentsLog.push({
       adjustedBy: adminId as any,
       targetBalance: 'TRANSFER_BETWEEN_BUDGETS',
       operation: 'FUND_TREASURY',
       amount,
-      reason: reason || 'تغذية رصيد الصندوق المتاح للصرف بالخصم من الميزانية العامة',
+      reason: (reason || 'تغذية رصيد الصندوق المتاح للصرف بالخصم من الميزانية العامة') + segmentLabel,
       createdAt: new Date()
     });
 

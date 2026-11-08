@@ -164,3 +164,4 @@ export const ProposalsListTab: React.FC<ProposalsListTabProps> = ({
     </div>
   );
 };
+

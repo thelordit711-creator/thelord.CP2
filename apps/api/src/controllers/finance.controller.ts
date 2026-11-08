@@ -143,7 +143,7 @@ export class FinanceController {
       let vault;
 
       if (body.actionType === 'FUND_TREASURY') {
-        vault = await AccountingService.fundTreasuryFromGeneralBudget(amount, body.reason, adminId);
+        vault = await AccountingService.fundTreasuryFromGeneralBudget(amount, body.reason, adminId, body.targetSegment);
       } else if (body.actionType === 'RETURN_TO_BUDGET') {
         vault = await AccountingService.returnFromTreasuryToGeneralBudget(amount, body.reason, adminId);
       } else if (body.actionType === 'DEPOSIT_GENERAL_BUDGET') {

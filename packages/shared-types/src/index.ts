@@ -535,6 +535,7 @@ export interface IAdjustVaultBalanceDto {
   targetBalance?: 'GENERAL_BUDGET' | 'TREASURY_BALANCE' | 'TRANSFER_BETWEEN_BUDGETS';
   operation?: 'INCREASE' | 'DECREASE' | 'SET' | 'FUND_TREASURY' | 'RETURN_TO_BUDGET' | 'DEPOSIT';
   actionType?: 'DEPOSIT_GENERAL_BUDGET' | 'FUND_TREASURY' | 'RETURN_TO_BUDGET' | 'MANUAL_ADJUST';
+  targetSegment?: 'salaries' | 'marketing' | 'operationalReserve';
   amount: number;
   reason: string;
 }

@@ -16,6 +16,8 @@ interface VaultLiquidityModalProps {
   setAdjustAmount: (val: number) => void;
   adjustReason: string;
   setAdjustReason: (val: string) => void;
+  targetSegment?: 'salaries' | 'marketing' | 'operationalReserve';
+  setTargetSegment?: (seg?: 'salaries' | 'marketing' | 'operationalReserve') => void;
   isAdjusting: boolean;
   onSubmit: (e: React.FormEvent) => void;
 }
@@ -30,6 +32,8 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
   setAdjustAmount,
   adjustReason,
   setAdjustReason,
+  targetSegment,
+  setTargetSegment,
   isAdjusting,
   onSubmit
 }) => {
@@ -139,6 +143,60 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
                 </>
               )}
             </div>
+
+            {activeTab === 'FUND_TREASURY' && setTargetSegment && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                  توجيه السيولة لصندوق محدد (اختياري):
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTargetSegment(undefined)}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                      !targetSegment
+                        ? 'bg-cyber-blue text-white border-cyber-blue shadow-xs'
+                        : 'bg-obsidian-primary text-gray-400 border-gray-800 hover:text-white'
+                    }`}
+                  >
+                    عام (الصندوق ككل)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetSegment('salaries')}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                      targetSegment === 'salaries'
+                        ? 'bg-amber-500 text-obsidian-primary border-amber-500 shadow-xs'
+                        : 'bg-obsidian-primary text-gray-400 border-gray-800 hover:text-white'
+                    }`}
+                  >
+                    الرواتب والأجور 💼
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetSegment('marketing')}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                      targetSegment === 'marketing'
+                        ? 'bg-cyber-blue text-white border-cyber-blue shadow-xs'
+                        : 'bg-obsidian-primary text-gray-400 border-gray-800 hover:text-white'
+                    }`}
+                  >
+                    التسويق 📣
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetSegment('operationalReserve')}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                      targetSegment === 'operationalReserve'
+                        ? 'bg-emerald-500 text-obsidian-primary border-emerald-500 shadow-xs'
+                        : 'bg-obsidian-primary text-gray-400 border-gray-800 hover:text-white'
+                    }`}
+                  >
+                    الاحتياطي التشغيلي 🛡️
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1.5">

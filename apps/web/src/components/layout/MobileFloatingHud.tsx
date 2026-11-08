@@ -178,3 +178,4 @@ export const MobileFloatingHud: React.FC<MobileFloatingHudProps> = ({
     </>
   );
 };
+

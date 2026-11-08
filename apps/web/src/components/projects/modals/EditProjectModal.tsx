@@ -183,3 +183,4 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
     </AppModalPortal>
   );
 };
+

@@ -166,3 +166,4 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     </AppModalPortal>
   );
 };
+

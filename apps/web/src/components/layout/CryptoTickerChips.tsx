@@ -19,3 +19,4 @@ export const CryptoTickerChips: React.FC = () => {
     </div>
   );
 };
+

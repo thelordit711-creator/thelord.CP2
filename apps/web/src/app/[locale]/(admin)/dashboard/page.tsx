@@ -34,6 +34,7 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'FUND_TREASURY' | 'DEPOSIT_BUDGET' | 'RETURN_BUDGET'>('FUND_TREASURY');
   const [adjustAmount, setAdjustAmount] = useState<number>(1000);
   const [adjustReason, setAdjustReason] = useState<string>('تغذية رصيد الصندوق بالخصم من الميزانية العامة للشركة');
+  const [targetSegment, setTargetSegment] = useState<'salaries' | 'marketing' | 'operationalReserve' | undefined>(undefined);
 
   // Staff Monitoring State
   const [staffList, setStaffList] = useState<StaffStatusItem[]>([]);
@@ -159,6 +160,7 @@ export default function AdminDashboardPage() {
 
       await adjustVault({
         actionType,
+        targetSegment: activeTab === 'FUND_TREASURY' ? targetSegment : undefined,
         amount,
         reason: adjustReason.trim() || 'إدارة سيولة الخزينة'
       }).unwrap();
@@ -286,6 +288,8 @@ export default function AdminDashboardPage() {
         setAdjustAmount={setAdjustAmount}
         adjustReason={adjustReason}
         setAdjustReason={setAdjustReason}
+        targetSegment={targetSegment}
+        setTargetSegment={setTargetSegment}
         isAdjusting={isAdjusting}
         onSubmit={handleAdjustSubmit}
       />
