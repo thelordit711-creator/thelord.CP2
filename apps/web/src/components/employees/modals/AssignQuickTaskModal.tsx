@@ -3,13 +3,40 @@
 import React, { useState } from 'react';
 import { AppModalPortal } from '../../ui/AppModalPortal';
 import { useCreateOrProposeTaskMutation } from '../../../store/api/tasksApi';
-import { CheckSquare, Coins, AlertCircle, X, Send } from 'lucide-react';
+import {
+  CheckSquare,
+  Coins,
+  AlertCircle,
+  X,
+  Send,
+  Layers,
+  Plus,
+  Trash2,
+  Clock,
+  Sparkles,
+  TrendingUp,
+  Share2,
+  Code2,
+  Zap,
+  Calendar,
+  Wallet
+} from 'lucide-react';
 import { lordToast } from '../../../lib/lordToast';
 
 interface AssignQuickTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   employee: any;
+}
+
+type DeliverableType = 'IMAGE' | 'URL' | 'TEXT' | 'DOCUMENT' | 'CODE_SNIPPET' | 'VIDEO';
+
+interface QuickStageItem {
+  stageOrder: number;
+  stageTitle: string;
+  instructions: string;
+  expectedType: DeliverableType;
+  fieldLabel: string;
 }
 
 export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
@@ -21,8 +48,158 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('HIGH');
+  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('HIGH');
+  const [dueDate, setDueDate] = useState<string>('');
   const [budgetAmount, setBudgetAmount] = useState<number | ''>('');
+  const [payoutMethod, setPayoutMethod] = useState<'BEP20_USDT' | 'JEEB_WALLET' | 'JAWALI_WALLET'>('BEP20_USDT');
+
+  // Dynamic Stages
+  const [stages, setStages] = useState<QuickStageItem[]>([
+    {
+      stageOrder: 1,
+      stageTitle: 'المرحلة 1: التنفيذ وإرفاق المخرجات المباشرة',
+      instructions: 'إنجاز متطلبات المهمة بدقة وإرفاق الإثبات أو رابط المخرجات',
+      expectedType: 'IMAGE',
+      fieldLabel: 'مرفق أو إثبات إنجاز المرحلة'
+    }
+  ]);
+
+  // Presets Templates
+  const applyStageTemplate = (type: 'SINGLE' | 'TRADING' | 'MEDIA' | 'DEV') => {
+    if (type === 'SINGLE') {
+      setStages([
+        {
+          stageOrder: 1,
+          stageTitle: 'المرحلة 1: التنفيذ وإرفاق المخرجات المباشرة',
+          instructions: 'إنجاز متطلبات المهمة بدقة وإرفاق الإثبات أو رابط المخرجات',
+          expectedType: 'IMAGE',
+          fieldLabel: 'مرفق أو إثبات إنجاز المرحلة'
+        }
+      ]);
+      lordToast.gold('قالب المراحل', 'تم تطبيق قالب المرحلة الواحدة السريعة ⚡');
+    } else if (type === 'TRADING') {
+      if (!title) setTitle('تحليل فني وصفقة تداول احترافية 📈');
+      setStages([
+        {
+          stageOrder: 1,
+          stageTitle: 'تحضير التحليل الفني ولقطة الشارت',
+          instructions: 'تحديد مستويات الدخول، أمر الوقف (SL)، والأهداف بدقة عالية مع نسبة مخاطرة 1:3',
+          expectedType: 'IMAGE',
+          fieldLabel: 'لقطة شاشة الشارت والتحليل الفني'
+        },
+        {
+          stageOrder: 2,
+          stageTitle: 'صياغة التوصية والتقرير الإرشادي',
+          instructions: 'كتابة نص التوصية متضمناً شروط الدخول وإدارة رأس المال بدقة للمشتركين',
+          expectedType: 'TEXT',
+          fieldLabel: 'نص التوصية والتعليمات المكتوبة'
+        },
+        {
+          stageOrder: 3,
+          stageTitle: 'النشر في القناة ومتابعة النتائج',
+          instructions: 'نشر التوصية في القناة المخصصة ومتابعة ضرب الأهداف وتحديث المشتركين',
+          expectedType: 'URL',
+          fieldLabel: 'رابط المنشور الرسمي في القناة'
+        }
+      ]);
+      lordToast.gold('قالب التداول', 'تم تطبيق قالب مهام التداول والشارتات (3 مراحل) 📈');
+    } else if (type === 'MEDIA') {
+      if (!title) setTitle('إنتاج ونشر محتوى ترويجي للقنوات 📱');
+      setStages([
+        {
+          stageOrder: 1,
+          stageTitle: 'صياغة المحتوى والنص الإعلاني',
+          instructions: 'كتابة محتوى تسويقي جذاب واحترافي متوافق مع معايير The Lord',
+          expectedType: 'TEXT',
+          fieldLabel: 'المسودة النصية المعتمدة'
+        },
+        {
+          stageOrder: 2,
+          stageTitle: 'تصميم البوستر الجرافيكي أو المونتاج',
+          instructions: 'إخراج التصميم أو الفيديو بأعلى دقة وتنسيق مرئي ملكي',
+          expectedType: 'IMAGE',
+          fieldLabel: 'ملف التصميم النهائي أو الفيديو'
+        },
+        {
+          stageOrder: 3,
+          stageTitle: 'النشر الرسمي وجلب إحصائيات التفاعل',
+          instructions: 'النشر في التوقيت المناسب وإرفاق رابط المنشور وتقرير الوصول الأولي',
+          expectedType: 'URL',
+          fieldLabel: 'رابط المنشور المباشر'
+        }
+      ]);
+      lordToast.gold('قالب الميديا', 'تم تطبيق قالب مهام الميديا والمحتوى (3 مراحل) 📱');
+    } else if (type === 'DEV') {
+      if (!title) setTitle('صيانة وتحديث خوادم البوتات والـ API 💻');
+      setStages([
+        {
+          stageOrder: 1,
+          stageTitle: 'فحص السيرفرات والأكواد ومسارات الـ API',
+          instructions: 'مراجعة سجلات الأخطاء (Logs) والتحقق من استقرار نقاط الاتصال وWebhooks',
+          expectedType: 'CODE_SNIPPET',
+          fieldLabel: 'سجل الفحص أو مقتطف الكود المعدل'
+        },
+        {
+          stageOrder: 2,
+          stageTitle: 'تطبيق التحديث وإصلاح المشكلة التقنية',
+          instructions: 'برمجة التعديل واختبار الاستجابة محلياً والتأكد من عدم وجود تعارض',
+          expectedType: 'DOCUMENT',
+          fieldLabel: 'تقرير التعديلات البرمجية'
+        },
+        {
+          stageOrder: 3,
+          stageTitle: 'النشر على السيرفر الحي وتأكيد الاستقرار',
+          instructions: 'النشر النهائي وتأكيد عمل الخدمة دون أي انقطاع',
+          expectedType: 'URL',
+          fieldLabel: 'رابط فحص الخدمة الحية'
+        }
+      ]);
+      lordToast.gold('قالب البرمجة', 'تم تطبيق قالب مهام التطوير والبرمجة (3 مراحل) 💻');
+    }
+  };
+
+  const handleAddStage = () => {
+    const nextOrder = stages.length + 1;
+    setStages(prev => [
+      ...prev,
+      {
+        stageOrder: nextOrder,
+        stageTitle: `المرحلة ${nextOrder}: خطوة تنفيذية جديدة`,
+        instructions: 'يرجى كتابة تعليمات ومخرجات هذه المرحلة للموظف',
+        expectedType: 'IMAGE',
+        fieldLabel: 'مرفق أو إثبات إنجاز المرحلة'
+      }
+    ]);
+  };
+
+  const handleRemoveStage = (index: number) => {
+    if (stages.length <= 1) {
+      lordToast.gold('تنبيه المراحل', 'يجب أن تحتوي المهمة على مرحلة تنفيذ واحدة على الأقل');
+      return;
+    }
+    const updated = stages
+      .filter((_, idx) => idx !== index)
+      .map((st, idx) => ({
+        ...st,
+        stageOrder: idx + 1
+      }));
+    setStages(updated);
+  };
+
+  const handleStageChange = (index: number, field: keyof QuickStageItem, value: any) => {
+    setStages(prev =>
+      prev.map((st, idx) => (idx === index ? { ...st, [field]: value } : st))
+    );
+  };
+
+  const handleSetDeadlineHours = (hours: number) => {
+    const targetDate = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const iso = new Date(targetDate.getTime() - targetDate.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+    setDueDate(iso);
+    lordToast.gold('الموعد النهائي', `تم ضبط التسليم: بعد ${hours} ساعة`);
+  };
 
   if (!isOpen || !employee) return null;
 
@@ -34,26 +211,45 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
     }
 
     try {
-      await createTask({
-        title: title.trim(),
-        description: description.trim(),
-        assignedTo: employee._id,
-        priority,
-        budgetAmount: budgetAmount ? Number(budgetAmount) : 0,
-        stages: [
+      const formattedStages = stages.map((st, idx) => ({
+        stageOrder: idx + 1,
+        stageTitle: st.stageTitle.trim() || `المرحلة ${idx + 1}`,
+        instructions: st.instructions.trim() || 'يرجى إنجاز متطلبات هذه المرحلة',
+        status: idx === 0 ? 'IN_PROGRESS' : 'LOCKED',
+        requiredInputs: [
           {
-            order: 1,
-            title: 'المرحلة التنفيذية 1',
-            description: description.trim() || 'إنجاز متطلبات المهمة المسندة',
-            requiredDeliverables: ['تقرير الإنجاز أو روابط المخرجات']
+            fieldLabel: st.fieldLabel.trim() || 'إثبات أو مخرجات المرحلة',
+            expectedType: st.expectedType,
+            isMandatory: true
           }
         ]
+      }));
+
+      await createTask({
+        title: title.trim(),
+        description: description.trim() || title.trim(),
+        targetPlatform: 'GENERAL_SYSTEM',
+        serviceCategory: 'OPERATIONAL',
+        targetDepartment: employee.primaryDepartment || undefined,
+        assignedTo: [employee._id],
+        executionType: 'ADMIN_ASSIGNED',
+        priority,
+        dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        stages: formattedStages as any,
+        financialRequirement: {
+          requiresBudget: Number(budgetAmount) > 0,
+          amount: Number(budgetAmount) || 0,
+          currency: 'USDT',
+          payoutMethodRequested: payoutMethod,
+          justification: 'ميزانية تشغيلية مسندة للمهمة'
+        }
       } as any).unwrap();
 
-      lordToast.success(`تم إسناد المهمة بنجاح إلى ${employee.fullName}! ⚡`);
+      lordToast.success(`تم إسناد المهمة بنجاح وبناء ${stages.length} مراحل إلى ${employee.fullName}! 🚀`);
       setTitle('');
       setDescription('');
       setBudgetAmount('');
+      setDueDate('');
       onClose();
     } catch (err: any) {
       lordToast.error(err?.data?.error || err.message || 'تعذر إسناد المهمة');
@@ -61,100 +257,308 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
   };
 
   return (
-    <AppModalPortal isOpen={isOpen} onClose={onClose}>
-      <div className="w-full max-w-lg bg-[#0a0d16] border border-amber-500/40 rounded-3xl shadow-2xl p-5 sm:p-6 text-white text-right">
+    <AppModalPortal isOpen={isOpen} onClose={onClose} maxWidthClassName="max-w-2xl">
+      <div className="w-full bg-[#090c15] border-2 border-lord-gold/60 rounded-3xl shadow-2xl p-5 sm:p-7 text-white text-right max-h-[90vh] overflow-y-auto scroll-touch">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400">
-              <CheckSquare className="w-4 h-4" />
+        <div className="flex items-center justify-between border-b border-gray-800/80 pb-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center font-black text-lord-gold text-lg shadow-sm">
+              {employee.fullName?.charAt(0) || '👤'}
             </div>
             <div>
-              <h3 className="text-sm font-black text-white">إسناد مهمة جديدة للموظف</h3>
-              <p className="text-[11px] text-gray-400">المكلف بالتنفيذ: {employee.fullName}</p>
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <span>إسناد مهمة مرحلية للموظف</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-lord-gold/15 border border-lord-gold/40 text-lord-gold font-bold">
+                  مرحلية مبسطة ⚡
+                </span>
+              </h3>
+              <p className="text-xs text-gray-400 font-mono mt-0.5">
+                المكلف بالتنفيذ: <strong className="text-white">{employee.fullName}</strong> • ({employee.primaryDepartment || 'قسم العمليات'})
+              </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-gray-800/60 text-gray-400 hover:text-white"
+            className="p-2 rounded-xl bg-gray-800/60 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
+        {/* Quick Stage Templates Row */}
+        <div className="mb-5 p-3 rounded-2xl bg-gray-900/60 border border-gray-800/90">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-lord-gold" />
+              <span>قوالب المراحل الجاهزة (بنقرة واحدة):</span>
+            </span>
+            <span className="text-[10px] text-gray-500">تطبيق هيكل المراحل تلقائياً</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={() => applyStageTemplate('SINGLE')}
+              className="p-2 rounded-xl bg-gray-800/70 hover:bg-lord-gold/20 hover:border-lord-gold/50 border border-gray-700 text-xs font-bold text-gray-200 hover:text-lord-gold transition-all flex items-center justify-center gap-1.5"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>مرحلة سريعة ⚡</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => applyStageTemplate('TRADING')}
+              className="p-2 rounded-xl bg-gray-800/70 hover:bg-lord-gold/20 hover:border-lord-gold/50 border border-gray-700 text-xs font-bold text-gray-200 hover:text-lord-gold transition-all flex items-center justify-center gap-1.5"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+              <span>تداول وشارتات 📈</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => applyStageTemplate('MEDIA')}
+              className="p-2 rounded-xl bg-gray-800/70 hover:bg-lord-gold/20 hover:border-lord-gold/50 border border-gray-700 text-xs font-bold text-gray-200 hover:text-lord-gold transition-all flex items-center justify-center gap-1.5"
+            >
+              <Share2 className="w-3.5 h-3.5 text-sky-400" />
+              <span>ميديا ونشر 📱</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => applyStageTemplate('DEV')}
+              className="p-2 rounded-xl bg-gray-800/70 hover:bg-lord-gold/20 hover:border-lord-gold/50 border border-gray-700 text-xs font-bold text-gray-200 hover:text-lord-gold transition-all flex items-center justify-center gap-1.5"
+            >
+              <Code2 className="w-3.5 h-3.5 text-purple-400" />
+              <span>برمجة وسيرفرات 💻</span>
+            </button>
+          </div>
+        </div>
+
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">عنوان المهمة *</label>
+            <label className="block text-xs font-bold text-gray-300 mb-1.5">عنوان المهمة الرئيسية *</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="مثال: تحليل شارت BTC/USDT وتجهيز التقرير الصباحي"
-              className="w-full px-3 py-2 rounded-xl bg-gray-900 border border-gray-800 focus:border-amber-400 text-xs text-white placeholder-gray-500 outline-none"
+              placeholder="مثال: تحليل شارت البيتكوين وتجهيز تقرير الصباح وقفل الأرباح"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-800 focus:border-lord-gold text-xs text-white placeholder-gray-500 outline-none transition-colors"
             />
           </div>
 
+          {/* General Description */}
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1">تفاصيل ومخرجات المهمة</label>
+            <label className="block text-xs font-bold text-gray-300 mb-1.5">التوجيهات العامة للمهمة</label>
             <textarea
-              rows={3}
+              rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="اكتب التوجيهات والمخرجات المطلوبة من الموظف بدقة..."
-              className="w-full px-3 py-2 rounded-xl bg-gray-900 border border-gray-800 focus:border-amber-400 text-xs text-white placeholder-gray-500 outline-none resize-none leading-relaxed"
+              placeholder="اكتب التوجيهات العامة أو أهداف المهمة المطلوب تحقيقها من الموظف..."
+              className="w-full px-3.5 py-2 rounded-xl bg-gray-900 border border-gray-800 focus:border-lord-gold text-xs text-white placeholder-gray-500 outline-none resize-none leading-relaxed"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">درجة الأولوية</label>
+          {/* Dynamic Stages Builder */}
+          <div className="space-y-3 pt-2 border-t border-gray-800/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-white flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-lord-gold" />
+                <span>هيكلة مراحل التنفيذ ومخرجاتها ({stages.length} مراحل)</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={handleAddStage}
+                className="px-2.5 py-1 rounded-xl bg-lord-gold/15 hover:bg-lord-gold/25 border border-lord-gold/40 text-lord-gold text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>إضافة مرحلة</span>
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {stages.map((stage, idx) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-2xl bg-gray-900/80 border border-gray-800 hover:border-gray-700 transition-all space-y-2.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-lord-gold flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-lg bg-lord-gold/20 border border-lord-gold/40 text-lord-gold text-[10px] font-mono flex items-center justify-center">
+                        {idx + 1}
+                      </span>
+                      <span>المرحلة {idx + 1}</span>
+                    </span>
+
+                    {stages.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStage(idx)}
+                        className="p-1 rounded-lg text-gray-500 hover:text-red-400 transition-colors"
+                        title="حذف هذه المرحلة"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Stage Title */}
+                  <input
+                    type="text"
+                    required
+                    value={stage.stageTitle}
+                    onChange={(e) => handleStageChange(idx, 'stageTitle', e.target.value)}
+                    placeholder={`عنوان المرحلة ${idx + 1}`}
+                    className="w-full px-3 py-1.5 rounded-xl bg-black/50 border border-gray-800 focus:border-lord-gold text-xs text-white placeholder-gray-500 outline-none"
+                  />
+
+                  {/* Stage Instructions */}
+                  <input
+                    type="text"
+                    value={stage.instructions}
+                    onChange={(e) => handleStageChange(idx, 'instructions', e.target.value)}
+                    placeholder="تعليمات ومخرجات هذه المرحلة للموظف..."
+                    className="w-full px-3 py-1.5 rounded-xl bg-black/50 border border-gray-800 focus:border-lord-gold text-[11px] text-gray-300 placeholder-gray-600 outline-none"
+                  />
+
+                  {/* Deliverable Type */}
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-800/60 text-[11px]">
+                    <span className="text-gray-400 text-[11px]">نوع المخرج المطلوب:</span>
+                    <select
+                      value={stage.expectedType}
+                      onChange={(e) => handleStageChange(idx, 'expectedType', e.target.value as DeliverableType)}
+                      className="px-2.5 py-1 rounded-xl bg-gray-800 border border-gray-700 text-xs text-lord-gold font-bold outline-none"
+                    >
+                      <option value="IMAGE">🖼️ صورة / لقطة شاشة / شارت</option>
+                      <option value="URL">🔗 رابط إلكتروني / منشور</option>
+                      <option value="TEXT">📝 تقرير نصي مكتوب</option>
+                      <option value="DOCUMENT">📄 مستند / PDF / ملف</option>
+                      <option value="CODE_SNIPPET">💻 كود برمجي</option>
+                      <option value="VIDEO">🎥 تسجيل فيديو</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Deadlines & Priority Row */}
+          <div className="pt-2 border-t border-gray-800/80 space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-bold text-gray-300">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-lord-gold" />
+                <span>الموعد النهائي للتسليم:</span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSetDeadlineHours(4)}
+                  className="px-2 py-0.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-[10px] text-gray-300 transition-colors"
+                >
+                  +4 س
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetDeadlineHours(12)}
+                  className="px-2 py-0.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-[10px] text-gray-300 transition-colors"
+                >
+                  +12 س
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetDeadlineHours(24)}
+                  className="px-2 py-0.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-[10px] text-gray-300 transition-colors"
+                >
+                  +24 س (غداً)
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                type="datetime-local"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-gray-900 border border-gray-800 text-xs text-white outline-none"
+              />
+
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl bg-gray-900 border border-gray-800 text-xs text-white outline-none"
+                className="w-full px-3 py-2 rounded-xl bg-gray-900 border border-gray-800 text-xs text-white outline-none font-bold"
               >
-                <option value="LOW">عادية (Low)</option>
-                <option value="MEDIUM">متوسطة (Medium)</option>
-                <option value="HIGH">عالية (High)</option>
-                <option value="URGENT">حرجة وعاجلة (Urgent)</option>
+                <option value="LOW">أولوية عادية (Low)</option>
+                <option value="MEDIUM">أولوية متوسطة (Medium)</option>
+                <option value="HIGH">أولوية عالية ⚡ (High)</option>
+                <option value="CRITICAL">أولوية حرجة وعاجلة 🔥 (Critical)</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">الميزانية إن وجدت (USDT)</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={budgetAmount}
-                  onChange={(e) => setBudgetAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                  placeholder="0.00"
-                  className="w-full pl-3 pr-8 py-2 rounded-xl bg-gray-900 border border-gray-800 text-xs text-white placeholder-gray-500 outline-none font-mono"
-                />
-                <Coins className="w-3.5 h-3.5 text-amber-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-gray-800 flex items-center justify-between gap-3">
+          {/* Budget & Payout Method (Optional) */}
+          <div className="p-3 rounded-2xl bg-black/40 border border-gray-800 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-gray-300">
+              <span className="flex items-center gap-1.5">
+                <Coins className="w-3.5 h-3.5 text-emerald-400" />
+                <span>الميزانية التشغيلية إن وُجدت (USDT):</span>
+              </span>
+              <span className="text-[10px] text-gray-500">اختياري</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={budgetAmount}
+                onChange={(e) => setBudgetAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="0.00 USDT"
+                className="w-full px-3 py-2 rounded-xl bg-gray-900 border border-gray-800 text-xs text-white placeholder-gray-500 outline-none font-mono"
+              />
+
+              <select
+                value={payoutMethod}
+                onChange={(e) => setPayoutMethod(e.target.value as any)}
+                className="w-full px-2.5 py-2 rounded-xl bg-gray-900 border border-gray-800 text-xs text-emerald-400 font-bold outline-none"
+              >
+                <option value="BEP20_USDT">USDT BEP20 (المحفظة)</option>
+                <option value="JEEB_WALLET">محفظة جيب (Jeeb)</option>
+                <option value="JAWALI_WALLET">محفظة جوالي (Jawali)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Footer Submit Buttons */}
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-800/80">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 hover:text-white text-xs font-bold"
+              disabled={isLoading}
+              className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-300 transition-all"
             >
               إلغاء
             </button>
+
             <button
               type="submit"
               disabled={isLoading}
-              className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black text-xs font-black flex items-center gap-1.5 shadow-md disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 via-lord-gold to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-black text-xs font-black shadow-lg shadow-lord-gold/20 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>{isLoading ? 'جاري الإسناد...' : 'إسناد المهمة الآن'}</span>
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <span>جاري الإسناد وبناء المراحل...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>إسناد المهمة وبدء المراحل 🚀</span>
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -162,4 +566,3 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
     </AppModalPortal>
   );
 };
-
