@@ -14,6 +14,8 @@
     "build:types": "npm run build --workspace=@lord/shared-types",
     "build:api": "npm run build --workspace=@lord/api",
     "build:web": "npm run build --workspace=@lord/web",
+    "desktop": "npm run start --workspace=the-lord-erp-desktop",
+    "build:desktop": "npm run build:exe --workspace=the-lord-erp-desktop",
     "build": "npm --workspace=@lord/shared-types run build && npm --workspace=@lord/api run build && npm --workspace=@lord/web run build",
     "lint": "npm run lint --workspaces"
   },

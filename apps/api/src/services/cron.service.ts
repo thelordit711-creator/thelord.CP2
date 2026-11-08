@@ -27,7 +27,19 @@ export class CronService {
       await this.sendDailyReportReminders();
     });
 
-    // 3. Task Delay / Overdue Checks (Every 2 hours)
+    // 3. Morning Routine Tasks Generation (Every day at 08:30 AM)
+    cron.schedule('30 8 * * *', async () => {
+      console.log('🌅 [CronService] Generating morning routine tasks at 08:30 AM');
+      await this.generateMorningRoutineTasks();
+    });
+
+    // 4. Multi-Tier Escalation Ladder (Every hour)
+    cron.schedule('0 * * * *', async () => {
+      console.log('🪜 [CronService] Running automated escalation ladder for pending & delayed tasks');
+      await this.runEscalationLadder();
+    });
+
+    // 5. Task Delay / Overdue Checks (Every 2 hours)
     cron.schedule('0 */2 * * *', async () => {
       console.log('⏱️ [CronService] Checking for overdue tasks and approaching deadlines');
       await this.checkOverdueTasks();
@@ -139,6 +151,146 @@ ${allEmployees.map(m => {
       }
     } catch (err) {
       console.error('Error sending daily report reminders:', err);
+    }
+  }
+
+  /**
+   * Generates Morning Routine Tasks every day at 08:30 AM
+   */
+  public static async generateMorningRoutineTasks() {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const existing = await Task.findOne({
+        title: { $regex: /الفحص الصباحي لخوادم البوتات/i },
+        createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+      });
+
+      if (existing) {
+        console.log('🌅 Morning routine task already generated for today.');
+        return;
+      }
+
+      const techStaff = await User.find({
+        accessRole: { $in: ['EMPLOYEE', 'SUPER_ADMIN'] }
+      }).limit(5);
+
+      if (techStaff.length === 0) return;
+
+      const adminUser = techStaff.find(u => u.accessRole === 'SUPER_ADMIN') || techStaff[0];
+      const assignees = techStaff.slice(0, 2).map(u => u._id);
+
+      const routineTask = await Task.create({
+        title: 'الفحص الصباحي لخوادم البوتات واستقرار الـ API 💻',
+        description: 'مراقبة صحة سيرفرات تداول البوتات، وفحص استجابة الـ API Webhooks، والتأكد من عدم وجود أخطاء في الـ Logs.',
+        targetPlatform: 'GENERAL_SYSTEM',
+        serviceCategory: 'BOT_SERVER_HEALTH',
+        priority: 'HIGH',
+        executionType: 'ADMIN_ASSIGNED',
+        createdBy: adminUser._id,
+        assignedTo: assignees,
+        isDailyRecurring: true,
+        dailyRecurrenceTime: '08:30 ص',
+        status: 'IN_PROGRESS',
+        stages: [
+          {
+            stageOrder: 1,
+            stageTitle: 'دراسة المتطلبات وربط الـ API',
+            instructions: 'فحص اتصالات الـ Webhooks مع سيرفر التيليجرام وخوادم Binance/Bybit API.',
+            status: 'IN_PROGRESS',
+            requiredInputs: [
+              { fieldLabel: 'تقرير فحص الاستجابة ومعدل الـ Latency', expectedType: 'TEXT', isMandatory: true }
+            ]
+          },
+          {
+            stageOrder: 2,
+            stageTitle: 'كتابة الكود البرمجي واختبار البوت',
+            instructions: 'التأكد من جاهزية المحركات ومعالجة أي توقفات برمجية سابقة.',
+            status: 'LOCKED',
+            requiredInputs: [
+              { fieldLabel: 'لقطة شاشة لاختبار الأوامر', expectedType: 'IMAGE', isMandatory: true }
+            ]
+          },
+          {
+            stageOrder: 3,
+            stageTitle: 'النشر على السيرفر ومراقبة الـ Logs',
+            instructions: 'مراقبة السجلات الحية للتأكد من خلوها من أي Crash أو Out of Memory.',
+            status: 'LOCKED',
+            requiredInputs: [
+              { fieldLabel: 'لقطة من سجلات الـ PM2 / Docker logs', expectedType: 'IMAGE', isMandatory: true }
+            ]
+          }
+        ]
+      });
+
+      for (const empId of assignees) {
+        await SocketService.dispatchNotification({
+          recipientId: empId.toString(),
+          title: '🌅 مهمة روتينية صباحية (08:30 ص)',
+          message: 'تم تفعيل مهمة الفحص الصباحي لخوادم البوتات واستقرار الـ API تلقائياً.',
+          type: 'TASK_ASSIGNED',
+          priority: 'HIGH',
+          relatedEntityId: routineTask._id.toString(),
+          relatedUrl: '/tasks'
+        });
+      }
+
+      console.log('✅ Morning routine tasks initialized successfully.');
+    } catch (err) {
+      console.error('Error generating morning routine tasks:', err);
+    }
+  }
+
+  /**
+   * Automated Multi-Tier Escalation Ladder
+   * Level 1: Delayed 1-2 hours -> Gentle reminder to employee
+   * Level 2: Delayed 4-8 hours -> Yellow escalation warning
+   * Level 3: Delayed > 8 hours or Urgent -> Red critical alert to Super Admin Leadership
+   */
+  public static async runEscalationLadder() {
+    try {
+      const now = new Date();
+      const inProgressTasks = await Task.find({
+        status: { $in: ['TODO', 'IN_PROGRESS'] },
+        dueDate: { $exists: true, $ne: null }
+      }).populate('assignedTo', '_id fullName accessRole');
+
+      const superAdmins = await User.find({ accessRole: 'SUPER_ADMIN' }).select('_id');
+
+      for (const task of inProgressTasks) {
+        if (!task.dueDate) continue;
+        const diffMs = now.getTime() - new Date(task.dueDate).getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        if (diffHours >= 8 || (diffHours >= 4 && task.priority === 'CRITICAL')) {
+          // Level 3 Critical Escalation: Alert Super Admins
+          for (const admin of superAdmins) {
+            await SocketService.dispatchNotification({
+              recipientId: admin._id.toString(),
+              title: '🚨 إنذار أحمر: سلم التصعيد التنفيذي',
+              message: `المهمة الحرجة [${task.title}] متأخرة بأكثر من ${Math.floor(diffHours)} ساعات! يرجى التدخل الفوري.`,
+              type: 'OVERDUE_TASK',
+              priority: 'URGENT',
+              relatedEntityId: task._id.toString(),
+              relatedUrl: '/tasks'
+            });
+          }
+        } else if (diffHours >= 2) {
+          // Level 2 Escalation: Yellow Warning to Assigned Staff
+          for (const emp of (task.assignedTo as any[])) {
+            await SocketService.dispatchNotification({
+              recipientId: emp._id.toString(),
+              title: '⚠️ تصعيد أصفر: تنبيه تأخر مرحلي',
+              message: `مرحباً ${emp.fullName}، مضى على موعد تسليم المهمة [${task.title}] أكثر من ساعتين. يرجى تسليم المرحلة فوراً.`,
+              type: 'OVERDUE_TASK',
+              priority: 'HIGH',
+              relatedEntityId: task._id.toString(),
+              relatedUrl: '/workspace'
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error running escalation ladder:', err);
     }
   }
 

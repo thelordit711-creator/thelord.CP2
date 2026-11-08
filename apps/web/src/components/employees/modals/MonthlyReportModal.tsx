@@ -50,6 +50,47 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
     window.print();
   };
 
+  const handleExportCSV = () => {
+    if (!report) return;
+    const rows: (string | number)[][] = [
+      ['كشف الحساب المالي الرسمي للموظف', employee.fullName],
+      ['الشهر / السنة', `${selectedMonth} / ${selectedYear}`],
+      ['الراتب الأساسي المعتمد', report.baseSalary],
+      ['إجمالي الدفعات المصروفة', report.totalDisbursed],
+      ['إجمالي البدلات المصروفة', report.totalAllowances],
+      ['إجمالي المكافآت والحوافز', report.totalBonuses],
+      ['إجمالي الخصومات', report.totalDeductions],
+      ['صافي المستحق النهائي', report.netPayable],
+      [],
+      ['التاريخ أو اليوم', 'البيان والنوع', 'المبلغ (USDT)', 'الحالة']
+    ];
+
+    report.tranches?.forEach((t: any) => {
+      rows.push([
+        `يوم ${t.day} في الشهر`,
+        `الدفعة ${t.trancheNumber} من الراتب`,
+        t.amount,
+        t.status === 'DISBURSED' ? 'تم الصرف ✓' : 'بانتظار الصرف'
+      ]);
+    });
+
+    report.allowances?.forEach((a: any) => {
+      rows.push([
+        `يوم ${a.disbursementDay} في الشهر`,
+        a.title,
+        a.amount,
+        'بدل دوري'
+      ]);
+    });
+
+    const csvContent = '\uFEFF' + rows.map(e => e.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `TheLord-Payroll-${employee.fullName.replace(/\s+/g, '_')}-${selectedYear}-${selectedMonth}.csv`;
+    link.click();
+  };
+
   return (
     <AppModalPortal isOpen={isOpen} onClose={onClose} maxWidthClassName="max-w-3xl">
       <div className="bg-obsidian-surface border-2 border-lord-gold/60 rounded-3xl p-5 sm:p-7 shadow-2xl max-h-[92dvh] overflow-y-auto space-y-6 print:bg-white print:text-black print:border-none">
@@ -70,6 +111,16 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 print:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="text-xs text-cyber-blue border-cyber-blue/40 hover:bg-cyber-blue/10"
+            >
+              <Download className="w-3.5 h-3.5 ml-1" />
+              <span>تصدير Excel/CSV</span>
+            </Button>
             <Button
               type="button"
               variant="outline"

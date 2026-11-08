@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { PayoutOrder } from '../models/PayoutOrder.model';
 import { AccountingService } from '../services/accounting.service';
 import { SocketService } from '../services/socket.service';
+import { TheLordAIService } from '../services/theLordAI.service';
 import { IConfirmDisbursedDto } from '@lord/shared-types';
 
 export class TreasuryController {
@@ -103,6 +104,51 @@ export class TreasuryController {
       });
     } catch (error) {
       res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Gemini Vision Receipt Auditor
+   * Inspects uploaded receipt screenshot, extracts transaction reference, amount & recipient
+   */
+  public static async auditReceipt(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { imageBase64, mimeType, orderId } = req.body;
+      if (!imageBase64) {
+        res.status(400).json({ success: false, error: 'صورة السند مطلوبة لإجراء الفحص' });
+        return;
+      }
+
+      let expectedAmount: number | undefined;
+      let expectedCurrency: string | undefined;
+      let expectedRecipientName: string | undefined;
+      let payoutMethod: string | undefined;
+
+      if (orderId) {
+        const order = await PayoutOrder.findById(orderId).populate('beneficiaryId', 'fullName');
+        if (order) {
+          expectedAmount = order.amount;
+          expectedCurrency = order.currency;
+          expectedRecipientName = (order.beneficiaryId as any)?.fullName;
+          payoutMethod = order.payoutMethod;
+        }
+      }
+
+      const auditResult = await TheLordAIService.auditReceiptImage({
+        imageBase64,
+        mimeType,
+        expectedAmount,
+        expectedCurrency,
+        expectedRecipientName,
+        payoutMethod
+      });
+
+      res.json({
+        success: true,
+        data: auditResult
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
     }
   }
 }

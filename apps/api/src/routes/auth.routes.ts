@@ -15,6 +15,12 @@ router.post('/accept-invite', AuthController.acceptInvitation);
 router.get('/me', verifyKindeJWT, AuthController.me);
 router.post('/work-status', verifyKindeJWT, AuthController.updateWorkStatus);
 
+// Zero-Trust Two-Factor Authentication (2FA) endpoints
+router.get('/2fa/status', verifyKindeJWT, AuthController.get2FAStatus);
+router.post('/2fa/generate', verifyKindeJWT, AuthController.generate2FASetup);
+router.post('/2fa/enable', verifyKindeJWT, AuthController.enable2FA);
+router.post('/2fa/disable', verifyKindeJWT, AuthController.disable2FA);
+
 // Admin-only endpoints
 router.post('/invite', verifyKindeJWT, rbacGuard(['SUPER_ADMIN']), AuthController.createInvitation);
 router.get('/staff-statuses', verifyKindeJWT, rbacGuard(['SUPER_ADMIN']), AuthController.getStaffStatuses);

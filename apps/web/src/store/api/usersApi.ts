@@ -79,6 +79,32 @@ export const usersApi = baseApi.injectEndpoints({
         params: params || {}
       }),
       providesTags: ['User']
+    }),
+    get2FAStatus: builder.query<IApiResponse<{ isTwoFactorEnabled: boolean; hasRecoveryCodes: boolean }>, void>({
+      query: () => '/auth/2fa/status',
+      providesTags: ['User']
+    }),
+    generate2FASetup: builder.mutation<IApiResponse<{ secret: string; qrCodeDataUrl: string; otpauth: string }>, void>({
+      query: () => ({
+        url: '/auth/2fa/generate',
+        method: 'POST'
+      })
+    }),
+    enable2FA: builder.mutation<IApiResponse<{ recoveryCodes: string[] }>, { code: string }>({
+      query: (body) => ({
+        url: '/auth/2fa/enable',
+        method: 'POST',
+        body
+      }),
+      invalidatesTags: ['User']
+    }),
+    disable2FA: builder.mutation<IApiResponse<void>, { code?: string; password?: string }>({
+      query: (body) => ({
+        url: '/auth/2fa/disable',
+        method: 'POST',
+        body
+      }),
+      invalidatesTags: ['User']
     })
   })
 });
@@ -95,6 +121,10 @@ export const {
   useDeleteUserMutation,
   useChangeUserPasswordMutation,
   useToggleUserSuspensionMutation,
-  useGetAuditLogsQuery
+  useGetAuditLogsQuery,
+  useGet2FAStatusQuery,
+  useGenerate2FASetupMutation,
+  useEnable2FAMutation,
+  useDisable2FAMutation
 } = usersApi;
 

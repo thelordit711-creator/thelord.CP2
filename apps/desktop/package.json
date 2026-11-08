@@ -1,0 +1,45 @@
+{
+  "name": "the-lord-erp-desktop",
+  "version": "1.0.0",
+  "description": "THE LORD OF CRYPTO ERP Control Panel — Native Windows Desktop Application",
+  "main": "main.js",
+  "author": "The Lord Enterprise IT",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "build:exe": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.thelord.erp",
+    "productName": "TheLord ERP",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "../web/public/logo.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TheLord ERP",
+      "artifactName": "TheLord-ERP-Setup.${ext}"
+    }
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1"
+  },
+  "devDependencies": {
+    "electron": "^30.0.8",
+    "electron-builder": "^24.13.3"
+  }
+}

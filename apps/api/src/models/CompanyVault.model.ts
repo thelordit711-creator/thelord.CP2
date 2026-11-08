@@ -20,9 +20,50 @@ const ManualAdjustmentLogSchema = new Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const VaultSegmentSchema = new Schema({
+  name: { type: String, required: true },
+  balance: { type: Number, default: 0 },
+  monthlyAllocated: { type: Number, default: 0 },
+  totalSpent: { type: Number, default: 0 },
+  alertThresholdPercent: { type: Number, default: 20 }
+}, { _id: false });
+
 const CompanyVaultSchema = new Schema<ICompanyVaultDocument>({
   generalBudget: { type: Number, default: 0, required: true },
   treasuryBalance: { type: Number, default: 0, required: true },
+
+  segmentedVaults: {
+    salaries: {
+      type: VaultSegmentSchema,
+      default: () => ({
+        name: 'صندوق الرواتب والأجور',
+        balance: 15000,
+        monthlyAllocated: 20000,
+        totalSpent: 5000,
+        alertThresholdPercent: 20
+      })
+    },
+    marketing: {
+      type: VaultSegmentSchema,
+      default: () => ({
+        name: 'صندوق التسويق والإعلانات',
+        balance: 8000,
+        monthlyAllocated: 10000,
+        totalSpent: 2000,
+        alertThresholdPercent: 25
+      })
+    },
+    operationalReserve: {
+      type: VaultSegmentSchema,
+      default: () => ({
+        name: 'صندوق الاحتياطي التقني والتشغيلي',
+        balance: 12000,
+        monthlyAllocated: 15000,
+        totalSpent: 3000,
+        alertThresholdPercent: 15
+      })
+    }
+  },
 
   totalSpentByCategory: {
     salaries: { type: Number, default: 0 },

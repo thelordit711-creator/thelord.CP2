@@ -4,14 +4,16 @@ import React, { useState } from 'react';
 import { IPayoutOrder } from '@lord/shared-types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { Copy, Check, QrCode, Smartphone, Coins, CheckCircle, Clock } from 'lucide-react';
+import { AppModalPortal } from '../ui/AppModalPortal';
+import { Copy, Check, QrCode, Smartphone, Coins, CheckCircle, Clock, UploadCloud, Sparkles, CheckCheck } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useAuditReceiptImageMutation } from '../../store/api/treasuryApi';
 import { toast } from 'sonner';
 
 interface IsolatedPayoutCardProps {
   order: IPayoutOrder;
   onStartProcessing: (orderId: string) => Promise<void>;
-  onConfirmDisbursed: (orderId: string, proofData: { txHashOrReferenceNumber: string }) => Promise<void>;
+  onConfirmDisbursed: (orderId: string, proofData: { txHashOrReferenceNumber: string; receiptScreenshot?: any }) => Promise<void>;
 }
 
 export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
@@ -24,6 +26,19 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [referenceInput, setReferenceInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Gemini Vision Auditor State
+  const [auditReceipt, { isLoading: isAuditing }] = useAuditReceiptImageMutation();
+  const [receiptBase64, setReceiptBase64] = useState<string | null>(null);
+  const [auditResult, setAuditResult] = useState<{
+    isMatch: boolean;
+    matchScore: number;
+    extractedReference?: string;
+    extractedAmount?: number;
+    extractedCurrency?: string;
+    confidenceScore?: number;
+    remarks: string;
+  } | null>(null);
 
   const isBEP20 = order.payoutMethod === 'BEP20_USDT';
   const isJeeb = order.payoutMethod === 'JEEB_WALLET';
@@ -49,6 +64,41 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
     }
   };
 
+  const handleReceiptImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('يرجى اختيار ملف صورة صالح (PNG أو JPG)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setReceiptBase64(base64);
+      try {
+        toast.info('جاري فحص وتدقيق السند عبر وكيل Gemini Vision...');
+        const res = await auditReceipt({
+          imageBase64: base64,
+          mimeType: file.type,
+          orderId: order._id
+        }).unwrap();
+
+        if (res?.data) {
+          setAuditResult(res.data);
+          if (res.data.extractedReference) {
+            setReferenceInput(res.data.extractedReference);
+          }
+          toast.success(res.data.remarks || 'تم تدقيق ومطابقة السند بنجاح!');
+        }
+      } catch (err: any) {
+        toast.error('تعذر التدقيق البصري للسند آلياً');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleDisburseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!referenceInput.trim()) {
@@ -59,9 +109,12 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
     try {
       setIsSubmitting(true);
       await onConfirmDisbursed(order._id, {
-        txHashOrReferenceNumber: referenceInput.trim()
+        txHashOrReferenceNumber: referenceInput.trim(),
+        receiptScreenshot: receiptBase64 ? { fileUrl: receiptBase64, verifiedAt: new Date() } : undefined
       });
       setIsModalOpen(false);
+      setReceiptBase64(null);
+      setAuditResult(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -230,52 +283,110 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
         )}
       </div>
 
-      {/* Modal for Disbursement Reference Confirmation */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-obsidian-surface border border-lord-gold/40 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">إثبات تحويل المبلغ</h3>
-            <p className="text-xs text-gray-400 mb-4">
-              أدخل رقم العملية المرجعي لتأكيد الصرف وتسوية الرصيد تلقائياً من الصندوق والميزانية العامة.
+      {/* Modal for Disbursement Reference Confirmation & Gemini Vision Receipt Auditor */}
+      <AppModalPortal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        maxWidthClassName="max-w-md"
+      >
+        <div className="bg-obsidian-surface border border-lord-gold/50 rounded-3xl p-6 shadow-2xl space-y-4 text-right">
+          <div className="border-b border-gray-800 pb-3">
+            <h3 className="text-lg font-black text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-lord-gold" />
+              <span>إثبات تحويل المبلغ وتأكيد الصرف</span>
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">
+              المبلغ المطلوب صرفه: <strong className="text-lord-gold font-mono">{order.amount} {order.currency}</strong> إلى ({beneficiaryName})
+            </p>
+          </div>
+
+          {/* Gemini Vision Receipt Dropzone */}
+          <div className="p-3.5 rounded-2xl bg-obsidian-primary/80 border border-dashed border-lord-gold/40 space-y-2.5 text-center">
+            <div className="flex items-center justify-center gap-2 text-xs font-bold text-lord-gold">
+              <UploadCloud className="w-4 h-4" />
+              <span>فحص وتدقيق سند التحويل البصري (Gemini Vision OCR)</span>
+            </div>
+
+            <p className="text-[11px] text-gray-400">
+              ارفع صورة الإيصال أو لقطة شاشة التحويل البنكي لمطابقة المبلغ ورقم الحوالة آلياً
             </p>
 
-            <form onSubmit={handleDisburseSubmit}>
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                  {isBEP20 ? 'هاش العملية (TxHash):' : 'رقم الحوالة أو رقم الإشعار المرجعي:'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={isBEP20 ? '0x...' : 'مثال: 88721934'}
-                  value={referenceInput}
-                  onChange={(e) => setReferenceInput(e.target.value)}
-                  className="w-full bg-obsidian-primary border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-lord-gold"
-                />
-              </div>
+            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-lord-gold/15 hover:bg-lord-gold/25 border border-lord-gold/40 text-lord-gold text-xs font-bold cursor-pointer transition-all">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{isAuditing ? 'جاري الفحص البصري...' : 'اختر صورة السند 📷'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleReceiptImageUpload}
+                disabled={isAuditing}
+                className="hidden"
+              />
+            </label>
 
-              <div className="flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  إلغاء
-                </Button>
-                <Button
-                  type="submit"
-                  variant="gold"
-                  size="sm"
-                  isLoading={isSubmitting}
-                >
-                  تأكيد وخصم فوري
-                </Button>
+            {/* Vision Auditor Result Badge */}
+            {auditResult && (
+              <div className="mt-2 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-right space-y-1 text-xs">
+                <div className="flex items-center justify-between text-emerald-400 font-bold">
+                  <span className="flex items-center gap-1">
+                    <CheckCheck className="w-4 h-4 text-emerald-400" />
+                    <span>✓ متطابق 100% مع أمر الصرف</span>
+                  </span>
+                  <span className="font-mono text-[10px]">{auditResult.confidenceScore}% دقة</span>
+                </div>
+                <p className="text-[11px] text-gray-300 leading-relaxed">
+                  {auditResult.remarks}
+                </p>
+                {auditResult.extractedAmount && (
+                  <div className="text-[10px] text-gray-400 font-mono">
+                    المبلغ المستخرج: ${auditResult.extractedAmount} {auditResult.extractedCurrency} | المرجع: {auditResult.extractedReference}
+                  </div>
+                )}
               </div>
-            </form>
+            )}
           </div>
+
+          <form onSubmit={handleDisburseSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                {isBEP20 ? 'هاش العملية (TxHash):' : 'رقم الحوالة أو رقم الإشعار المرجعي:'}
+              </label>
+              <input
+                type="text"
+                required
+                placeholder={isBEP20 ? '0x...' : 'مثال: 88721934'}
+                value={referenceInput}
+                onChange={(e) => setReferenceInput(e.target.value)}
+                className="w-full bg-obsidian-primary border border-gray-700 focus:border-lord-gold rounded-xl px-3 py-2 text-sm text-white focus:outline-none font-mono"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setReceiptBase64(null);
+                  setAuditResult(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="submit"
+                variant="gold"
+                size="sm"
+                isLoading={isSubmitting}
+                className="font-bold shadow-gold-glow"
+              >
+                تأكيد واعتماد الصرف 💸
+              </Button>
+            </div>
+          </form>
         </div>
-      )}
+      </AppModalPortal>
     </div>
   );
 };

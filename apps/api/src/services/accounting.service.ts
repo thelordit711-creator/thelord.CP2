@@ -167,6 +167,26 @@ export class AccountingService {
         }
       }
 
+      // Deduct from segmented sub-vaults
+      if (vault.segmentedVaults) {
+        if (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE') {
+          if (vault.segmentedVaults.salaries) {
+            vault.segmentedVaults.salaries.totalSpent += order.amount;
+            vault.segmentedVaults.salaries.balance = Math.max(0, vault.segmentedVaults.salaries.balance - order.amount);
+          }
+        } else if (order.category === 'TG_ADS' || order.category === 'TG_CHANNEL_PROMO') {
+          if (vault.segmentedVaults.marketing) {
+            vault.segmentedVaults.marketing.totalSpent += order.amount;
+            vault.segmentedVaults.marketing.balance = Math.max(0, vault.segmentedVaults.marketing.balance - order.amount);
+          }
+        } else {
+          if (vault.segmentedVaults.operationalReserve) {
+            vault.segmentedVaults.operationalReserve.totalSpent += order.amount;
+            vault.segmentedVaults.operationalReserve.balance = Math.max(0, vault.segmentedVaults.operationalReserve.balance - order.amount);
+          }
+        }
+      }
+
       // Map category to vault accumulator
       switch (order.category as PayoutCategory) {
         case 'SALARY':

@@ -2,9 +2,12 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { authenticator } from 'otplib';
+import QRCode from 'qrcode';
 import { User } from '../models/User.model';
 import { Invitation } from '../models/Invitation.model';
 import { SocketService } from '../services/socket.service';
+import { AuditService } from '../services/audit.service';
 import { AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { AccessRole, WorkStatus } from '@lord/shared-types';
 
@@ -127,6 +130,34 @@ export class AuthController {
           user.passwordHash = await bcrypt.hash(password, 10);
         } else {
           res.status(401).json({ success: false, error: 'يرجى تسجيل الدخول عبر Kinde أو تعيين كلمة مرور' });
+          return;
+        }
+      }
+
+      // Zero-Trust Two-Factor Authentication (2FA) Check
+      if (user.isTwoFactorEnabled && user.twoFactorSecret) {
+        const { twoFactorCode } = req.body;
+        if (!twoFactorCode) {
+          res.json({
+            success: true,
+            requiresTwoFactor: true,
+            tempUserId: user._id,
+            userEmail: user.email,
+            message: 'هذا الحساب محمي بالتحقق الثنائي (2FA). يرجى إدخال رمز التحقق المكون من 6 أرقام.'
+          });
+          return;
+        }
+
+        const cleanCode = String(twoFactorCode).trim();
+        const isValidTotp = authenticator.verify({
+          token: cleanCode,
+          secret: user.twoFactorSecret
+        });
+
+        const isRecoveryCode = user.twoFactorRecoveryCodes?.includes(cleanCode);
+
+        if (!isValidTotp && !isRecoveryCode) {
+          res.status(401).json({ success: false, error: 'رمز التحقق الثنائي (2FA) غير صحيح أو منتهي الصلاحية' });
           return;
         }
       }
@@ -477,6 +508,200 @@ export class AuthController {
         return;
       }
       res.json({ success: true, user: req.user });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Get 2FA Status for current user
+   */
+  static async get2FAStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مصرح' });
+        return;
+      }
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
+        return;
+      }
+      res.json({
+        success: true,
+        data: {
+          isTwoFactorEnabled: !!user.isTwoFactorEnabled,
+          hasRecoveryCodes: !!(user.twoFactorRecoveryCodes && user.twoFactorRecoveryCodes.length > 0)
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Generate 2FA Secret & QR Code (Google Authenticator compatible)
+   */
+  static async generate2FASetup(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مصرح' });
+        return;
+      }
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
+        return;
+      }
+
+      // Generate base32 secret
+      const secret = authenticator.generateSecret();
+      const otpauth = authenticator.keyuri(user.email, 'TheLord ERP', secret);
+      const qrCodeDataUrl = await QRCode.toDataURL(otpauth);
+
+      user.twoFactorTempSecret = secret;
+      await user.save();
+
+      res.json({
+        success: true,
+        data: {
+          secret,
+          qrCodeDataUrl,
+          otpauth
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Enable 2FA after verifying initial TOTP code
+   */
+  static async enable2FA(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مصرح' });
+        return;
+      }
+      const { code } = req.body;
+      if (!code) {
+        res.status(400).json({ success: false, error: 'يرجى إدخال رمز التحقق المكون من 6 أرقام' });
+        return;
+      }
+
+      const user = await User.findById(req.user._id);
+      if (!user || !user.twoFactorTempSecret) {
+        res.status(400).json({ success: false, error: 'لم يتم بدء إعداد التحقق الثنائي أو انتهت صلاحية الجلسة' });
+        return;
+      }
+
+      const isValid = authenticator.verify({
+        token: String(code).trim(),
+        secret: user.twoFactorTempSecret
+      });
+
+      if (!isValid) {
+        res.status(400).json({ success: false, error: 'رمز التحقق غير صحيح. تأكد من ضبط توقيت جهازك وأعد المحاولة.' });
+        return;
+      }
+
+      // Generate 6 recovery backup codes
+      const recoveryCodes = Array.from({ length: 6 }, () =>
+        crypto.randomBytes(4).toString('hex').toUpperCase()
+      );
+
+      user.isTwoFactorEnabled = true;
+      user.twoFactorSecret = user.twoFactorTempSecret;
+      user.twoFactorTempSecret = undefined;
+      user.twoFactorRecoveryCodes = recoveryCodes;
+      await user.save();
+
+      await AuditService.logAction({
+        userId: user._id.toString(),
+        userName: user.fullName,
+        userEmail: user.email,
+        userRole: user.accessRole,
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetId: user._id.toString(),
+        targetName: user.fullName,
+        targetType: 'SECURITY',
+        details: { action: 'ENABLED_2FA_TOTP' },
+        severity: 'INFO',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      res.json({
+        success: true,
+        message: 'تم تفعيل التحقق الثنائي (2FA) بنجاح وحماية حسابك!',
+        data: {
+          recoveryCodes
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Disable 2FA
+   */
+  static async disable2FA(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'غير مصرح' });
+        return;
+      }
+      const { password, code } = req.body;
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
+        return;
+      }
+
+      // Verify either password or current TOTP code for security
+      let verified = false;
+      if (code && user.twoFactorSecret) {
+        verified = authenticator.verify({
+          token: String(code).trim(),
+          secret: user.twoFactorSecret
+        });
+      }
+      if (!verified && password && user.passwordHash) {
+        verified = await bcrypt.compare(password, user.passwordHash);
+      }
+
+      if (!verified) {
+        res.status(400).json({ success: false, error: 'رمز التحقق أو كلمة المرور غير صحيحة لتأكيد إلغاء التفعيل' });
+        return;
+      }
+
+      user.isTwoFactorEnabled = false;
+      user.twoFactorSecret = undefined;
+      user.twoFactorTempSecret = undefined;
+      user.twoFactorRecoveryCodes = [];
+      await user.save();
+
+      await AuditService.logAction({
+        userId: user._id.toString(),
+        userName: user.fullName,
+        userEmail: user.email,
+        userRole: user.accessRole,
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetId: user._id.toString(),
+        targetName: user.fullName,
+        targetType: 'SECURITY',
+        details: { action: 'DISABLED_2FA_TOTP' },
+        severity: 'WARNING',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      res.json({
+        success: true,
+        message: 'تم تعطيل التحقق الثنائي بنجاح'
+      });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }

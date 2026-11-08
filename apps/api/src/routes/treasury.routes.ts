@@ -12,6 +12,7 @@ router.use(rbacGuard(['TREASURY', 'SUPER_ADMIN']));
 router.get('/orders', TreasuryController.getOrders);
 router.patch('/orders/:id/processing', TreasuryController.startProcessing);
 router.patch('/orders/:id/disbursed', TreasuryController.confirmDisbursed);
+router.post('/audit-receipt', TreasuryController.auditReceipt);
 
 export default router;
 

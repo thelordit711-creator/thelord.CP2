@@ -21,6 +21,7 @@ import {
 import { useGetMeQuery, useUpdateProfileMutation } from '../../../store/api/usersApi';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
+import { TwoFactorAuthCard } from '../../../components/profile/TwoFactorAuthCard';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
@@ -287,6 +288,9 @@ export default function ProfilePage() {
             </div>
           </form>
         </div>
+
+        {/* Zero-Trust Two-Factor Authentication (2FA) Module */}
+        <TwoFactorAuthCard />
       </div>
     </div>
   );

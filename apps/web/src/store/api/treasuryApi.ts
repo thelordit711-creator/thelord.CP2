@@ -24,6 +24,26 @@ export const treasuryApi = baseApi.injectEndpoints({
         body: data
       }),
       invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger']
+    }),
+    auditReceiptImage: builder.mutation<
+      IApiResponse<{
+        isMatch: boolean;
+        matchScore: number;
+        extractedReference?: string;
+        extractedAmount?: number;
+        extractedCurrency?: string;
+        extractedRecipient?: string;
+        extractedDate?: string;
+        confidenceScore: number;
+        remarks: string;
+      }>,
+      { imageBase64: string; mimeType?: string; orderId?: string }
+    >({
+      query: (body) => ({
+        url: '/treasury/audit-receipt',
+        method: 'POST',
+        body
+      })
     })
   })
 });
@@ -31,6 +51,7 @@ export const treasuryApi = baseApi.injectEndpoints({
 export const {
   useGetTreasuryOrdersQuery,
   useStartPayoutProcessingMutation,
-  useConfirmPayoutDisbursedMutation
+  useConfirmPayoutDisbursedMutation,
+  useAuditReceiptImageMutation
 } = treasuryApi;
 

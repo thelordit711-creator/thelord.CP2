@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
+import { InteractiveGanttChart } from '../../../components/projects/InteractiveGanttChart';
 import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
 import { useSocket } from '../../../providers/SocketProvider';
 import { toast } from 'sonner';
@@ -39,6 +40,7 @@ export default function ProjectsPage() {
   const [createMode, setCreateMode] = useState<'AI' | 'MANUAL'>('AI');
   const [selectedProjectPlan, setSelectedProjectPlan] = useState<any | null>(null);
   const [isDecomposingAll, setIsDecomposingAll] = useState(false);
+  const [viewMode, setViewMode] = useState<'CARDS' | 'GANTT'>('CARDS');
 
   // Edit Project States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -448,9 +450,47 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Projects Cards Grid */}
-      <div className="space-y-6">
-        {projects.length === 0 ? (
+      {/* View Mode Tabs (Cards vs Interactive Gantt) */}
+      <div className="flex items-center justify-between gap-3 bg-obsidian-surface p-2 rounded-2xl border border-gray-800">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMode('CARDS')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              viewMode === 'CARDS'
+                ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <FolderKanban className="w-4 h-4" />
+            <span>عرض بطاقات المشاريع ومعالم WBS</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('GANTT')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              viewMode === 'GANTT'
+                ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>مخطط جانت التفاعلي (Gantt Timeline) 📊</span>
+          </button>
+        </div>
+
+        <span className="text-[11px] text-gray-400 font-mono hidden sm:inline-block">
+          {projects.length} مشاريع مسجلة
+        </span>
+      </div>
+
+      {/* Render Gantt View if active */}
+      {viewMode === 'GANTT' ? (
+        <InteractiveGanttChart projects={projects} />
+      ) : (
+        /* Projects Cards Grid */
+        <div className="space-y-6">
+          {projects.length === 0 ? (
           <div className="bg-obsidian-card border border-gray-800 rounded-3xl p-12 text-center text-gray-500 space-y-3">
             <FolderKanban className="w-12 h-12 mx-auto text-gray-600 opacity-40" />
             <p className="text-sm font-bold text-gray-400">لا توجد مشاريع مسجلة حالياً</p>
@@ -640,6 +680,7 @@ export default function ProjectsPage() {
           })
         )}
       </div>
+      )}
 
       {/* Project Creation Modal */}
       {isCreateModalOpen && (

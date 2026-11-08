@@ -14,6 +14,8 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,16 +26,28 @@ export default function LoginPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const payload: any = { email: email.trim(), password };
+      if (requiresTwoFactor && twoFactorCode) {
+        payload.twoFactorCode = twoFactorCode.trim();
+      }
+
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password })
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'فشل تسجيل الدخول، يرجى التحقق من البيانات');
+      }
+
+      // Check if 2FA code is needed
+      if (data.requiresTwoFactor) {
+        setRequiresTwoFactor(true);
+        setLoading(false);
+        return;
       }
 
       // Store auth session
@@ -99,52 +113,101 @@ export default function LoginPage() {
 
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-2">
-                البريد الإلكتروني المعتمد
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@thelordofcrypto.com"
-                  className="w-full bg-[#131A24] border border-gray-700/80 focus:border-lord-gold rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-500 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-lord-gold"
-                  dir="ltr"
-                />
-                <Mail className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
+            {!requiresTwoFactor ? (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-2">
+                    البريد الإلكتروني المعتمد
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@thelordofcrypto.com"
+                      className="w-full bg-[#131A24] border border-gray-700/80 focus:border-lord-gold rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-500 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-lord-gold"
+                      dir="ltr"
+                    />
+                    <Mail className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-2">
-                كلمة المرور
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full bg-[#131A24] border border-gray-700/80 focus:border-lord-gold rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-500 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-lord-gold font-mono"
-                  dir="ltr"
-                />
-                <Lock className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-2">
+                    كلمة المرور
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#131A24] border border-gray-700/80 focus:border-lord-gold rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-500 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-lord-gold font-mono"
+                      dir="ltr"
+                    />
+                    <Lock className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-4 rounded-2xl bg-lord-gold/10 border border-lord-gold/40 text-center space-y-2">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-lord-gold/20 flex items-center justify-center text-lord-gold shadow-gold-glow">
+                    <Shield className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-white">التحقق الثنائي المشدد (2FA)</h3>
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    حسابك مؤمن برمز التحقق الديناميكي. افتح تطبيق Google Authenticator وأدخل الرمز المكون من 6 أرقام:
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-lord-gold mb-2 text-center">
+                    رمز التحقق أو كود الاسترداد
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    maxLength={16}
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                    placeholder="000 000"
+                    className="w-full bg-[#131A24] border-2 border-lord-gold/60 focus:border-lord-gold rounded-xl px-4 py-3 text-center text-white placeholder-gray-600 text-xl font-mono tracking-widest transition-all focus:outline-none shadow-gold-glow"
+                    dir="ltr"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRequiresTwoFactor(false);
+                    setTwoFactorCode('');
+                  }}
+                  className="w-full text-center text-xs text-gray-400 hover:text-white transition-colors"
+                >
+                  ← العودة لتسجيل الدخول بكلمة المرور
+                </button>
               </div>
-            </div>
+            )}
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || (requiresTwoFactor && !twoFactorCode.trim())}
               className="w-full py-3.5 bg-gradient-to-r from-lord-gold via-amber-500 to-lord-gold text-lord-dark font-bold rounded-xl shadow-lg shadow-lord-gold/20 hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-lord-dark border-t-transparent rounded-full animate-spin" />
-                  جاري تسجيل الدخول...
+                  جاري التحقق...
                 </span>
+              ) : requiresTwoFactor ? (
+                <>
+                  <Shield className="w-4 h-4" />
+                  <span>تأكيد الرمز والدخول الآمن</span>
+                </>
               ) : (
                 <>
                   <span>تسجيل الدخول للنظام</span>

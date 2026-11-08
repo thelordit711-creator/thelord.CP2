@@ -7,6 +7,7 @@ import {
   useConfirmPayoutDisbursedMutation
 } from '../../../../store/api/treasuryApi';
 import { IsolatedPayoutCard } from '../../../../components/treasury/IsolatedPayoutCard';
+import { SegmentedVaultsOverview } from '../../../../components/treasury/SegmentedVaultsOverview';
 import { Coins, Filter, RefreshCw, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -67,6 +68,9 @@ export default function PayoutDeskPage() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Segmented Sub-Vaults Overview */}
+      <SegmentedVaultsOverview />
 
       {/* Screen Title & Filter Tabs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">

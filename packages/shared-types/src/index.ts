@@ -212,6 +212,7 @@ export interface IUser {
   payoutMethods: IUserPayoutMethods;
   compensation: IUserCompensation;
   presenceStatus: PresenceStatus;
+  isTwoFactorEnabled?: boolean;
   isSuspended?: boolean;
   suspendedAt?: Date | string;
   suspensionReason?: string;
@@ -361,10 +362,23 @@ export interface IManualAdjustmentLog {
   createdAt: Date | string;
 }
 
+export interface IVaultSegment {
+  name: string;
+  balance: number;
+  monthlyAllocated: number;
+  totalSpent: number;
+  alertThresholdPercent: number;
+}
+
 export interface ICompanyVault {
   _id: string;
   generalBudget: number;
   treasuryBalance: number;
+  segmentedVaults?: {
+    salaries: IVaultSegment;
+    marketing: IVaultSegment;
+    operationalReserve: IVaultSegment;
+  };
   totalSpentByCategory: {
     salaries: number;
     bonuses: number;

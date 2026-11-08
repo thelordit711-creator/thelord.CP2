@@ -8,6 +8,9 @@ export interface IUserDocument extends Omit<IUser, '_id'>, Document {
   isSuspended?: boolean;
   suspendedAt?: Date;
   suspensionReason?: string;
+  twoFactorSecret?: string;
+  twoFactorTempSecret?: string;
+  twoFactorRecoveryCodes?: string[];
 }
 
 export const MediaAttachmentSchema = new Schema({
@@ -110,6 +113,10 @@ const UserSchema = new Schema<IUserDocument>({
   isSuspended: { type: Boolean, default: false, index: true },
   suspendedAt: { type: Date },
   suspensionReason: { type: String, default: '' },
+  isTwoFactorEnabled: { type: Boolean, default: false },
+  twoFactorSecret: { type: String },
+  twoFactorTempSecret: { type: String },
+  twoFactorRecoveryCodes: [{ type: String }],
   lastActiveAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
