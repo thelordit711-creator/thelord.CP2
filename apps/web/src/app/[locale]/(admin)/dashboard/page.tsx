@@ -354,30 +354,30 @@ export default function AdminDashboardPage() {
         <div className="bg-obsidian-surface border border-gray-800 rounded-2xl p-3 sm:p-4 flex items-center justify-between">
           <div>
             <div className="text-[11px] text-gray-400 font-bold">حالة التدقيق والرقابة</div>
-            <div className="text-base sm:text-lg font-black text-cyber-blue mt-0.5 flex items-center gap-1">
+            <div className="text-base sm:text-lg font-black text-lord-gold mt-0.5 flex items-center gap-1">
               <span>نشط ومؤمّن</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-cyber-blue" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-lord-gold" />
             </div>
           </div>
-          <div className="p-2 rounded-xl bg-cyber-blue/10 text-cyber-blue">
+          <div className="p-2 rounded-xl bg-lord-gold/10 text-lord-gold">
             <ShieldCheck className="w-4 h-4" />
           </div>
         </div>
       </div>
 
-      {/* 3. The 4 Core Topic Boxes Grid (صناديق لوحة القيادة التفاعلية) */}
+      {/* 3. The 4 Core Topic Boxes Grid - Unified Executive Obsidian & Imperial Gold */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
         {/* BOX 1: الخزينة والمؤشرات المالية */}
         <div
           onClick={() => setIsVaultModalOpen(true)}
-          className="bg-gradient-to-br from-[#0a0d17] via-[#0d1222] to-[#0a0d17] border-2 border-lord-gold/40 hover:border-lord-gold rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(212,175,55,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
+          className="bg-[#0a0d16] hover:bg-[#0e1322] border border-lord-gold/30 hover:border-lord-gold/60 rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(212,175,55,0.1)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-lord-gold shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-lord-gold/10 border border-lord-gold/30 flex items-center justify-center text-lord-gold shadow-md group-hover:scale-105 transition-transform">
                 <Wallet className="w-6 h-6" />
               </div>
-              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-lord-gold/15 border border-lord-gold/30 text-lord-gold flex items-center gap-1">
+              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-lord-gold/10 border border-lord-gold/25 text-lord-gold flex items-center gap-1">
                 <span>3 صناديق فرعية معتمدة</span>
               </span>
             </div>
@@ -402,7 +402,7 @@ export default function AdminDashboardPage() {
 
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">رصيد الصندوق</span>
-                <span className="text-xs font-black text-cyber-blue font-mono">
+                <span className="text-xs font-black text-white font-mono">
                   {isPrivacyMasked ? '••••' : `$${(vault?.treasuryBalance ?? 0).toLocaleString()}`}
                 </span>
               </div>
@@ -425,21 +425,21 @@ export default function AdminDashboardPage() {
         {/* BOX 2: مراقبة الحضور والعمل اللحظي للكادر */}
         <div
           onClick={() => setIsStaffModalOpen(true)}
-          className="bg-gradient-to-br from-[#0a0d17] via-[#0b1324] to-[#0a0d17] border-2 border-cyber-blue/40 hover:border-cyber-blue rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(56,189,248,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
+          className="bg-[#0a0d16] hover:bg-[#0e1322] border border-gray-800/80 hover:border-lord-gold/50 rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(212,175,55,0.08)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-cyber-blue/15 border border-cyber-blue/40 flex items-center justify-center text-cyber-blue shadow-md group-hover:scale-105 transition-transform">
-                <Radio className="w-6 h-6 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-lord-gold/10 border border-lord-gold/30 flex items-center justify-center text-lord-gold shadow-md group-hover:scale-105 transition-transform">
+                <Radio className="w-6 h-6" />
               </div>
-              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-gray-900 border border-gray-800 text-gray-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
                 <span>رادار المراقبة اللحظية نشط</span>
               </span>
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-white group-hover:text-cyber-blue transition-colors flex items-center gap-2">
+              <h3 className="text-lg font-black text-white group-hover:text-lord-gold transition-colors flex items-center gap-2">
                 <span>مراقبة الحضور والعمل اللحظي للكادر</span>
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
@@ -458,7 +458,7 @@ export default function AdminDashboardPage() {
 
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">في استراحة ☕</span>
-                <span className="text-xs font-black text-blue-400 font-mono">
+                <span className="text-xs font-black text-amber-400/90 font-mono">
                   {breakStaffCount} موظف
                 </span>
               </div>
@@ -472,7 +472,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-cyber-blue pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
+          <div className="flex items-center justify-between text-xs font-bold text-lord-gold pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
             <span>انقر لفتح جدول الحضور والمراقبة الكاملة</span>
             <ArrowUpRight className="w-4 h-4" />
           </div>
@@ -481,20 +481,18 @@ export default function AdminDashboardPage() {
         {/* BOX 3: الطلبات المالية بانتظار الاعتماد */}
         <div
           onClick={() => setIsRequestsModalOpen(true)}
-          className={`bg-gradient-to-br from-[#0a0d17] via-[#16120e] to-[#0a0d17] border-2 ${
-            requests.length > 0 ? 'border-amber-500/50 hover:border-amber-400' : 'border-gray-800 hover:border-gray-700'
-          } rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(245,158,11,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden`}
+          className="bg-[#0a0d16] hover:bg-[#0e1322] border border-gray-800/80 hover:border-lord-gold/50 rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(212,175,55,0.08)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-lord-gold/10 border border-lord-gold/30 flex items-center justify-center text-lord-gold shadow-md group-hover:scale-105 transition-transform">
                 <FileCheck className="w-6 h-6" />
               </div>
               <span
                 className={`text-[11px] font-bold px-3 py-1 rounded-full border ${
                   requests.length > 0
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
-                    : 'bg-gray-800 text-gray-400 border-gray-700'
+                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+                    : 'bg-gray-900 text-gray-400 border-gray-800'
                 }`}
               >
                 {requests.length > 0 ? `${requests.length} طلبات تنتظر قرارك ⚠️` : 'لا توجد طلبات معلقة ✅'}
@@ -502,7 +500,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-white group-hover:text-amber-400 transition-colors flex items-center gap-2">
+              <h3 className="text-lg font-black text-white group-hover:text-lord-gold transition-colors flex items-center gap-2">
                 <span>الطلبات المالية واعتماد الميزانيات</span>
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
@@ -528,7 +526,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-amber-400 pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
+          <div className="flex items-center justify-between text-xs font-bold text-lord-gold pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
             <span>انقر لمراجعة واعتماد الطلبات وتحديد الصندوق</span>
             <ArrowUpRight className="w-4 h-4" />
           </div>
@@ -537,21 +535,21 @@ export default function AdminDashboardPage() {
         {/* BOX 4: سجل التدقيق الأمني والرقابة المحاسبية */}
         <div
           onClick={() => setIsAuditModalOpen(true)}
-          className="bg-gradient-to-br from-[#0a0d17] via-[#0d1715] to-[#0a0d17] border-2 border-emerald-500/40 hover:border-emerald-500 rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(16,185,129,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
+          className="bg-[#0a0d16] hover:bg-[#0e1322] border border-gray-800/80 hover:border-lord-gold/50 rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(212,175,55,0.08)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-lord-gold/10 border border-lord-gold/30 flex items-center justify-center text-lord-gold shadow-md group-hover:scale-105 transition-transform">
                 <ShieldCheck className="w-6 h-6" />
               </div>
-              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
-                <Lock className="w-3 h-3" />
+              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-gray-900 border border-gray-800 text-gray-400 flex items-center gap-1">
+                <Lock className="w-3 h-3 text-lord-gold" />
                 <span>سجل غير قابل للتعديل 🔒</span>
               </span>
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors flex items-center gap-2">
+              <h3 className="text-lg font-black text-white group-hover:text-lord-gold transition-colors flex items-center gap-2">
                 <span>سجل التدقيق والأمان الرقابي المحاسبي</span>
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
@@ -570,14 +568,14 @@ export default function AdminDashboardPage() {
 
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">التوثيق الجنائي</span>
-                <span className="text-xs font-bold text-cyber-blue font-mono">
+                <span className="text-xs font-bold text-lord-gold font-mono">
                   TxHash + رقم الحوالة
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-emerald-400 pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
+          <div className="flex items-center justify-between text-xs font-bold text-lord-gold pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
             <span>انقر لفتح سجل التدقيق الكامل والبحث</span>
             <ArrowUpRight className="w-4 h-4" />
           </div>

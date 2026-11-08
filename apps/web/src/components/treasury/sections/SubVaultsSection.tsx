@@ -27,7 +27,7 @@ export const SubVaultsSection: React.FC = () => {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
 
-  // Predefined sub-vaults (Real operational values without static/fake fallbacks)
+  // Predefined sub-vaults - Unified Executive Styling (No rainbow clutter)
   const defaultVaults = [
     {
       key: 'salaries',
@@ -37,9 +37,7 @@ export const SubVaultsSection: React.FC = () => {
       monthlyAllocated: vault?.segmentedVaults?.salaries?.monthlyAllocated ?? 0,
       totalSpent: vault?.segmentedVaults?.salaries?.totalSpent ?? 0,
       alertThreshold: 20,
-      icon: Wallet,
-      colorTheme: 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-obsidian-surface to-obsidian-card',
-      badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+      icon: Wallet
     },
     {
       key: 'marketing',
@@ -49,9 +47,7 @@ export const SubVaultsSection: React.FC = () => {
       monthlyAllocated: vault?.segmentedVaults?.marketing?.monthlyAllocated ?? 0,
       totalSpent: vault?.segmentedVaults?.marketing?.totalSpent ?? 0,
       alertThreshold: 25,
-      icon: TrendingDown,
-      colorTheme: 'border-cyber-blue/40 bg-gradient-to-br from-cyber-blue/10 via-obsidian-surface to-obsidian-card',
-      badgeColor: 'text-cyber-blue bg-cyber-blue/10 border-cyber-blue/30'
+      icon: TrendingDown
     },
     {
       key: 'operationalReserve',
@@ -61,9 +57,7 @@ export const SubVaultsSection: React.FC = () => {
       monthlyAllocated: vault?.segmentedVaults?.operationalReserve?.monthlyAllocated ?? 0,
       totalSpent: vault?.segmentedVaults?.operationalReserve?.totalSpent ?? 0,
       alertThreshold: 15,
-      icon: ShieldCheck,
-      colorTheme: 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-obsidian-surface to-obsidian-card',
-      badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+      icon: ShieldCheck
     }
   ];
 
@@ -72,7 +66,7 @@ export const SubVaultsSection: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header & Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-obsidian-card border border-gray-800 rounded-3xl p-5 shadow-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0a0d16] border border-gray-800 rounded-3xl p-5 shadow-lg">
         <div>
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-lord-gold" />
@@ -88,7 +82,7 @@ export const SubVaultsSection: React.FC = () => {
             variant="surface"
             size="sm"
             onClick={() => setIsReportsModalOpen(true)}
-            className="flex items-center gap-1.5 border border-cyber-blue/40 text-cyber-blue hover:bg-cyber-blue/10 text-xs font-bold rounded-2xl"
+            className="flex items-center gap-1.5 border border-gray-800 hover:border-lord-gold/40 text-gray-300 hover:text-lord-gold bg-[#0c1019] text-xs font-bold rounded-2xl"
           >
             <BarChart3 className="w-4 h-4 ml-1" />
             <span>التقارير المحاسبية 📊</span>
@@ -98,7 +92,7 @@ export const SubVaultsSection: React.FC = () => {
             variant="surface"
             size="sm"
             onClick={() => setIsTransferModalOpen(true)}
-            className="flex items-center gap-1.5 border border-lord-gold/40 text-lord-gold hover:bg-lord-gold/10 text-xs font-bold rounded-2xl"
+            className="flex items-center gap-1.5 border border-lord-gold/40 text-lord-gold hover:bg-lord-gold/10 bg-[#0c1019] text-xs font-bold rounded-2xl"
           >
             <ArrowLeftRight className="w-4 h-4 ml-1" />
             <span>نقل وتخصيص سيولة</span>
@@ -108,15 +102,15 @@ export const SubVaultsSection: React.FC = () => {
             variant="gold"
             size="sm"
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 text-xs font-bold rounded-2xl"
+            className="flex items-center gap-1.5 text-xs font-black rounded-2xl shadow-sm"
           >
-            <Plus className="w-4 h-4 ml-1" />
+            <Plus className="w-4 h-4 ml-1 stroke-[3]" />
             <span>إنشاء صندوق فرعي</span>
           </Button>
         </div>
       </div>
 
-      {/* Grid of Sub-Vaults (Predefined + Custom) */}
+      {/* Grid of Sub-Vaults (Predefined + Custom) - Unified Formal Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Render Predefined Sub-Vaults */}
         {defaultVaults.map((sub) => {
@@ -130,12 +124,12 @@ export const SubVaultsSection: React.FC = () => {
           return (
             <div
               key={sub.key}
-              className={`border-2 rounded-3xl p-5 shadow-xl space-y-4 relative overflow-hidden transition-all hover:scale-[1.01] ${sub.colorTheme}`}
+              className="border border-lord-gold/30 hover:border-lord-gold/60 bg-[#0a0d16] hover:bg-[#0e1322] rounded-3xl p-5 shadow-xl space-y-4 relative overflow-hidden transition-all duration-300"
             >
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-black/40 border border-gray-700 flex items-center justify-center text-white">
+                  <div className="w-10 h-10 rounded-2xl bg-lord-gold/10 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
                     <Icon className="w-5 h-5 text-lord-gold" />
                   </div>
                   <div>
@@ -144,7 +138,7 @@ export const SubVaultsSection: React.FC = () => {
                   </div>
                 </div>
 
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${sub.badgeColor}`}>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-lord-gold/30 bg-lord-gold/10 text-lord-gold font-mono">
                   {sub.code}
                 </span>
               </div>
@@ -184,7 +178,9 @@ export const SubVaultsSection: React.FC = () => {
                     <span>إنذار سيولة</span>
                   </span>
                 ) : (
-                  <span className="text-emerald-400 font-bold">✓ سيولة آمنة</span>
+                  <span className="text-gray-400 font-medium font-mono text-[10px]">
+                    ✓ سيولة آمنة
+                  </span>
                 )}
               </div>
             </div>
@@ -202,13 +198,13 @@ export const SubVaultsSection: React.FC = () => {
           return (
             <div
               key={sub.code || idx}
-              className="border-2 border-purple-500/40 bg-gradient-to-br from-purple-500/10 via-obsidian-surface to-obsidian-card rounded-3xl p-5 shadow-xl space-y-4 relative overflow-hidden transition-all hover:scale-[1.01]"
+              className="border border-lord-gold/30 hover:border-lord-gold/60 bg-[#0a0d16] hover:bg-[#0e1322] rounded-3xl p-5 shadow-xl space-y-4 relative overflow-hidden transition-all duration-300"
             >
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-black/40 border border-purple-500/40 flex items-center justify-center text-purple-400">
-                    <FolderKanban className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-2xl bg-lord-gold/10 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
+                    <FolderKanban className="w-5 h-5 text-lord-gold" />
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-white">{sub.name}</h4>
@@ -216,7 +212,7 @@ export const SubVaultsSection: React.FC = () => {
                   </div>
                 </div>
 
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-400">
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-lord-gold/30 bg-lord-gold/10 text-lord-gold font-mono">
                   {sub.code}
                 </span>
               </div>
