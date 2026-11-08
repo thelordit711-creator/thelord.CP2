@@ -27,15 +27,15 @@ export const SubVaultsSection: React.FC = () => {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
 
-  // Predefined sub-vaults
+  // Predefined sub-vaults (Real operational values without static/fake fallbacks)
   const defaultVaults = [
     {
       key: 'salaries',
       name: 'صندوق الرواتب والأجور',
       code: 'SALARIES_VAULT',
-      balance: vault?.segmentedVaults?.salaries?.balance ?? 15000,
-      monthlyAllocated: vault?.segmentedVaults?.salaries?.monthlyAllocated ?? 20000,
-      totalSpent: vault?.segmentedVaults?.salaries?.totalSpent ?? 5000,
+      balance: vault?.segmentedVaults?.salaries?.balance ?? 0,
+      monthlyAllocated: vault?.segmentedVaults?.salaries?.monthlyAllocated ?? 0,
+      totalSpent: vault?.segmentedVaults?.salaries?.totalSpent ?? 0,
       alertThreshold: 20,
       icon: Wallet,
       colorTheme: 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-obsidian-surface to-obsidian-card',
@@ -45,9 +45,9 @@ export const SubVaultsSection: React.FC = () => {
       key: 'marketing',
       name: 'صندوق التسويق والإعلانات',
       code: 'MARKETING_VAULT',
-      balance: vault?.segmentedVaults?.marketing?.balance ?? 8000,
-      monthlyAllocated: vault?.segmentedVaults?.marketing?.monthlyAllocated ?? 10000,
-      totalSpent: vault?.segmentedVaults?.marketing?.totalSpent ?? 2000,
+      balance: vault?.segmentedVaults?.marketing?.balance ?? 0,
+      monthlyAllocated: vault?.segmentedVaults?.marketing?.monthlyAllocated ?? 0,
+      totalSpent: vault?.segmentedVaults?.marketing?.totalSpent ?? 0,
       alertThreshold: 25,
       icon: TrendingDown,
       colorTheme: 'border-cyber-blue/40 bg-gradient-to-br from-cyber-blue/10 via-obsidian-surface to-obsidian-card',
@@ -57,9 +57,9 @@ export const SubVaultsSection: React.FC = () => {
       key: 'operationalReserve',
       name: 'صندوق الاحتياطي التقني والتشغيلي',
       code: 'RESERVE_VAULT',
-      balance: vault?.segmentedVaults?.operationalReserve?.balance ?? 12000,
-      monthlyAllocated: vault?.segmentedVaults?.operationalReserve?.monthlyAllocated ?? 15000,
-      totalSpent: vault?.segmentedVaults?.operationalReserve?.totalSpent ?? 3000,
+      balance: vault?.segmentedVaults?.operationalReserve?.balance ?? 0,
+      monthlyAllocated: vault?.segmentedVaults?.operationalReserve?.monthlyAllocated ?? 0,
+      totalSpent: vault?.segmentedVaults?.operationalReserve?.totalSpent ?? 0,
       alertThreshold: 15,
       icon: ShieldCheck,
       colorTheme: 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-obsidian-surface to-obsidian-card',
@@ -284,3 +284,4 @@ export const SubVaultsSection: React.FC = () => {
     </div>
   );
 };
+

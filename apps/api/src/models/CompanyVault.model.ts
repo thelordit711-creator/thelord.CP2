@@ -48,9 +48,9 @@ const CompanyVaultSchema = new Schema<ICompanyVaultDocument>({
       type: VaultSegmentSchema,
       default: () => ({
         name: 'صندوق الرواتب والأجور',
-        balance: 15000,
-        monthlyAllocated: 20000,
-        totalSpent: 5000,
+        balance: 0,
+        monthlyAllocated: 0,
+        totalSpent: 0,
         alertThresholdPercent: 20
       })
     },
@@ -58,9 +58,9 @@ const CompanyVaultSchema = new Schema<ICompanyVaultDocument>({
       type: VaultSegmentSchema,
       default: () => ({
         name: 'صندوق التسويق والإعلانات',
-        balance: 8000,
-        monthlyAllocated: 10000,
-        totalSpent: 2000,
+        balance: 0,
+        monthlyAllocated: 0,
+        totalSpent: 0,
         alertThresholdPercent: 25
       })
     },
@@ -68,9 +68,9 @@ const CompanyVaultSchema = new Schema<ICompanyVaultDocument>({
       type: VaultSegmentSchema,
       default: () => ({
         name: 'صندوق الاحتياطي التقني والتشغيلي',
-        balance: 12000,
-        monthlyAllocated: 15000,
-        totalSpent: 3000,
+        balance: 0,
+        monthlyAllocated: 0,
+        totalSpent: 0,
         alertThresholdPercent: 15
       })
     }

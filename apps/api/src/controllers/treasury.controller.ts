@@ -280,4 +280,59 @@ export class TreasuryController {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
   }
+
+  public static async getAllTransactions(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { type, category, search } = req.query;
+      const transactions = await AccountingService.getAllTransactions({
+        type: type as string,
+        category: category as string,
+        search: search as string
+      });
+      res.json({ success: true, data: transactions });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async adminUpdateTransaction(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { type, amount, category, summary, targetVault, reason } = req.body;
+      const result = await AccountingService.adminUpdateTransaction(
+        id,
+        type || 'PAYOUT',
+        { amount, category, summary, targetVault, reason },
+        req.user?._id?.toString() || ''
+      );
+      res.json({ success: true, message: 'تم تعديل العملية وضبط الأرصدة المرتبطة بنجاح', data: result });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async adminDeleteTransaction(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { type, reason } = req.body;
+      const result = await AccountingService.adminDeleteTransaction(
+        id,
+        type || 'PAYOUT',
+        req.user?._id?.toString() || '',
+        reason
+      );
+      res.json({ success: true, message: 'تم حذف العملية واسترجاع الأرصدة وتعديل المعاملات المرتبطة بنجاح', data: result });
+    } catch (error) {
+      res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  public static async recalculateVault(_req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const vault = await AccountingService.recalculateVaultFromRealOperations();
+      res.json({ success: true, message: 'تمت إعادة احتساب وتدقيق كافة الأرصدة من العمليات الحقيقية بنجاح', data: vault });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
 }

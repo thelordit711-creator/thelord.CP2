@@ -28,3 +28,4 @@ const RecurringExpenseSchema = new Schema<IRecurringExpenseDocument>({
 }, { timestamps: true });
 
 export const RecurringExpense = model<IRecurringExpenseDocument>('RecurringExpense', RecurringExpenseSchema);
+

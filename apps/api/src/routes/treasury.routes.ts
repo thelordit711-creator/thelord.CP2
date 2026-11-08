@@ -22,8 +22,14 @@ router.post('/sub-vaults/transfer', TreasuryController.transferToSubVault);
 router.post('/orders/:id/request-modification', TreasuryController.requestOrderModification);
 router.patch('/orders/:id/decide-modification', rbacGuard(['SUPER_ADMIN']), TreasuryController.decideOrderModification);
 
-// Employee salary setting
-router.patch('/employees/:id/salary', TreasuryController.updateEmployeeSalary);
+// Employee salary setting (STRICTLY SUPER_ADMIN: موظف الصندوق لا يحق له تعديل الراتب)
+router.patch('/employees/:id/salary', rbacGuard(['SUPER_ADMIN']), TreasuryController.updateEmployeeSalary);
+
+// Master Transactions Ledger & Cascading Management
+router.get('/transactions', TreasuryController.getAllTransactions);
+router.patch('/transactions/:id', rbacGuard(['SUPER_ADMIN']), TreasuryController.adminUpdateTransaction);
+router.delete('/transactions/:id', rbacGuard(['SUPER_ADMIN']), TreasuryController.adminDeleteTransaction);
+router.post('/recalculate', rbacGuard(['SUPER_ADMIN']), TreasuryController.recalculateVault);
 
 // Recurring expenses management
 router.get('/recurring-expenses', TreasuryController.getRecurringExpenses);

@@ -716,5 +716,421 @@ export class AccountingService {
       customSubVaults: vault.customSubVaults || []
     };
   }
+
+  /**
+   * Recalculates all vault metrics dynamically from real operations (no mock or static numbers)
+   */
+  public static async recalculateVaultFromRealOperations() {
+    const vault = await this.getOrCreateVault();
+    const disbursedOrders = await PayoutOrder.find({ executionStatus: 'DISBURSED' });
+    const employees = await User.find({ accessRole: 'EMPLOYEE' }).select('compensation');
+
+    const catSpent = {
+      salaries: 0,
+      bonuses: 0,
+      advances: 0,
+      telegramOfficialAds: 0,
+      telegramChannelPromos: 0,
+      softwareSubscriptions: 0,
+      otherExpenses: 0
+    };
+
+    const subVaultSpent: Record<string, number> = {
+      salaries: 0,
+      marketing: 0,
+      operationalReserve: 0
+    };
+
+    for (const order of disbursedOrders) {
+      switch (order.category) {
+        case 'SALARY':
+          catSpent.salaries += order.amount;
+          break;
+        case 'BONUS':
+          catSpent.bonuses += order.amount;
+          break;
+        case 'ADVANCE':
+          catSpent.advances += order.amount;
+          break;
+        case 'TG_ADS':
+          catSpent.telegramOfficialAds += order.amount;
+          break;
+        case 'TG_CHANNEL_PROMO':
+          catSpent.telegramChannelPromos += order.amount;
+          break;
+        case 'SOFTWARE_SUBSCRIPTION':
+          catSpent.softwareSubscriptions += order.amount;
+          break;
+        default:
+          catSpent.otherExpenses += order.amount;
+          break;
+      }
+
+      const seg = (order as any).targetVaultSegment;
+      if (seg && subVaultSpent[seg] !== undefined) {
+        subVaultSpent[seg] += order.amount;
+      } else if (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE') {
+        subVaultSpent.salaries += order.amount;
+      } else if (order.category === 'TG_ADS' || order.category === 'TG_CHANNEL_PROMO') {
+        subVaultSpent.marketing += order.amount;
+      } else {
+        subVaultSpent.operationalReserve += order.amount;
+      }
+    }
+
+    vault.totalSpentByCategory = catSpent;
+
+    const realCommittedPayroll = employees.reduce((sum, e) => sum + (e.compensation?.baseSalary || 0), 0);
+
+    if (vault.segmentedVaults) {
+      if (vault.segmentedVaults.salaries) {
+        vault.segmentedVaults.salaries.monthlyAllocated = realCommittedPayroll;
+        vault.segmentedVaults.salaries.totalSpent = subVaultSpent.salaries;
+      }
+      if (vault.segmentedVaults.marketing) {
+        vault.segmentedVaults.marketing.totalSpent = subVaultSpent.marketing;
+      }
+      if (vault.segmentedVaults.operationalReserve) {
+        vault.segmentedVaults.operationalReserve.totalSpent = subVaultSpent.operationalReserve;
+      }
+    }
+
+    if (vault.customSubVaults && vault.customSubVaults.length > 0) {
+      for (const custom of vault.customSubVaults) {
+        const spent = disbursedOrders
+          .filter((o: any) => o.targetVaultSegment === custom.code || o.targetVaultSegment === custom.name)
+          .reduce((sum, o) => sum + o.amount, 0);
+        custom.totalSpent = spent;
+      }
+    }
+
+    await vault.save();
+    SocketService.emitToAdmins('vault:updated', vault);
+    return vault;
+  }
+
+  /**
+   * Unified Transactions Ledger with Search & Filtering
+   */
+  public static async getAllTransactions(filters?: {
+    type?: string;
+    category?: string;
+    search?: string;
+  }) {
+    const vault = await this.getOrCreateVault();
+    const orders = await PayoutOrder.find()
+      .populate('beneficiaryId', 'fullName email phoneNumber avatarUrl')
+      .populate('transferProof.executedByTreasuryId', 'fullName email')
+      .sort({ createdAt: -1 });
+
+    const transactions: any[] = [];
+
+    for (const order of orders) {
+      const beneficiary = order.beneficiaryId as any;
+      transactions.push({
+        _id: order._id.toString(),
+        type: 'PAYOUT',
+        amount: order.amount,
+        currency: order.currency,
+        category: order.category,
+        targetVault: order.targetVaultSegment || 'صندوق الصرف الرئيسي',
+        beneficiaryName: beneficiary?.fullName || 'عضو الفريق',
+        beneficiaryEmail: beneficiary?.email,
+        description: order.summaryForTreasury,
+        status: order.executionStatus,
+        payoutMethod: order.payoutMethod,
+        referenceNumber: order.transferProof?.txHashOrReferenceNumber,
+        executedBy: (order.transferProof?.executedByTreasuryId as any)?.fullName || 'أمين الصندوق',
+        relatedTaskId: order.relatedTaskId,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        modificationRequest: order.modificationRequest
+      });
+    }
+
+    for (const adj of vault.manualAdjustmentsLog || []) {
+      const adjObj = adj as any;
+      const isDeposit = adjObj.operation === 'DEPOSIT';
+      const isFund = adjObj.operation === 'FUND_TREASURY';
+      const isReturn = adjObj.operation === 'RETURN_TO_BUDGET';
+
+      transactions.push({
+        _id: adjObj._id ? adjObj._id.toString() : new mongoose.Types.ObjectId().toString(),
+        type: isDeposit ? 'DEPOSIT' : isFund ? 'TRANSFER' : isReturn ? 'RETURN' : 'ADJUSTMENT',
+        amount: adjObj.amount,
+        currency: 'USDT',
+        category: isDeposit ? 'CAPITAL_DEPOSIT' : 'INTERNAL_TRANSFER',
+        targetVault: isDeposit
+          ? 'الميزانية العامة للشركة'
+          : isFund
+          ? 'صندوق الصرف المركزي'
+          : 'الميزانية العامة',
+        beneficiaryName: 'خزينة المنظومة المركزية',
+        beneficiaryEmail: 'admin@thelordofcrypto.com',
+        description: adjObj.reason || (isDeposit ? 'إيداع رأس مال / أرباح' : 'تغذية صندوق الصرف'),
+        status: 'COMPLETED',
+        payoutMethod: 'SYSTEM_INTERNAL',
+        referenceNumber: `ADJ-${adjObj.amount}`,
+        executedBy: 'القائد الأعلى (المدير العام)',
+        createdAt: adjObj.createdAt,
+        updatedAt: adjObj.createdAt
+      });
+    }
+
+    transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    let filtered = transactions;
+    if (filters?.type && filters.type !== 'ALL') {
+      filtered = filtered.filter((t) => t.type === filters.type);
+    }
+    if (filters?.category && filters.category !== 'ALL') {
+      filtered = filtered.filter((t) => t.category === filters.category);
+    }
+    if (filters?.search && filters.search.trim()) {
+      const query = filters.search.toLowerCase().trim();
+      filtered = filtered.filter(
+        (t) =>
+          t.description?.toLowerCase().includes(query) ||
+          t.beneficiaryName?.toLowerCase().includes(query) ||
+          t.targetVault?.toLowerCase().includes(query) ||
+          t.referenceNumber?.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }
+
+  /**
+   * Cascading Admin Delete Transaction
+   */
+  public static async adminDeleteTransaction(
+    id: string,
+    type: string,
+    adminId: string,
+    reason?: string
+  ) {
+    const vault = await this.getOrCreateVault();
+    const adminUser = await User.findById(adminId);
+
+    if (type === 'PAYOUT') {
+      const order = await PayoutOrder.findById(id);
+      if (!order) throw new Error('أمر الصرف غير موجود');
+
+      if (order.executionStatus === 'DISBURSED') {
+        vault.treasuryBalance += order.amount;
+
+        const seg = (order as any).targetVaultSegment;
+        if (seg && vault.segmentedVaults && vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve']) {
+          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].balance += order.amount;
+          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].totalSpent = Math.max(
+            0,
+            vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].totalSpent - order.amount
+          );
+        } else if (vault.segmentedVaults?.salaries && (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE')) {
+          vault.segmentedVaults.salaries.balance += order.amount;
+          vault.segmentedVaults.salaries.totalSpent = Math.max(0, vault.segmentedVaults.salaries.totalSpent - order.amount);
+        }
+
+        if (vault.totalSpentByCategory && (vault.totalSpentByCategory as any)[order.category.toLowerCase()]) {
+          (vault.totalSpentByCategory as any)[order.category.toLowerCase()] = Math.max(
+            0,
+            (vault.totalSpentByCategory as any)[order.category.toLowerCase()] - order.amount
+          );
+        }
+      }
+
+      await EmployeeLedger.deleteMany({ relatedPayoutOrderId: order._id });
+
+      if (order.relatedTaskId) {
+        try {
+          const { Task } = await import('../models/Task.model');
+          const task = await Task.findById(order.relatedTaskId);
+          if (task && task.financialRequirement) {
+            task.financialRequirement.payoutOrderId = undefined as any;
+            task.financialRequirement.adminApprovalStatus = 'PENDING_ADMIN';
+            await task.save();
+          }
+        } catch {}
+      }
+
+      await AuditService.logAction({
+        userId: adminId,
+        userName: adminUser?.fullName || 'القائد الأعلى',
+        userEmail: adminUser?.email || 'admin@thelordofcrypto.com',
+        userRole: 'SUPER_ADMIN',
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetName: `حذف متسلسل لأمر الصرف #${order._id}`,
+        targetType: 'SYSTEM',
+        severity: 'CRITICAL',
+        details: {
+          action: 'حذف وإلغاء أمر صرف واسترجاع الرصيد المتسلسل',
+          orderAmount: order.amount,
+          refundedToTreasury: order.executionStatus === 'DISBURSED',
+          reason: reason || 'حذف بقرار إداري من المدير العام'
+        }
+      });
+
+      await PayoutOrder.findByIdAndDelete(id);
+      await vault.save();
+
+      SocketService.emitToAdmins('vault:updated', vault);
+      SocketService.broadcast('payout:deleted', { orderId: id });
+
+      return {
+        success: true,
+        message: 'تم حذف أمر الصرف واسترجاع المبالغ للخزينة وتعديل المعاملات المرتبطة بنجاح'
+      };
+    } else {
+      const idx = vault.manualAdjustmentsLog.findIndex((a: any) => a._id?.toString() === id);
+      if (idx === -1) throw new Error('عملية التعديل غير موجودة');
+
+      const adj = vault.manualAdjustmentsLog[idx] as any;
+
+      if (adj.operation === 'DEPOSIT') {
+        vault.generalBudget = Math.max(0, vault.generalBudget - adj.amount);
+      } else if (adj.operation === 'FUND_TREASURY') {
+        vault.treasuryBalance = Math.max(0, vault.treasuryBalance - adj.amount);
+        vault.generalBudget += adj.amount;
+      } else if (adj.operation === 'RETURN_TO_BUDGET') {
+        vault.generalBudget = Math.max(0, vault.generalBudget - adj.amount);
+        vault.treasuryBalance += adj.amount;
+      }
+
+      vault.manualAdjustmentsLog.splice(idx, 1);
+      await vault.save();
+
+      await AuditService.logAction({
+        userId: adminId,
+        userName: adminUser?.fullName || 'القائد الأعلى',
+        userEmail: adminUser?.email || 'admin@thelordofcrypto.com',
+        userRole: 'SUPER_ADMIN',
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetName: `حذف قيد تسوية #${id}`,
+        targetType: 'SYSTEM',
+        severity: 'CRITICAL',
+        details: {
+          action: 'حذف عملية إيداع/تحويل مع عكس الأثر المالي',
+          amount: adj.amount,
+          operation: adj.operation,
+          reason: reason || 'حذف بقرار إداري'
+        }
+      });
+
+      SocketService.emitToAdmins('vault:updated', vault);
+
+      return {
+        success: true,
+        message: 'تم حذف العملية وعكس أثرها المالي على الأرصدة بنجاح'
+      };
+    }
+  }
+
+  /**
+   * Cascading Admin Update Transaction
+   */
+  public static async adminUpdateTransaction(
+    id: string,
+    type: string,
+    data: {
+      amount?: number;
+      category?: string;
+      summary?: string;
+      targetVault?: string;
+      reason?: string;
+    },
+    adminId: string
+  ) {
+    const vault = await this.getOrCreateVault();
+    const adminUser = await User.findById(adminId);
+
+    if (type === 'PAYOUT') {
+      const order = await PayoutOrder.findById(id);
+      if (!order) throw new Error('أمر الصرف غير موجود');
+
+      const oldAmount = order.amount;
+      const newAmount = data.amount !== undefined ? Number(data.amount) : oldAmount;
+
+      if (order.executionStatus === 'DISBURSED' && newAmount !== oldAmount) {
+        const delta = newAmount - oldAmount;
+        if (delta > 0 && vault.treasuryBalance < delta) {
+          throw new Error(`رصيد الصندوق (${vault.treasuryBalance} USDT) لا يكفي لزيادة مبلغ الصرف بمقدار (${delta} USDT)`);
+        }
+
+        vault.treasuryBalance -= delta;
+
+        const seg = (order as any).targetVaultSegment;
+        if (seg && vault.segmentedVaults && vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve']) {
+          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].balance -= delta;
+          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].totalSpent += delta;
+        }
+
+        const ledgerEntry = await EmployeeLedger.findOne({ relatedPayoutOrderId: order._id });
+        if (ledgerEntry) {
+          ledgerEntry.amount = newAmount;
+          await ledgerEntry.save();
+        }
+      }
+
+      order.amount = newAmount;
+      if (data.category) order.category = data.category as any;
+      if (data.summary) order.summaryForTreasury = data.summary;
+      if (data.targetVault) (order as any).targetVaultSegment = data.targetVault;
+
+      if (order.modificationRequest && order.modificationRequest.status === 'PENDING') {
+        order.modificationRequest.status = 'APPROVED';
+        order.modificationRequest.adminDecisionNote = 'تم تنفيذ التعديل بنجاح بواسطة المدير العام';
+        order.modificationRequest.decidedAt = new Date();
+      }
+
+      await order.save();
+      await vault.save();
+
+      await AuditService.logAction({
+        userId: adminId,
+        userName: adminUser?.fullName || 'القائد الأعلى',
+        userEmail: adminUser?.email || 'admin@thelordofcrypto.com',
+        userRole: 'SUPER_ADMIN',
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetName: `تعديل متسلسل لأمر الصرف #${order._id}`,
+        targetType: 'SYSTEM',
+        severity: 'CRITICAL',
+        details: {
+          oldAmount,
+          newAmount,
+          newCategory: order.category,
+          adminNote: data.reason || 'تعديل بقرار إداري'
+        }
+      });
+
+      SocketService.emitToAdmins('vault:updated', vault);
+      SocketService.broadcast('payout:updated', order);
+
+      return { success: true, message: 'تم تعديل العملية وضبط الأرصدة المتسلسلة بنجاح', data: order };
+    } else {
+      const idx = vault.manualAdjustmentsLog.findIndex((a: any) => a._id?.toString() === id);
+      if (idx === -1) throw new Error('عملية التعديل غير موجودة');
+
+      const adj = vault.manualAdjustmentsLog[idx] as any;
+      const oldAmount = adj.amount;
+      const newAmount = data.amount !== undefined ? Number(data.amount) : oldAmount;
+      const delta = newAmount - oldAmount;
+
+      if (adj.operation === 'DEPOSIT') {
+        vault.generalBudget += delta;
+      } else if (adj.operation === 'FUND_TREASURY') {
+        vault.treasuryBalance += delta;
+        vault.generalBudget -= delta;
+      }
+
+      adj.amount = newAmount;
+      if (data.reason) adj.reason = data.reason;
+
+      await vault.save();
+      SocketService.emitToAdmins('vault:updated', vault);
+
+      return { success: true, message: 'تم تعديل قيد الإيداع/التحويل وضبط الأرصدة بنجاح' };
+    }
+  }
 }
+
 

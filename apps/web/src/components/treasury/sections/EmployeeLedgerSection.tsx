@@ -21,9 +21,22 @@ export const EmployeeLedgerSection: React.FC = () => {
   const { data: employeesRes, isLoading, refetch } = useGetAllEmployeesQuery();
   const employees = employeesRes?.data || [];
 
+  const [currentUserRole, setCurrentUserRole] = useState<string>('TREASURY');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('lord_current_user');
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          if (u.accessRole) setCurrentUserRole(u.accessRole);
+        } catch {}
+      }
+    }
+  }, []);
 
   const filteredEmployees = employees.filter((emp: any) => {
     const matchesSearch =
@@ -213,17 +226,23 @@ export const EmployeeLedgerSection: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Action Button: Set Salary */}
+                {/* Action Button: Set Salary (Only visible & permitted for SUPER_ADMIN) */}
                 <div className="pt-2 border-t border-gray-800/80">
-                  <Button
-                    variant="surface"
-                    size="sm"
-                    onClick={() => setEditingEmployee(emp)}
-                    className="w-full border border-lord-gold/40 text-lord-gold hover:bg-lord-gold/10 text-xs font-bold rounded-2xl flex items-center justify-center gap-1.5"
-                  >
-                    <Coins className="w-3.5 h-3.5 ml-1" />
-                    <span>تحديد / تعديل الراتب 💵</span>
-                  </Button>
+                  {currentUserRole === 'SUPER_ADMIN' ? (
+                    <Button
+                      variant="surface"
+                      size="sm"
+                      onClick={() => setEditingEmployee(emp)}
+                      className="w-full border border-lord-gold/40 text-lord-gold hover:bg-lord-gold/10 text-xs font-bold rounded-2xl flex items-center justify-center gap-1.5"
+                    >
+                      <Coins className="w-3.5 h-3.5 ml-1" />
+                      <span>تحديد / تعديل الراتب 💵 (صلاحية المسؤول)</span>
+                    </Button>
+                  ) : (
+                    <div className="py-2 px-3 rounded-xl bg-gray-900/60 border border-gray-800/60 text-center text-[10px] text-gray-500 font-mono">
+                      🔒 صلاحية تعديل الراتب محصورة بالمدير العام فقط (لأمين الصندوق حق الصرف فقط)
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -241,3 +260,4 @@ export const EmployeeLedgerSection: React.FC = () => {
     </div>
   );
 };
+

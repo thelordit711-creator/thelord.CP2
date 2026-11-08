@@ -148,6 +148,50 @@ export const treasuryApi = baseApi.injectEndpoints({
         url: '/treasury/reports'
       }),
       providesTags: ['CompanyVault', 'PayoutOrder']
+    }),
+
+    // Master Transactions Ledger & Cascading Management
+    getAllTransactions: builder.query<
+      IApiResponse<any[]>,
+      { type?: string; category?: string; search?: string } | void
+    >({
+      query: (params) => ({
+        url: '/treasury/transactions',
+        params: params || undefined
+      }),
+      providesTags: ['PayoutOrder', 'CompanyVault']
+    }),
+
+    adminUpdateTransaction: builder.mutation<
+      IApiResponse<any>,
+      { id: string; type: string; amount?: number; category?: string; summary?: string; targetVault?: string; reason?: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/treasury/transactions/${id}`,
+        method: 'PATCH',
+        body
+      }),
+      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger']
+    }),
+
+    adminDeleteTransaction: builder.mutation<
+      IApiResponse<any>,
+      { id: string; type: string; reason?: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/treasury/transactions/${id}`,
+        method: 'DELETE',
+        body
+      }),
+      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger']
+    }),
+
+    recalculateVault: builder.mutation<IApiResponse<any>, void>({
+      query: () => ({
+        url: '/treasury/recalculate',
+        method: 'POST'
+      }),
+      invalidatesTags: ['CompanyVault', 'PayoutOrder']
     })
   })
 });
@@ -166,6 +210,10 @@ export const {
   useCreateRecurringExpenseMutation,
   useDeleteRecurringExpenseMutation,
   useExecuteRecurringExpenseMutation,
-  useGetAccountingReportsQuery
+  useGetAccountingReportsQuery,
+  useGetAllTransactionsQuery,
+  useAdminUpdateTransactionMutation,
+  useAdminDeleteTransactionMutation,
+  useRecalculateVaultMutation
 } = treasuryApi;
 

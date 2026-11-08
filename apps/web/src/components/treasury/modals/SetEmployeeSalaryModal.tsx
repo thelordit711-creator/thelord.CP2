@@ -187,3 +187,4 @@ export const SetEmployeeSalaryModal: React.FC<SetEmployeeSalaryModalProps> = ({
     </AppModalPortal>
   );
 };
+

@@ -299,3 +299,4 @@ export const CreateRecurringExpenseModal: React.FC<CreateRecurringExpenseModalPr
     </AppModalPortal>
   );
 };
+

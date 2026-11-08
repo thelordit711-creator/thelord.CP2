@@ -195,3 +195,4 @@ export const TransferToSubVaultModal: React.FC<TransferToSubVaultModalProps> = (
     </AppModalPortal>
   );
 };
+

@@ -228,3 +228,4 @@ export const AccountingReportsModal: React.FC<AccountingReportsModalProps> = ({
     </AppModalPortal>
   );
 };
+
