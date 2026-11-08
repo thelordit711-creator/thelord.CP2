@@ -173,18 +173,30 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleDecision = async (requestId: string, decision: 'APPROVE' | 'REJECT' | 'NOTE') => {
+  const handleDecision = async (
+    requestId: string,
+    decision: 'APPROVE' | 'REJECT' | 'NOTE',
+    targetVaultSegment?: 'salaries' | 'marketing' | 'operationalReserve',
+    customNotes?: string
+  ) => {
     try {
       await decideRequest({
         id: requestId,
         data: {
           decision,
-          adminNotes: decision === 'APPROVE' ? 'معتمد للصرف عبر الصندوق' : 'تمت المراجعة من المسؤول'
+          targetVaultSegment,
+          adminNotes: customNotes || (decision === 'APPROVE' ? 'معتمد للصرف عبر الصندوق' : 'تمت المراجعة من المسؤول')
         }
       }).unwrap();
 
       if (decision === 'APPROVE') {
-        lordToast.success('تم اعتماد الميزانية', 'تمت إحالة الطلب لشاشة الصندوق فوراً للصرف!');
+        const segNames: Record<string, string> = {
+          salaries: 'صندوق الرواتب والأجور',
+          marketing: 'صندوق التسويق والإعلانات',
+          operationalReserve: 'صندوق الاحتياطي التشغيلي'
+        };
+        const vaultLabel = targetVaultSegment ? ` (${segNames[targetVaultSegment] || targetVaultSegment})` : '';
+        lordToast.success('تم اعتماد الميزانية', `تمت إحالة الطلب لشاشة الصندوق فوراً للصرف${vaultLabel}!`);
       } else {
         lordToast.gold('تحديث الطلب', 'تم تحديث حالة الطلب المالي بنجاح');
       }
@@ -264,6 +276,7 @@ export default function AdminDashboardPage() {
       {/* Pending Financial Requests Section */}
       <PendingFinancialRequests
         requests={requests}
+        vault={vault}
         isDeciding={isDeciding}
         onDecision={handleDecision}
       />

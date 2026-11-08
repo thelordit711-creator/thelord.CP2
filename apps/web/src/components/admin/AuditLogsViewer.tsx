@@ -304,11 +304,41 @@ export const AuditLogsViewer: React.FC = () => {
 
                   <td className="py-3 px-4 text-gray-300 max-w-xs">
                     {log.details ? (
-                      <div className="text-[11px] leading-relaxed">
+                      <div className="text-[11px] leading-relaxed space-y-0.5">
+                        {log.details.amount !== undefined && (
+                          <div className="text-emerald-400 font-bold font-mono">
+                            المبلغ: {log.details.amount} {log.details.currency || 'USDT'}
+                          </div>
+                        )}
+                        {log.details.sourceVault && (
+                          <div className="text-lord-gold font-bold">
+                            المصدر: {log.details.sourceVault}
+                          </div>
+                        )}
+                        {log.details.payoutMethod && (
+                          <div className="text-cyber-blue font-mono text-[10px]">
+                            الوسيلة: {log.details.payoutMethod}
+                          </div>
+                        )}
+                        {log.details.txHashOrReferenceNumber && (
+                          <div className="text-gray-400 font-mono text-[10px] truncate max-w-[200px]" title={log.details.txHashOrReferenceNumber}>
+                            المرجع/الهاش: {log.details.txHashOrReferenceNumber}
+                          </div>
+                        )}
+                        {log.details.action && (
+                          <div className="text-amber-300 font-bold">
+                            {log.details.action}
+                          </div>
+                        )}
                         {log.details.reason && (
                           <div>
                             <span className="text-gray-400">السبب: </span>
                             <strong className="text-white">{log.details.reason}</strong>
+                          </div>
+                        )}
+                        {log.details.summary && (
+                          <div className="text-gray-300 truncate max-w-[220px]" title={log.details.summary}>
+                            {log.details.summary}
                           </div>
                         )}
                         {log.details.deletedEmail && (

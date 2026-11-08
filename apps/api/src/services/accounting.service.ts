@@ -4,6 +4,7 @@ import { PayoutOrder } from '../models/PayoutOrder.model';
 import { EmployeeLedger } from '../models/EmployeeLedger.model';
 import { User } from '../models/User.model';
 import { SocketService } from './socket.service';
+import { AuditService } from './audit.service';
 import { PayoutCategory, LedgerEntryType } from '@lord/shared-types';
 
 export class AccountingService {
@@ -54,6 +55,26 @@ export class AccountingService {
 
     await vault.save();
     SocketService.emitToAdmins('vault:updated', vault);
+
+    // Record audit trail for Surplus Return
+    try {
+      const adminUser = adminId ? await User.findById(adminId) : null;
+      await AuditService.logAction({
+        userId: adminId || 'admin',
+        userName: adminUser?.fullName || 'القائد الأعلى',
+        userEmail: adminUser?.email || 'admin@thelordofcrypto.com',
+        userRole: (adminUser?.accessRole as any) || 'SUPER_ADMIN',
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetName: 'الصندوق والخزينة',
+        targetType: 'SYSTEM',
+        severity: 'INFO',
+        details: {
+          action: 'استرجاع فائض سيولة من الصندوق إلى الميزانية العامة',
+          amount,
+          reason
+        }
+      });
+    } catch (_err) {}
     return vault;
   }
 
@@ -109,6 +130,26 @@ export class AccountingService {
 
     await vault.save();
     SocketService.emitToAdmins('vault:updated', vault);
+
+    // Record audit trail for Surplus Return
+    try {
+      const adminUser = adminId ? await User.findById(adminId) : null;
+      await AuditService.logAction({
+        userId: adminId || 'admin',
+        userName: adminUser?.fullName || 'القائد الأعلى',
+        userEmail: adminUser?.email || 'admin@thelordofcrypto.com',
+        userRole: (adminUser?.accessRole as any) || 'SUPER_ADMIN',
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetName: 'الصندوق والخزينة',
+        targetType: 'SYSTEM',
+        severity: 'INFO',
+        details: {
+          action: 'استرجاع فائض سيولة من الصندوق إلى الميزانية العامة',
+          amount,
+          reason
+        }
+      });
+    } catch (_err) {}
     return vault;
   }
 
@@ -141,6 +182,26 @@ export class AccountingService {
 
     await vault.save();
     SocketService.emitToAdmins('vault:updated', vault);
+
+    // Record audit trail for Surplus Return
+    try {
+      const adminUser = adminId ? await User.findById(adminId) : null;
+      await AuditService.logAction({
+        userId: adminId || 'admin',
+        userName: adminUser?.fullName || 'القائد الأعلى',
+        userEmail: adminUser?.email || 'admin@thelordofcrypto.com',
+        userRole: (adminUser?.accessRole as any) || 'SUPER_ADMIN',
+        actionType: 'SYSTEM_SECURITY_CONFIG',
+        targetName: 'الصندوق والخزينة',
+        targetType: 'SYSTEM',
+        severity: 'INFO',
+        details: {
+          action: 'استرجاع فائض سيولة من الصندوق إلى الميزانية العامة',
+          amount,
+          reason
+        }
+      });
+    } catch (_err) {}
     return vault;
   }
 
@@ -191,7 +252,14 @@ export class AccountingService {
 
       // Deduct from segmented sub-vaults
       if (vault.segmentedVaults) {
-        if (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE') {
+        const seg = (order as any).targetVaultSegment;
+        if (seg && vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve']) {
+          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].totalSpent += order.amount;
+          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].balance = Math.max(
+            0,
+            vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].balance - order.amount
+          );
+        } else if (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE') {
           if (vault.segmentedVaults.salaries) {
             vault.segmentedVaults.salaries.totalSpent += order.amount;
             vault.segmentedVaults.salaries.balance = Math.max(0, vault.segmentedVaults.salaries.balance - order.amount);
@@ -274,8 +342,52 @@ export class AccountingService {
       await session.commitTransaction();
       session.endSession();
 
-      // Notify employee & admin via Socket
+      // Retrieve beneficiary & treasury executor for audit & sockets
       const beneficiary = await User.findById(order.beneficiaryId);
+      const treasuryUser = treasuryUserId ? await User.findById(treasuryUserId) : null;
+
+      // Record immutable Audit Trail Entry for Financial Disbursement (يظهر في التدقيق)
+      try {
+        const segmentNames: Record<string, string> = {
+          salaries: 'صندوق الرواتب والأجور',
+          marketing: 'صندوق التسويق والإعلانات',
+          operationalReserve: 'صندوق الاحتياطي التشغيلي'
+        };
+        const vaultName = (order as any).targetVaultSegment
+          ? segmentNames[(order as any).targetVaultSegment] || (order as any).targetVaultSegment
+          : order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE'
+          ? 'صندوق الرواتب والأجور'
+          : order.category === 'TG_ADS' || order.category === 'TG_CHANNEL_PROMO'
+          ? 'صندوق التسويق والإعلانات'
+          : 'صندوق الاحتياطي التشغيلي';
+
+        await AuditService.logAction({
+          userId: treasuryUserId || 'system',
+          userName: treasuryUser?.fullName || 'أمين الصندوق والخزينة',
+          userEmail: treasuryUser?.email || 'treasury@thelordofcrypto.com',
+          userRole: (treasuryUser?.accessRole as any) || 'TREASURY',
+          actionType: 'DISBURSE_PAYOUT',
+          targetId: order._id.toString(),
+          targetName: beneficiary?.fullName || 'مستفيد مالي',
+          targetType: 'PAYOUT',
+          severity: 'INFO',
+          details: {
+            amount: order.amount,
+            currency: order.currency,
+            payoutMethod: order.payoutMethod,
+            category: order.category,
+            sourceVault: vaultName,
+            txHashOrReferenceNumber: proofData?.txHashOrReferenceNumber || '',
+            beneficiaryName: beneficiary?.fullName,
+            beneficiaryEmail: beneficiary?.email,
+            summary: order.summaryForTreasury
+          }
+        });
+      } catch (auditErr) {
+        console.error('[AccountingService] Failed to record payout audit entry:', auditErr);
+      }
+
+      // Notify employee & admin via Socket
       const payload = {
         orderId: order._id,
         amount: order.amount,

@@ -33,7 +33,7 @@ export class FinanceController {
   public static async decideFinancialRequest(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { decision, adminNotes } = req.body as IFinancialDecisionDto;
+      const { decision, adminNotes, targetVaultSegment } = req.body as IFinancialDecisionDto;
 
       const task = await Task.findById(id).populate('createdBy');
       if (!task || !task.financialRequirement.requiresBudget) {
@@ -61,6 +61,13 @@ export class FinanceController {
           destDetails.accountHolderName = creator.payoutMethods.jawaliWallet?.accountHolderName || creator.fullName;
         }
 
+        const segmentNames: Record<string, string> = {
+          salaries: 'صندوق الرواتب والأجور',
+          marketing: 'صندوق التسويق والإعلانات',
+          operationalReserve: 'صندوق الاحتياطي التشغيلي'
+        };
+        const vaultLabel = targetVaultSegment && segmentNames[targetVaultSegment] ? ` [صندوق: ${segmentNames[targetVaultSegment]}]` : '';
+
         const payoutOrder = await PayoutOrder.create({
           relatedTaskId: task._id,
           beneficiaryId: creator._id,
@@ -69,7 +76,8 @@ export class FinanceController {
           payoutMethod: reqPayout,
           destinationDetails: destDetails,
           category: task.financialRequirement.expenseCategory || 'GENERAL',
-          summaryForTreasury: `ميزانية مهمة: ${task.title}`,
+          targetVaultSegment: targetVaultSegment || undefined,
+          summaryForTreasury: `ميزانية مهمة: ${task.title}${vaultLabel}`,
           executionStatus: 'WAITING_TREASURY'
         });
 

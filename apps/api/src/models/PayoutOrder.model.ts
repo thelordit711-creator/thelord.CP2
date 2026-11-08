@@ -28,6 +28,10 @@ const PayoutOrderSchema = new Schema<IPayoutOrderDocument>({
     required: true,
     index: true
   },
+  targetVaultSegment: {
+    type: String,
+    enum: ['salaries', 'marketing', 'operationalReserve']
+  },
   payrollTranche: {
     type: String,
     enum: ['TRANCHE_1', 'TRANCHE_2', 'TRANCHE_3', 'FULL_MONTH', 'MONTHLY_ALLOWANCE', 'NONE'],

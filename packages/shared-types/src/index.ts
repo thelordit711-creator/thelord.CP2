@@ -328,6 +328,7 @@ export interface IPayoutOrder {
   payoutMethod: PayoutMethod;
   destinationDetails: IPayoutDestinationDetails;
   category: PayoutCategory;
+  targetVaultSegment?: 'salaries' | 'marketing' | 'operationalReserve';
   payrollTranche?: 'TRANCHE_1' | 'TRANCHE_2' | 'TRANCHE_3' | 'FULL_MONTH' | 'MONTHLY_ALLOWANCE' | 'NONE';
   summaryForTreasury: string;
   executionStatus: PayoutExecutionStatus;
@@ -524,6 +525,7 @@ export interface IReviewStageDto {
 export interface IFinancialDecisionDto {
   decision: 'APPROVE' | 'REJECT' | 'NOTE';
   adminNotes?: string;
+  targetVaultSegment?: 'salaries' | 'marketing' | 'operationalReserve';
 }
 
 export interface IConfirmDisbursedDto {
