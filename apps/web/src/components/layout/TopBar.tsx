@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
@@ -12,8 +12,6 @@ import {
   Sun,
   Moon,
   SlidersHorizontal,
-  Bot,
-  Layers,
   X,
   Check
 } from 'lucide-react';
@@ -74,11 +72,18 @@ export const TopBar: React.FC = () => {
         document.documentElement.classList.remove('light');
       }
 
-      // 2. Floating Tools (Default: FALSE / Hidden to keep mobile & desktop completely clean)
+      // 2. Floating Tools (Default: FALSE / Hidden to keep interface clean)
       const savedAi = localStorage.getItem('lord_show_floating_ai') === 'true';
       const savedHud = localStorage.getItem('lord_show_floating_hud') === 'true';
       setShowFloatingAi(savedAi);
       setShowFloatingHud(savedHud);
+
+      // Listen for updates from other components
+      const syncFloatingTools = () => {
+        setShowFloatingAi(localStorage.getItem('lord_show_floating_ai') === 'true');
+        setShowFloatingHud(localStorage.getItem('lord_show_floating_hud') === 'true');
+      };
+      window.addEventListener('lord_floating_tools_updated', syncFloatingTools);
 
       // 3. PWA Push Notifications
       if ('serviceWorker' in navigator) {
@@ -89,6 +94,10 @@ export const TopBar: React.FC = () => {
       if ('Notification' in window) {
         setHasNativeNotificationPermission(window.Notification.permission === 'granted');
       }
+
+      return () => {
+        window.removeEventListener('lord_floating_tools_updated', syncFloatingTools);
+      };
     }
   }, []);
 
@@ -174,13 +183,13 @@ export const TopBar: React.FC = () => {
       setShowFloatingAi(next);
       localStorage.setItem('lord_show_floating_ai', next ? 'true' : 'false');
       window.dispatchEvent(new Event('lord_floating_tools_updated'));
-      lordToast.gold(next ? 'تم إظهار المساعد الذكي TheLordAI 🦁' : 'تم إخفاء المساعد الذكي');
+      lordToast.gold(next ? 'تم إظهار المساعد TheLordAI 🦁' : 'تم إخفاء المساعد الذكي');
     } else {
       const next = !showFloatingHud;
       setShowFloatingHud(next);
       localStorage.setItem('lord_show_floating_hud', next ? 'true' : 'false');
       window.dispatchEvent(new Event('lord_floating_tools_updated'));
-      lordToast.gold(next ? 'تم إظهار لوحة الرقابة اللحظية HUD 🦁' : 'تم إخفاء لوحة الرقابة');
+      lordToast.gold(next ? 'تم إظهار لوحة الرقابة HUD 🦁' : 'تم إخفاء لوحة الرقابة');
     }
   };
 
@@ -320,9 +329,9 @@ export const TopBar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-30 w-full bg-obsidian-surface/95 backdrop-blur-md border-b border-obsidian-border px-3 sm:px-4 py-2.5">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-        {/* Left Side: Mobile Drawer Hamburger & Official Logo */}
-        <div className="flex items-center gap-2.5">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+        {/* Right Side (in RTL): Mobile Drawer Hamburger & Official Compact Branding */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -331,7 +340,7 @@ export const TopBar: React.FC = () => {
               }
             }}
             className="md:hidden p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-300 hover:text-lord-gold transition-all"
-            title="فتح القائمة الرئيسية"
+            title="فتح القائمة الرئيسية الموحدة"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -340,28 +349,25 @@ export const TopBar: React.FC = () => {
             <div className="w-8 h-8 rounded-full border border-lord-gold/50 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
               <img src="/logo.png" alt="THE LORD" className="w-full h-full object-cover" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
-                THE LORD <span className="text-lord-gold">C.P</span>
-              </span>
-              <span className="text-[9px] text-gray-400 font-mono hidden sm:inline">
-                ENTERPRISE & OPERATIONS
-              </span>
-            </div>
+            <span className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
+              THE LORD <span className="text-lord-gold">C.P</span>
+            </span>
           </Link>
         </div>
 
-        {/* Right Controls: Work Status Switcher + Floating Tools + Theme Toggle + Notifications + Profile */}
+        {/* Left Side (in RTL): Desktop Full Controls OR Mobile Minimal Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Work Status Dropdown Switcher */}
-          <WorkStatusSelector
-            workStatus={workStatus}
-            updatingStatus={updatingStatus}
-            onStatusChange={handleStatusChange}
-          />
+          {/* Work Status Dropdown Switcher (Desktop only; on mobile it is in the Drawer) */}
+          <div className="hidden md:block">
+            <WorkStatusSelector
+              workStatus={workStatus}
+              updatingStatus={updatingStatus}
+              onStatusChange={handleStatusChange}
+            />
+          </div>
 
-          {/* Floating Tools Controls Popover Trigger */}
-          <div className="relative">
+          {/* Floating Tools Controls Popover Trigger (Desktop only) */}
+          <div className="relative hidden md:block">
             <button
               type="button"
               onClick={() => setShowToolsMenu((prev) => !prev)}
@@ -441,23 +447,23 @@ export const TopBar: React.FC = () => {
                 </div>
 
                 <div className="mt-2.5 pt-2 border-t border-gray-800/80 text-[10px] text-gray-400 text-center">
-                  مخفية افتراضياً لتوفير مساحة نقية على الهاتف
+                  مخفية افتراضياً لتوفير مساحة نقية ومريحة
                 </div>
               </div>
             )}
           </div>
 
-          {/* Theme Switcher (Dark / Light) */}
+          {/* Theme Switcher (Desktop only; on mobile it is inside the Drawer) */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-400 hover:text-amber-400 hover:border-amber-500/40 transition-all"
+            className="hidden md:flex p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-400 hover:text-amber-400 hover:border-amber-500/40 transition-all"
             title={theme === 'dark' ? 'التحويل للوضع النهاري الأبيض ☀️' : 'التحويل للوضع الليلي الرسمي 🌙'}
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
           </button>
 
-          {/* Notification Bell */}
+          {/* Notification Bell (Always Visible on Mobile & Desktop) */}
           <div className="relative">
             <button
               type="button"
@@ -474,43 +480,43 @@ export const TopBar: React.FC = () => {
             </button>
           </div>
 
-          {/* Language Switcher */}
+          {/* Language Switcher (Desktop only) */}
           <button
             type="button"
             onClick={() => switchLanguage(locale === 'ar' ? 'en' : 'ar')}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-obsidian-card border border-obsidian-border text-xs text-gray-300 hover:text-white transition-all"
+            className="hidden md:flex items-center gap-1 px-2 py-1.5 rounded-xl bg-obsidian-card border border-obsidian-border text-xs text-gray-300 hover:text-white transition-all"
             title="تبديل اللغة"
           >
             <Globe className="w-3.5 h-3.5 text-cyber-blue" />
             <span className="font-bold">{locale.toUpperCase()}</span>
           </button>
 
-          {/* User Badge & Profile Link */}
+          {/* User Badge: Compact Avatar on Mobile, Full Badge on Desktop */}
           {currentUser && (
             <Link
               href={`/${locale}/profile`}
-              className="flex items-center gap-2 p-1.5 rounded-xl bg-obsidian-card border border-obsidian-border hover:border-lord-gold/50 transition-all group"
+              className="flex items-center gap-2 p-1 sm:p-1.5 rounded-xl bg-obsidian-card border border-obsidian-border hover:border-lord-gold/50 transition-all group"
               title="الملف الشخصي"
             >
-              <div className="w-7 h-7 rounded-lg bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold group-hover:scale-105 transition-transform">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold group-hover:scale-105 transition-transform">
                 {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
               </div>
               <div className="hidden lg:flex flex-col text-right">
-                <span className="text-xs font-bold text-white group-hover:text-lord-gold transition-colors">
+                <span className="text-xs font-bold text-white group-hover:text-lord-gold transition-colors truncate max-w-[140px]">
                   {currentUser.fullName}
                 </span>
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[10px] text-gray-400 truncate">
                   {currentUser.accessRole === 'SUPER_ADMIN' ? 'المدير العام' : currentUser.accessRole === 'TREASURY' ? 'أمين الصندوق' : 'موظف'}
                 </span>
               </div>
             </Link>
           )}
 
-          {/* Logout Button */}
+          {/* Logout Button (Desktop only; on mobile it is in the Drawer) */}
           <button
             type="button"
             onClick={handleLogout}
-            className="p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-400 hover:text-red-400 hover:border-red-500/40 transition-all"
+            className="hidden md:flex p-2 rounded-xl bg-obsidian-card border border-obsidian-border text-gray-400 hover:text-red-400 hover:border-red-500/40 transition-all"
             title="تسجيل الخروج"
           >
             <LogOut className="w-4 h-4" />

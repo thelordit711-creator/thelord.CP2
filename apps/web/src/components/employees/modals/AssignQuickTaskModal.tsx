@@ -162,3 +162,4 @@ export const AssignQuickTaskModal: React.FC<AssignQuickTaskModalProps> = ({
     </AppModalPortal>
   );
 };
+

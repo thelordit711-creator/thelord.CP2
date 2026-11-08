@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import {
   LayoutDashboard,
@@ -19,13 +19,20 @@ import {
   Trophy,
   User,
   Settings,
-  X
+  X,
+  Sun,
+  Moon,
+  Globe,
+  SlidersHorizontal,
+  LogOut
 } from 'lucide-react';
 import { useSocket } from '../../providers/SocketProvider';
 import { AccessRole } from '@lord/shared-types';
+import { lordToast } from '../../lib/lordToast';
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const { isConnected } = useSocket();
@@ -33,6 +40,7 @@ export const Sidebar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userRole, setUserRole] = useState<AccessRole>('SUPER_ADMIN');
   const [userName, setUserName] = useState<string>('The Lord Admin');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -47,6 +55,9 @@ export const Sidebar: React.FC = () => {
         }
       }
 
+      const savedTheme = (localStorage.getItem('lord_theme') as 'dark' | 'light') || 'dark';
+      setTheme(savedTheme);
+
       const handleToggleMobile = () => {
         setMobileOpen((prev) => !prev);
       };
@@ -56,6 +67,37 @@ export const Sidebar: React.FC = () => {
       };
     }
   }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lord_theme', next);
+      if (next === 'light') {
+        document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
+        lordToast.gold('الوضع النهاري الفاتح ☀️');
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+        lordToast.gold('الوضع الليلي الرسمي 🌙');
+      }
+    }
+  };
+
+  const switchLanguage = () => {
+    const nextLocale = locale === 'ar' ? 'en' : 'ar';
+    const newPath = pathname.replace(`/${locale}`, `/${nextLocale}`);
+    router.push(newPath);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('lord_auth_token');
+    localStorage.removeItem('lord_current_user');
+    lordToast.gold('تم تسجيل الخروج بنجاح');
+    setMobileOpen(false);
+    router.push(`/${locale}/logged-out`);
+  };
 
   const allNavItems = [
     {
@@ -321,7 +363,7 @@ export const Sidebar: React.FC = () => {
         </div>
       </aside>
 
-      {/* 2. Unified Mobile Drawer (Exactly matching Laptop Sidebar) */}
+      {/* 2. Unified Mobile Drawer (Clean, matching laptop sidebar + mobile utility row) */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-[99999] flex select-none">
           {/* Backdrop */}
@@ -334,7 +376,7 @@ export const Sidebar: React.FC = () => {
           <div
             className={`relative z-10 w-72 max-w-[85vw] h-full bg-[#090c15] border-r border-lord-gold/30 shadow-2xl flex flex-col justify-between animate-in ${
               isRtl ? 'slide-in-from-right' : 'slide-in-from-left'
-            } duration-200`}
+            } duration-200 text-right`}
           >
             {/* Mobile Brand Header */}
             <div>
@@ -345,7 +387,7 @@ export const Sidebar: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-white">THE LORD C.P</h3>
-                    <p className="text-[10px] text-lord-gold/80 font-mono">القائمة الرئيسية الموحدة</p>
+                    <p className="text-[10px] text-lord-gold/80 font-mono">القائمة التنفيذية الرسمية</p>
                   </div>
                 </div>
                 <button
@@ -357,17 +399,36 @@ export const Sidebar: React.FC = () => {
                 </button>
               </div>
 
-              {/* Status */}
-              <div className="px-4 py-2 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between text-[11px]">
-                <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+              {/* Mobile Quick Utilities Bar (Theme + Language) */}
+              <div className="px-4 py-2.5 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-amber-400 flex items-center gap-1 text-[11px] font-bold"
+                  >
+                    {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5 text-sky-400" />}
+                    <span>{theme === 'dark' ? 'نهاري' : 'ليلي'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={switchLanguage}
+                    className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center gap-1 text-[11px] font-bold font-mono"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-cyber-blue" />
+                    <span>{locale.toUpperCase()}</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-emerald-400 text-[10px] font-bold">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>متصل لحظياً</span>
                 </div>
-                <span className="text-[10px] text-lord-gold font-mono">{userRole}</span>
               </div>
 
               {/* All Official Nav Items */}
-              <div className="p-2 overflow-y-auto max-h-[calc(100vh-190px)] space-y-1">
+              <div className="p-2 overflow-y-auto max-h-[calc(100vh-210px)] space-y-1 scroll-touch">
                 {visibleNavItems.map((item, idx) => {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
@@ -401,17 +462,26 @@ export const Sidebar: React.FC = () => {
               </div>
             </div>
 
-            {/* Mobile Footer User Chip */}
-            <div className="p-3 border-t border-gray-800 bg-[#06080e]">
-              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-gray-900/80 border border-gray-800">
-                <div className="w-8 h-8 rounded-lg bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold">
+            {/* Mobile Footer User Chip & Logout */}
+            <div className="p-3 border-t border-gray-800 bg-[#06080e] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-lord-gold/20 border border-lord-gold/40 flex items-center justify-center font-bold text-xs text-lord-gold shrink-0">
                   {userRole === 'SUPER_ADMIN' ? '👑' : userRole === 'TREASURY' ? '🪙' : '💼'}
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-bold text-white truncate">{userName}</span>
-                  <span className="text-[9px] text-gray-400">{userRole}</span>
+                  <span className="text-[9px] text-gray-400 truncate">{userRole}</span>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-all shrink-0"
+                title="تسجيل الخروج"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>

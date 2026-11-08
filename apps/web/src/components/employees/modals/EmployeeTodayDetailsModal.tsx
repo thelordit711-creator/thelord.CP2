@@ -253,3 +253,4 @@ export const EmployeeTodayDetailsModal: React.FC<EmployeeTodayDetailsModalProps>
     </AppModalPortal>
   );
 };
+
