@@ -71,6 +71,10 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
   const screenStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
+  // WebRTC Signaling Queue & Cache
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
+
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -82,8 +86,57 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
   const rtcConfig: RTCConfiguration = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' }
     ]
+  };
+
+  // Helper to create and attach WebRTC PeerConnection
+  const createPeerConnection = (stream: MediaStream): RTCPeerConnection => {
+    const pc = new RTCPeerConnection(rtcConfig);
+    peerConnectionRef.current = pc;
+
+    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        const remoteStream = event.streams[0];
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteStream;
+          remoteVideoRef.current.play().catch(() => {});
+        }
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = remoteStream;
+          remoteAudioRef.current.play().catch(() => {});
+        }
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && activePartner && socket) {
+        socket.emit('call:signal', {
+          toUserId: activePartner._id,
+          signal: { candidate: event.candidate.toJSON() }
+        });
+      }
+    };
+
+    return pc;
+  };
+
+  // Helper to drain and apply pending queued ICE candidates
+  const drainPendingCandidates = async (pc: RTCPeerConnection) => {
+    if (pendingCandidatesRef.current.length > 0) {
+      for (const cand of pendingCandidatesRef.current) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(cand));
+        } catch (e) {
+          console.warn('[WebRTC] Candidate drain warning:', e);
+        }
+      }
+      pendingCandidatesRef.current = [];
+    }
   };
 
   // Sound Management based on call status
@@ -130,6 +183,8 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
       peerConnectionRef.current = null;
     }
 
+    pendingCandidatesRef.current = [];
+    pendingOfferRef.current = null;
     cameraTrackRef.current = null;
     setIsScreenSharing(false);
   }, []);
@@ -159,7 +214,7 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
     }, 1000);
   };
 
-  // Answering incoming call
+  // Answering incoming call (Callee side)
   const handleAnswerCall = async () => {
     if (!incomingCall || !socket) return;
     try {
@@ -179,39 +234,36 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
         }
       }
 
-      const pc = new RTCPeerConnection(rtcConfig);
-      peerConnectionRef.current = pc;
+      const pc = createPeerConnection(stream);
 
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      // Apply cached offer if it arrived while ringing
+      if (pendingOfferRef.current) {
+        await pc.setRemoteDescription(new RTCSessionDescription(pendingOfferRef.current));
+        await drainPendingCandidates(pc);
 
-      pc.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          const remoteStream = event.streams[0];
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = remoteStream;
-            remoteVideoRef.current.play().catch(() => {});
-          }
-          if (remoteAudioRef.current) {
-            remoteAudioRef.current.srcObject = remoteStream;
-            remoteAudioRef.current.play().catch(() => {});
-          }
-        }
-      };
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
 
-      pc.onicecandidate = (event) => {
-        if (event.candidate && activePartner) {
-          socket.emit('call:signal', {
-            toUserId: activePartner._id,
-            signal: { candidate: event.candidate }
-          });
-        }
-      };
+        socket.emit('call:accept', {
+          toUserId: incomingCall.caller._id,
+          acceptor: { _id: currentUserId, fullName: currentUserName },
+          callType: isVideo ? 'video' : 'audio'
+        });
 
-      socket.emit('call:accept', {
-        toUserId: incomingCall.caller._id,
-        acceptor: { _id: currentUserId, fullName: currentUserName },
-        callType: isVideo ? 'video' : 'audio'
-      });
+        socket.emit('call:signal', {
+          toUserId: incomingCall.caller._id,
+          signal: { answer }
+        });
+
+        pendingOfferRef.current = null;
+      } else {
+        // If offer didn't arrive yet, emit accept so caller sends/re-sends offer immediately
+        socket.emit('call:accept', {
+          toUserId: incomingCall.caller._id,
+          acceptor: { _id: currentUserId, fullName: currentUserName },
+          callType: isVideo ? 'video' : 'audio'
+        });
+      }
 
       setCallStatus('CONNECTED');
       startTimer();
@@ -221,7 +273,7 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
     }
   };
 
-  // Initiating outgoing call
+  // Initiating outgoing call (Caller side)
   useEffect(() => {
     if (!isOpen || incomingCall || !targetUser || !socket) return;
 
@@ -248,33 +300,7 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
           }
         }
 
-        const pc = new RTCPeerConnection(rtcConfig);
-        peerConnectionRef.current = pc;
-
-        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-        pc.ontrack = (event) => {
-          if (event.streams && event.streams[0]) {
-            const remoteStream = event.streams[0];
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = remoteStream;
-              remoteVideoRef.current.play().catch(() => {});
-            }
-            if (remoteAudioRef.current) {
-              remoteAudioRef.current.srcObject = remoteStream;
-              remoteAudioRef.current.play().catch(() => {});
-            }
-          }
-        };
-
-        pc.onicecandidate = (event) => {
-          if (event.candidate && targetUser) {
-            socket.emit('call:signal', {
-              toUserId: targetUser._id,
-              signal: { candidate: event.candidate }
-            });
-          }
-        };
+        const pc = createPeerConnection(stream);
 
         const offer = await pc.createOffer({
           offerToReceiveAudio: true,
@@ -309,13 +335,22 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
   useEffect(() => {
     if (!socket) return;
 
-    const handleAccepted = (data: { callType?: 'audio' | 'video' }) => {
+    const handleAccepted = async (data: { callType?: 'audio' | 'video' }) => {
       if (data?.callType) {
         setCallType(data.callType);
       }
       setCallStatus('CONNECTED');
       startTimer();
       toast.success('تم قبول المكالمة والاتصال بنجاح 🟢');
+
+      // Guarantee callee has the offer by re-sending it upon acceptance
+      const pc = peerConnectionRef.current;
+      if (pc && pc.localDescription && activePartner) {
+        socket.emit('call:signal', {
+          toUserId: activePartner._id,
+          signal: { offer: pc.localDescription }
+        });
+      }
     };
 
     const handleRejected = (data: { reason?: string }) => {
@@ -326,25 +361,50 @@ export const TelegramDirectCallModal: React.FC<TelegramDirectCallModalProps> = (
 
     const handleSignal = async (data: { signal: any }) => {
       const pc = peerConnectionRef.current;
-      if (!pc) return;
 
-      if (data.signal.offer) {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.signal.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        if (activePartner) {
-          socket.emit('call:signal', {
-            toUserId: activePartner._id,
-            signal: { answer }
-          });
+      if (data.signal?.offer) {
+        if (pc) {
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.signal.offer));
+            await drainPendingCandidates(pc);
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            if (activePartner) {
+              socket.emit('call:signal', {
+                toUserId: activePartner._id,
+                signal: { answer }
+              });
+            }
+          } catch (e) {
+            console.warn('[WebRTC] Set remote offer error:', e);
+          }
+        } else {
+          // PC not initialized yet (user still on incoming screen) -> Cache the offer!
+          pendingOfferRef.current = data.signal.offer;
         }
-      } else if (data.signal.answer) {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.signal.answer));
-      } else if (data.signal.candidate) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
-        } catch (e) {
-          console.warn('[WebRTC] Candidate error', e);
+      } else if (data.signal?.answer) {
+        if (pc) {
+          try {
+            if (pc.signalingState !== 'stable') {
+              await pc.setRemoteDescription(new RTCSessionDescription(data.signal.answer));
+              await drainPendingCandidates(pc);
+            }
+          } catch (e) {
+            console.warn('[WebRTC] Set remote answer error:', e);
+          }
+        }
+      } else if (data.signal?.candidate) {
+        if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+          } catch (e) {
+            console.warn('[WebRTC] Add candidate error:', e);
+          }
+        } else {
+          // PC or remoteDescription not ready -> Queue candidate!
+          pendingCandidatesRef.current.push(data.signal.candidate);
         }
       }
     };
