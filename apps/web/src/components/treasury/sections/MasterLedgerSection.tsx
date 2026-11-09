@@ -165,7 +165,7 @@ export const MasterLedgerSection: React.FC = () => {
                               ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
                               : isDeposit
                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : 'bg-cyber-blue/10 text-cyber-blue border-cyber-blue/30'
+                              : 'bg-lord-gold/10 text-lord-gold border-lord-gold/30'
                           }`}
                         >
                           {isPayout ? (
@@ -206,7 +206,7 @@ export const MasterLedgerSection: React.FC = () => {
                               ? 'text-amber-400'
                               : isDeposit
                               ? 'text-emerald-400'
-                              : 'text-cyber-blue'
+                              : 'text-lord-gold'
                           }
                         >
                           {isPayout ? '-' : '+'}${tx.amount.toLocaleString()} {tx.currency}
@@ -232,7 +232,7 @@ export const MasterLedgerSection: React.FC = () => {
                           {tx.description}
                         </div>
                         {tx.referenceNumber && (
-                          <div className="text-[10px] text-cyber-blue font-mono mt-0.5 truncate max-w-[180px]">
+                          <div className="text-[10px] text-gray-400 font-mono mt-0.5 truncate max-w-[180px]">
                             مرجع: {tx.referenceNumber}
                           </div>
                         )}

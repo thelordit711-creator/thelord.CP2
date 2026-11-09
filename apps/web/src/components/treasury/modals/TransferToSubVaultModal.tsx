@@ -72,11 +72,11 @@ export const TransferToSubVaultModal: React.FC<TransferToSubVaultModalProps> = (
 
   return (
     <AppModalPortal isOpen={isOpen} onClose={onClose} maxWidthClassName="max-w-lg">
-      <div className="bg-[#090c15] border-2 border-cyber-blue/50 rounded-3xl p-6 sm:p-7 text-white text-right space-y-5">
+      <div className="bg-[#090c15] border-2 border-lord-gold/30 rounded-3xl p-6 sm:p-7 text-white text-right space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-cyber-blue/15 border border-cyber-blue/40 flex items-center justify-center text-cyber-blue">
+            <div className="w-10 h-10 rounded-2xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
               <ArrowLeftRight className="w-5 h-5" />
             </div>
             <div>
@@ -113,7 +113,7 @@ export const TransferToSubVaultModal: React.FC<TransferToSubVaultModalProps> = (
             <select
               value={selectedSubVault}
               onChange={(e) => setSelectedSubVault(e.target.value)}
-              className="w-full bg-[#0d1222] border border-gray-700 focus:border-cyber-blue rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none"
+              className="w-full bg-[#0d1222] border border-gray-700 focus:border-lord-gold rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none"
             >
               {subVaultOptions.map((opt) => (
                 <option key={opt.code} value={opt.code}>
@@ -135,7 +135,7 @@ export const TransferToSubVaultModal: React.FC<TransferToSubVaultModalProps> = (
               required
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
-              className="w-full bg-[#0d1222] border border-gray-700 focus:border-cyber-blue rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none"
+              className="w-full bg-[#0d1222] border border-gray-700 focus:border-lord-gold rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none"
             />
           </div>
 
@@ -148,7 +148,7 @@ export const TransferToSubVaultModal: React.FC<TransferToSubVaultModalProps> = (
                 onClick={() => setAmount(amt)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all ${
                   amount === amt
-                    ? 'bg-cyber-blue text-black'
+                    ? 'bg-lord-gold text-black shadow-gold-glow'
                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
@@ -167,7 +167,7 @@ export const TransferToSubVaultModal: React.FC<TransferToSubVaultModalProps> = (
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full bg-[#0d1222] border border-gray-700 focus:border-cyber-blue rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none"
+              className="w-full bg-[#0d1222] border border-gray-700 focus:border-lord-gold rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none"
             />
           </div>
 
@@ -182,10 +182,10 @@ export const TransferToSubVaultModal: React.FC<TransferToSubVaultModalProps> = (
             </button>
             <Button
               type="submit"
-              variant="cyber"
+              variant="gold"
               size="sm"
               isLoading={isLoading}
-              className="text-xs font-bold"
+              className="text-xs font-bold shadow-gold-glow"
             >
               تأكيد نقل وتخصيص السيولة 💸
             </Button>

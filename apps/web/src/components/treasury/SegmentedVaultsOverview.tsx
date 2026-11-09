@@ -32,23 +32,23 @@ export const SegmentedVaultsOverview: React.FC = () => {
   const defaultVaults = {
     salaries: {
       name: 'صندوق الرواتب والأجور',
-      balance: vault?.segmentedVaults?.salaries?.balance ?? 15000,
-      monthlyAllocated: vault?.segmentedVaults?.salaries?.monthlyAllocated ?? 20000,
-      totalSpent: vault?.segmentedVaults?.salaries?.totalSpent ?? 5000,
+      balance: vault?.segmentedVaults?.salaries?.balance ?? 0,
+      monthlyAllocated: vault?.segmentedVaults?.salaries?.monthlyAllocated ?? 0,
+      totalSpent: vault?.segmentedVaults?.salaries?.totalSpent ?? 0,
       alertThresholdPercent: 20
     },
     marketing: {
       name: 'صندوق التسويق والإعلانات',
-      balance: vault?.segmentedVaults?.marketing?.balance ?? 8000,
-      monthlyAllocated: vault?.segmentedVaults?.marketing?.monthlyAllocated ?? 10000,
-      totalSpent: vault?.segmentedVaults?.marketing?.totalSpent ?? 2000,
+      balance: vault?.segmentedVaults?.marketing?.balance ?? 0,
+      monthlyAllocated: vault?.segmentedVaults?.marketing?.monthlyAllocated ?? 0,
+      totalSpent: vault?.segmentedVaults?.marketing?.totalSpent ?? 0,
       alertThresholdPercent: 25
     },
     operationalReserve: {
       name: 'صندوق الاحتياطي التقني والتشغيلي',
-      balance: vault?.segmentedVaults?.operationalReserve?.balance ?? 12000,
-      monthlyAllocated: vault?.segmentedVaults?.operationalReserve?.monthlyAllocated ?? 15000,
-      totalSpent: vault?.segmentedVaults?.operationalReserve?.totalSpent ?? 3000,
+      balance: vault?.segmentedVaults?.operationalReserve?.balance ?? 0,
+      monthlyAllocated: vault?.segmentedVaults?.operationalReserve?.monthlyAllocated ?? 0,
+      totalSpent: vault?.segmentedVaults?.operationalReserve?.totalSpent ?? 0,
       alertThresholdPercent: 15
     }
   };
@@ -58,25 +58,25 @@ export const SegmentedVaultsOverview: React.FC = () => {
       key: 'salaries' as const,
       data: defaultVaults.salaries,
       icon: Wallet,
-      colorTheme: 'from-amber-500/20 via-obsidian-surface to-obsidian-card',
-      borderColor: 'border-amber-500/40',
-      badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+      colorTheme: 'from-[#0a0d16] via-obsidian-surface to-obsidian-card',
+      borderColor: 'border-lord-gold/30',
+      badgeColor: 'text-lord-gold bg-lord-gold/10 border-lord-gold/30'
     },
     {
       key: 'marketing' as const,
       data: defaultVaults.marketing,
       icon: TrendingDown,
-      colorTheme: 'from-cyber-blue/20 via-obsidian-surface to-obsidian-card',
-      borderColor: 'border-cyber-blue/40',
-      badgeColor: 'text-cyber-blue bg-cyber-blue/10 border-cyber-blue/30'
+      colorTheme: 'from-[#0a0d16] via-obsidian-surface to-obsidian-card',
+      borderColor: 'border-lord-gold/30',
+      badgeColor: 'text-lord-gold bg-lord-gold/10 border-lord-gold/30'
     },
     {
       key: 'operationalReserve' as const,
       data: defaultVaults.operationalReserve,
       icon: ShieldCheck,
-      colorTheme: 'from-emerald-500/20 via-obsidian-surface to-obsidian-card',
-      borderColor: 'border-emerald-500/40',
-      badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+      colorTheme: 'from-[#0a0d16] via-obsidian-surface to-obsidian-card',
+      borderColor: 'border-lord-gold/30',
+      badgeColor: 'text-lord-gold bg-lord-gold/10 border-lord-gold/30'
     }
   ];
 

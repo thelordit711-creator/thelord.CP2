@@ -161,11 +161,11 @@ export default function PayoutDeskPage() {
         <div className="bg-obsidian-surface border border-gray-800 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between">
           <div>
             <span className="text-[11px] text-gray-400 font-bold block">الميزانية العامة للأصل</span>
-            <div className="text-base sm:text-lg font-black text-cyber-blue font-mono mt-0.5">
+            <div className="text-base sm:text-lg font-black text-lord-gold font-mono mt-0.5">
               {isPrivacyMasked ? '••••••••' : `$${(vault?.generalBudget ?? 0).toLocaleString()} USDT`}
             </div>
           </div>
-          <div className="p-2 rounded-xl bg-cyber-blue/10 text-cyber-blue">
+          <div className="p-2 rounded-xl bg-lord-gold/10 text-lord-gold">
             <Wallet className="w-4 h-4" />
           </div>
         </div>
@@ -181,7 +181,7 @@ export default function PayoutDeskPage() {
               )}
             </div>
           </div>
-          <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+          <div className="p-2 rounded-xl bg-lord-gold/10 text-lord-gold">
             <Coins className="w-4 h-4" />
           </div>
         </div>
@@ -189,11 +189,11 @@ export default function PayoutDeskPage() {
         <div className="bg-obsidian-surface border border-gray-800 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between">
           <div>
             <span className="text-[11px] text-gray-400 font-bold block">إجمالي المصروفات المنفذة</span>
-            <div className="text-base sm:text-lg font-black text-emerald-400 font-mono mt-0.5">
+            <div className="text-base sm:text-lg font-black text-lord-gold font-mono mt-0.5">
               {isPrivacyMasked ? '••••••••' : `$${realSpentTotal.toLocaleString()} USDT`}
             </div>
           </div>
-          <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+          <div className="p-2 rounded-xl bg-lord-gold/10 text-lord-gold">
             <CheckCircle2 className="w-4 h-4" />
           </div>
         </div>
@@ -235,13 +235,13 @@ export default function PayoutDeskPage() {
               </div>
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">صندوق التسويق</span>
-                <span className="text-xs font-black text-cyber-blue font-mono">
+                <span className="text-xs font-black text-lord-gold font-mono">
                   {isPrivacyMasked ? '••••' : `$${(vault?.segmentedVaults?.marketing?.balance ?? 0).toLocaleString()}`}
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">صندوق الاحتياطي</span>
-                <span className="text-xs font-black text-emerald-400 font-mono">
+                <span className="text-xs font-black text-lord-gold font-mono">
                   {isPrivacyMasked ? '••••' : `$${(vault?.segmentedVaults?.operationalReserve?.balance ?? 0).toLocaleString()}`}
                 </span>
               </div>
@@ -257,11 +257,11 @@ export default function PayoutDeskPage() {
         {/* BOX 2: أوامر الصرف المعتمدة (Payout Desk) */}
         <div
           onClick={() => setIsOrdersModalOpen(true)}
-          className="bg-gradient-to-br from-[#0a0d17] via-[#0b1324] to-[#0a0d17] border-2 border-cyber-blue/40 hover:border-cyber-blue rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(56,189,248,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
+          className="bg-gradient-to-br from-[#0a0d17] via-[#0d1222] to-[#0a0d17] border-2 border-lord-gold/40 hover:border-lord-gold rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(212,175,55,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-cyber-blue/15 border border-cyber-blue/40 flex items-center justify-center text-cyber-blue shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-lord-gold shadow-md group-hover:scale-105 transition-transform">
                 <Coins className="w-6 h-6" />
               </div>
               {pendingOrdersCount > 0 ? (
@@ -276,7 +276,7 @@ export default function PayoutDeskPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-white group-hover:text-cyber-blue transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-lord-gold transition-colors">
                 أوامر الصرف المعتمدة والتدقيق البصري
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
@@ -292,7 +292,7 @@ export default function PayoutDeskPage() {
               </div>
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">قيد التنفيذ</span>
-                <span className="text-xs font-black text-cyber-blue font-mono">{inProgressOrdersCount}</span>
+                <span className="text-xs font-black text-lord-gold font-mono">{inProgressOrdersCount}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">تم الصرف</span>
@@ -301,7 +301,7 @@ export default function PayoutDeskPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-cyber-blue pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
+          <div className="flex items-center justify-between text-xs font-bold text-lord-gold pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
             <span>انقر لفتح طاولة الصرف وتنفيذ الحوالات</span>
             <ArrowUpRight className="w-4 h-4" />
           </div>
@@ -310,20 +310,20 @@ export default function PayoutDeskPage() {
         {/* BOX 3: حسابات الموظفين وسجل الرواتب */}
         <div
           onClick={() => setIsEmployeesModalOpen(true)}
-          className="bg-gradient-to-br from-[#0a0d17] via-[#0d1622] to-[#0a0d17] border-2 border-emerald-500/40 hover:border-emerald-500 rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(52,211,153,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
+          className="bg-gradient-to-br from-[#0a0d17] via-[#0d1222] to-[#0a0d17] border-2 border-lord-gold/40 hover:border-lord-gold rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(212,175,55,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-lord-gold shadow-md group-hover:scale-105 transition-transform">
                 <Users className="w-6 h-6" />
               </div>
-              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-lord-gold/15 border border-lord-gold/30 text-lord-gold">
                 دفتر الأستاذ للكادر
               </span>
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-lord-gold transition-colors">
                 حسابات الموظفين وسجل الرواتب والمستحقات
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
@@ -341,14 +341,14 @@ export default function PayoutDeskPage() {
               </div>
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">صلاحية التعديل</span>
-                <span className="text-xs font-black text-emerald-400">
+                <span className="text-xs font-black text-lord-gold">
                   {isSuperAdmin ? 'متاحة للمدير العام' : 'صرف فقط (محمية)'}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-emerald-400 pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
+          <div className="flex items-center justify-between text-xs font-bold text-lord-gold pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
             <span>انقر لفتح كشوفات حسابات الكادر</span>
             <ArrowUpRight className="w-4 h-4" />
           </div>
@@ -357,20 +357,20 @@ export default function PayoutDeskPage() {
         {/* BOX 4: المصروفات الشهرية المؤتمتة */}
         <div
           onClick={() => setIsRecurringModalOpen(true)}
-          className="bg-gradient-to-br from-[#0a0d17] via-[#150f24] to-[#0a0d17] border-2 border-purple-500/40 hover:border-purple-500 rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(168,85,247,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
+          className="bg-gradient-to-br from-[#0a0d17] via-[#0d1222] to-[#0a0d17] border-2 border-lord-gold/40 hover:border-lord-gold rounded-3xl p-6 shadow-xl hover:shadow-[0_10px_35px_rgba(212,175,55,0.12)] transition-all cursor-pointer group flex flex-col justify-between gap-5 relative overflow-hidden"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-lord-gold/15 border border-lord-gold/40 flex items-center justify-center text-lord-gold shadow-md group-hover:scale-105 transition-transform">
                 <CalendarClock className="w-6 h-6" />
               </div>
-              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-400">
+              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-lord-gold/15 border border-lord-gold/30 text-lord-gold">
                 جدولة وأتمتة شهرية
               </span>
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-white group-hover:text-purple-400 transition-colors">
+              <h3 className="text-lg font-black text-white group-hover:text-lord-gold transition-colors">
                 المصروفات الشهرية والاشتراكات المؤتمتة
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
@@ -382,7 +382,7 @@ export default function PayoutDeskPage() {
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800/80">
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">دورية التنفيذ</span>
-                <span className="text-xs font-black text-purple-300 font-mono">يوم 1 من كل شهر</span>
+                <span className="text-xs font-black text-gray-300 font-mono">يوم 1 من كل شهر</span>
               </div>
               <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/70">
                 <span className="text-[10px] text-gray-400 block font-bold">نمط الأمان</span>
@@ -391,7 +391,7 @@ export default function PayoutDeskPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-purple-400 pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
+          <div className="flex items-center justify-between text-xs font-bold text-lord-gold pt-2 border-t border-gray-800/60 group-hover:translate-x-[-4px] transition-transform">
             <span>انقر لفتح جدول المصروفات المؤتمتة</span>
             <ArrowUpRight className="w-4 h-4" />
           </div>
@@ -489,10 +489,10 @@ export default function PayoutDeskPage() {
       {/* MODAL 2: نافذة أوامر الصرف المعتمدة */}
       {/* ======================================================== */}
       <AppModalPortal isOpen={isOrdersModalOpen} onClose={() => setIsOrdersModalOpen(false)} maxWidthClassName="max-w-6xl">
-        <div className="bg-[#090c15] border-2 border-cyber-blue/60 rounded-3xl p-6 sm:p-8 text-white text-right space-y-6 max-h-[92vh] overflow-y-auto scroll-touch">
+        <div className="bg-[#090c15] border-2 border-lord-gold/30 rounded-3xl p-6 sm:p-8 text-white text-right space-y-6 max-h-[92vh] overflow-y-auto scroll-touch">
           <div className="flex items-center justify-between border-b border-gray-800 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-cyber-blue/20 border border-cyber-blue/50 flex items-center justify-center text-cyber-blue">
+              <div className="w-11 h-11 rounded-2xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
                 <Coins className="w-6 h-6" />
               </div>
               <div>
@@ -523,7 +523,7 @@ export default function PayoutDeskPage() {
                 onClick={() => setFilterStatus(tab.id)}
                 className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
                   filterStatus === tab.id
-                    ? 'bg-cyber-blue text-black shadow-md'
+                    ? 'bg-lord-gold text-black shadow-gold-glow'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -568,10 +568,10 @@ export default function PayoutDeskPage() {
       {/* MODAL 3: نافذة حسابات الموظفين وسجل الرواتب */}
       {/* ======================================================== */}
       <AppModalPortal isOpen={isEmployeesModalOpen} onClose={() => setIsEmployeesModalOpen(false)} maxWidthClassName="max-w-6xl">
-        <div className="bg-[#090c15] border-2 border-emerald-500/60 rounded-3xl p-6 sm:p-8 text-white text-right space-y-6 max-h-[92vh] overflow-y-auto scroll-touch">
+        <div className="bg-[#090c15] border-2 border-lord-gold/30 rounded-3xl p-6 sm:p-8 text-white text-right space-y-6 max-h-[92vh] overflow-y-auto scroll-touch">
           <div className="flex items-center justify-between border-b border-gray-800 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400">
+              <div className="w-11 h-11 rounded-2xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
                 <Users className="w-6 h-6" />
               </div>
               <div>
@@ -608,10 +608,10 @@ export default function PayoutDeskPage() {
       {/* MODAL 4: نافذة المصروفات والاشتراكات الشهرية المؤتمتة */}
       {/* ======================================================== */}
       <AppModalPortal isOpen={isRecurringModalOpen} onClose={() => setIsRecurringModalOpen(false)} maxWidthClassName="max-w-6xl">
-        <div className="bg-[#090c15] border-2 border-purple-500/60 rounded-3xl p-6 sm:p-8 text-white text-right space-y-6 max-h-[92vh] overflow-y-auto scroll-touch">
+        <div className="bg-[#090c15] border-2 border-lord-gold/30 rounded-3xl p-6 sm:p-8 text-white text-right space-y-6 max-h-[92vh] overflow-y-auto scroll-touch">
           <div className="flex items-center justify-between border-b border-gray-800 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-purple-400">
+              <div className="w-11 h-11 rounded-2xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
                 <CalendarClock className="w-6 h-6" />
               </div>
               <div>

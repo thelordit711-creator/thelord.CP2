@@ -159,7 +159,7 @@ export const CreateSubVaultModal: React.FC<CreateSubVaultModalProps> = ({
           </div>
 
           {/* Governance Notice */}
-          <div className="p-3 rounded-2xl bg-cyber-blue/10 border border-cyber-blue/30 text-[11px] text-cyber-blue leading-relaxed flex items-center gap-2">
+          <div className="p-3 rounded-2xl bg-lord-gold/10 border border-lord-gold/30 text-[11px] text-lord-gold leading-relaxed flex items-center gap-2">
             <Layers className="w-4 h-4 shrink-0" />
             <span>
               عند الصرف من هذا الصندوق الفرعي، يتم التحويل المحاسبي آلياً من صندوق الصرف الرئيسي إلى هذا الصندوق ثم للمستفيد.

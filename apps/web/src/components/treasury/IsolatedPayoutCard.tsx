@@ -167,12 +167,12 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
                 <span>صندوق الرواتب والأجور</span>
               </span>
             ) : order.category === 'TG_ADS' || order.category === 'TG_CHANNEL_PROMO' ? (
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-cyber-blue/15 text-cyber-blue border border-cyber-blue/30 flex items-center gap-1 shadow-xs">
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-lord-gold/15 text-lord-gold border border-lord-gold/30 flex items-center gap-1 shadow-xs">
                 <span>📣</span>
                 <span>صندوق التسويق والإعلانات</span>
               </span>
             ) : (
-              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shadow-xs">
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gray-800/80 text-gray-300 border border-gray-700/60 flex items-center gap-1 shadow-xs">
                 <span>🛡️</span>
                 <span>صندوق الاحتياطي التشغيلي</span>
               </span>
@@ -194,7 +194,7 @@ export const IsolatedPayoutCard: React.FC<IsolatedPayoutCardProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowQR(!showQR)}
-                  className="text-xs text-cyber-blue hover:underline flex items-center gap-1"
+                  className="text-xs text-lord-gold hover:underline flex items-center gap-1"
                 >
                   <QrCode className="w-3.5 h-3.5" />
                   <span>{showQR ? 'إخفاء QR' : 'عرض QR'}</span>

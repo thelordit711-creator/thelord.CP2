@@ -221,7 +221,7 @@ export const SubVaultsSection: React.FC = () => {
               <div className="pt-2">
                 <span className="text-[11px] text-gray-400 block font-bold">الرصيد المتاح للصرف</span>
                 <div className="text-2xl font-black text-white font-mono mt-0.5">
-                  ${(sub.balance ?? 0).toLocaleString()} <span className="text-xs text-purple-300">USDT</span>
+                  ${(sub.balance ?? 0).toLocaleString()} <span className="text-xs text-lord-gold">USDT</span>
                 </div>
               </div>
 
@@ -234,7 +234,7 @@ export const SubVaultsSection: React.FC = () => {
                 <div className="w-full bg-gray-800/80 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      isCritical ? 'bg-red-500' : 'bg-purple-500'
+                      isCritical ? 'bg-red-500' : 'bg-lord-gold'
                     }`}
                     style={{ width: `${percentRemaining}%` }}
                   />
@@ -252,7 +252,7 @@ export const SubVaultsSection: React.FC = () => {
                     <span>إنذار سيولة</span>
                   </span>
                 ) : (
-                  <span className="text-emerald-400 font-bold">✓ صندوق مخصص</span>
+                  <span className="text-gray-400 font-medium font-mono text-[10px]">✓ صندوق مخصص</span>
                 )}
               </div>
             </div>

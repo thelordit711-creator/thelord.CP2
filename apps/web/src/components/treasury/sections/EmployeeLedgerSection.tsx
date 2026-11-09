@@ -67,26 +67,26 @@ export const EmployeeLedgerSection: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-4 rounded-3xl bg-obsidian-card border border-cyber-blue/30 flex items-center justify-between">
+        <div className="p-4 rounded-3xl bg-obsidian-card border border-lord-gold/30 flex items-center justify-between">
           <div>
             <span className="text-[11px] text-gray-400 font-bold block">عدد الكادر المعتمد بالمنظومة</span>
-            <span className="text-xl font-black text-cyber-blue font-mono mt-0.5">
+            <span className="text-xl font-black text-lord-gold font-mono mt-0.5">
               {employees.length} موظف
             </span>
           </div>
-          <div className="p-2.5 rounded-2xl bg-cyber-blue/15 text-cyber-blue border border-cyber-blue/30">
+          <div className="p-2.5 rounded-2xl bg-lord-gold/15 text-lord-gold border border-lord-gold/30">
             <Users className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="p-4 rounded-3xl bg-obsidian-card border border-emerald-500/30 flex items-center justify-between">
+        <div className="p-4 rounded-3xl bg-obsidian-card border border-gray-800 flex items-center justify-between">
           <div>
             <span className="text-[11px] text-gray-400 font-bold block">دورية استحقاق الرواتب المعتمدة</span>
-            <span className="text-sm font-black text-emerald-400 mt-0.5">
+            <span className="text-sm font-black text-gray-300 font-bold mt-0.5">
               يوم 1 من كل شهر ميلادي
             </span>
           </div>
-          <div className="p-2.5 rounded-2xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          <div className="p-2.5 rounded-2xl bg-gray-800 text-gray-300 border border-gray-700">
             <Calendar className="w-5 h-5" />
           </div>
         </div>
@@ -174,7 +174,7 @@ export const EmployeeLedgerSection: React.FC = () => {
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-lord-gold/10 text-lord-gold border border-lord-gold/30">
                     يوم {emp.compensation?.payoutDayOfMonth || 1}
                   </span>
                 </div>
@@ -203,7 +203,7 @@ export const EmployeeLedgerSection: React.FC = () => {
                   </div>
                   <div className="p-1.5 rounded-xl bg-gray-900/60 border border-gray-800">
                     <span className="text-gray-400 block">سلف</span>
-                    <span className="font-bold text-blue-400 font-mono">-${advances}</span>
+                    <span className="font-bold text-gray-300 font-mono">-${advances}</span>
                   </div>
                   <div className="p-1.5 rounded-xl bg-gray-900/60 border border-gray-800">
                     <span className="text-gray-400 block">خصومات</span>
@@ -215,9 +215,9 @@ export const EmployeeLedgerSection: React.FC = () => {
                 <div className="p-2.5 rounded-xl bg-gray-900/40 border border-gray-800 text-[10px] text-gray-400 flex items-center justify-between font-mono">
                   <span className="flex items-center gap-1.5">
                     {prefMethod === 'BEP20_USDT' ? (
-                      <Wallet className="w-3.5 h-3.5 text-cyber-blue" />
+                      <Wallet className="w-3.5 h-3.5 text-lord-gold" />
                     ) : (
-                      <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                      <Smartphone className="w-3.5 h-3.5 text-lord-gold" />
                     )}
                     <span>{prefMethod === 'BEP20_USDT' ? 'BEP20 USDT' : 'محفظة محلية'}</span>
                   </span>

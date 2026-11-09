@@ -76,10 +76,10 @@ export const RecurringExpensesSection: React.FC = () => {
       {/* Top Header & Monthly Commitments Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Payroll Card */}
-        <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-500/15 via-obsidian-card to-obsidian-surface border border-amber-500/40 shadow-lg space-y-2">
+        <div className="p-5 rounded-3xl bg-obsidian-card border border-lord-gold/30 shadow-lg space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-amber-400">بند الرواتب الشهرية المجمعة</span>
-            <Coins className="w-5 h-5 text-amber-400" />
+            <span className="text-xs font-black text-lord-gold">بند الرواتب الشهرية المجمعة</span>
+            <Coins className="w-5 h-5 text-lord-gold" />
           </div>
           <div className="text-2xl font-black text-white font-mono">
             ${totalCommittedPayroll.toLocaleString()} <span className="text-xs text-lord-gold">USDT</span>
@@ -90,13 +90,13 @@ export const RecurringExpensesSection: React.FC = () => {
         </div>
 
         {/* Recurring Subscriptions Card */}
-        <div className="p-5 rounded-3xl bg-gradient-to-br from-cyber-blue/15 via-obsidian-card to-obsidian-surface border border-cyber-blue/40 shadow-lg space-y-2">
+        <div className="p-5 rounded-3xl bg-obsidian-card border border-gray-800 shadow-lg space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-cyber-blue">الاشتراكات والخدمات الدورية</span>
-            <Server className="w-5 h-5 text-cyber-blue" />
+            <span className="text-xs font-black text-gray-300">الاشتراكات والخدمات الدورية</span>
+            <Server className="w-5 h-5 text-lord-gold" />
           </div>
           <div className="text-2xl font-black text-white font-mono">
-            ${totalMonthlySubscriptions.toLocaleString()} <span className="text-xs text-cyber-blue">USDT</span>
+            ${totalMonthlySubscriptions.toLocaleString()} <span className="text-xs text-gray-400">USDT</span>
           </div>
           <p className="text-[11px] text-gray-400 leading-relaxed">
             إجمالي {expenses.length} التزامات شهرية (سيرفرات، إنترنت، برمجيات).
@@ -104,13 +104,13 @@ export const RecurringExpensesSection: React.FC = () => {
         </div>
 
         {/* Total Monthly Commitments Card */}
-        <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-500/15 via-obsidian-card to-obsidian-surface border border-emerald-500/40 shadow-lg space-y-2">
+        <div className="p-5 rounded-3xl bg-obsidian-card border border-lord-gold/30 shadow-lg space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-emerald-400">إجمالي الالتزامات الشهرية</span>
-            <CreditCard className="w-5 h-5 text-emerald-400" />
+            <span className="text-xs font-black text-lord-gold">إجمالي الالتزامات الشهرية</span>
+            <CreditCard className="w-5 h-5 text-lord-gold" />
           </div>
           <div className="text-2xl font-black text-white font-mono">
-            ${(totalCommittedPayroll + totalMonthlySubscriptions).toLocaleString()} <span className="text-xs text-emerald-400">USDT</span>
+            ${(totalCommittedPayroll + totalMonthlySubscriptions).toLocaleString()} <span className="text-xs text-lord-gold">USDT</span>
           </div>
           <p className="text-[11px] text-gray-400 leading-relaxed">
             السيولة الشهرية المطلوبة لتغطية كافة العمليات التشغيلية والرواتب.
