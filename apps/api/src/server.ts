@@ -10,6 +10,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+import { validateEnvironment } from './config/envValidator';
+import { logger } from './utils/logger';
+
+// Execute fail-fast security check on runtime environment
+validateEnvironment();
+
 import { connectDatabase } from './config/database';
 import { SocketService } from './services/socket.service';
 import { CronService } from './services/cron.service';
@@ -61,7 +67,12 @@ app.use(cors({
 }));
 app.options('*', cors());
 app.use(compression());
-app.use(morgan('dev'));
+app.use(morgan('combined', {
+  stream: {
+    write: (msg: string) => logger.info(`[HTTP] ${msg.trim()}`)
+  },
+  skip: (req) => req.url === '/health'
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -71,7 +82,7 @@ app.use(async (req, res, next) => {
     await connectDatabase();
     next();
   } catch (err) {
-    console.error('Database connection middleware error:', err);
+    logger.error('Database connection middleware error:', err);
     next(err);
   }
 });
@@ -111,7 +122,7 @@ app.use('/api/v1/projects', projectsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Unhandled Server Error:', err);
+  logger.error('Unhandled Server Error', err);
   res.status(err.status || 500).json({
     success: false,
     error: err.message || 'Internal Server Error'
@@ -126,7 +137,7 @@ async function startServer() {
   CronService.init();
   if (!process.env.VERCEL) {
     server.listen(PORT, HOST, () => {
-      console.log(`🦁 THE LORD OF CRYPTO C.P API running on http://${HOST}:${PORT}`);
+      logger.info(`🦁 THE LORD OF CRYPTO C.P API running on http://${HOST}:${PORT}`);
     });
   }
 }

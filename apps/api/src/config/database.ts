@@ -8,7 +8,10 @@ export const connectDatabase = async (): Promise<void> => {
   }
 
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://TheLordIT:TheLordIT@cluster0.uh1subp.mongodb.net/the_lord_of_crypto_cp';
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI environment variable is missing. Database connection aborted.');
+    }
     
     mongoose.set('strictQuery', true);
     

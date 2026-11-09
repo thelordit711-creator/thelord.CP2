@@ -60,27 +60,29 @@ export const verifyKindeJWT = async (
     const token = authHeader.split(' ')[1];
 
     // 1. Check direct JWT token (HS256)
-    const jwtSecret = process.env.JWT_SECRET || 'THE_LORD_OF_CRYPTO_SUPER_SECRET_JWT_KEY_2026_X99';
-    try {
-      const directDecoded = jwt.verify(token, jwtSecret) as { userId: string; email: string };
-      if (directDecoded && directDecoded.userId) {
-        const directUser = await User.findById(directDecoded.userId);
-        if (directUser) {
-          if (directUser.isSuspended) {
-            const reasonText = directUser.suspensionReason ? ` السبب: ${directUser.suspensionReason}` : '';
-            res.status(403).json({
-              success: false,
-              error: `تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري.${reasonText}`
-            });
+    const jwtSecret = process.env.JWT_SECRET;
+    if (jwtSecret) {
+      try {
+        const directDecoded = jwt.verify(token, jwtSecret) as { userId: string; email: string };
+        if (directDecoded && directDecoded.userId) {
+          const directUser = await User.findById(directDecoded.userId);
+          if (directUser) {
+            if (directUser.isSuspended) {
+              const reasonText = directUser.suspensionReason ? ` السبب: ${directUser.suspensionReason}` : '';
+              res.status(403).json({
+                success: false,
+                error: `تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري.${reasonText}`
+              });
+              return;
+            }
+            req.user = (directUser.toObject() as unknown) as IUser;
+            next();
             return;
           }
-          req.user = (directUser.toObject() as unknown) as IUser;
-          next();
-          return;
         }
+      } catch (_err) {
+        // Not an HS256 direct token, try other methods
       }
-    } catch (_err) {
-      // Not an HS256 direct token, try other methods
     }
 
     // 2. Dev token bypass for offline/testing DX

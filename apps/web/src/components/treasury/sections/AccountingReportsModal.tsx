@@ -146,7 +146,7 @@ export const AccountingReportsModal: React.FC<AccountingReportsModalProps> = ({
                         title: 'السلفيات والقروض المؤقتة (ADVANCE)',
                         vault: 'صندوق الرواتب',
                         amount: categories?.advances ?? 0,
-                        color: 'text-blue-400'
+                        color: 'text-lord-gold'
                       },
                       {
                         title: 'الإعلانات وترويج قنوات التليجرام (ADS)',

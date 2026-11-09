@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://TheLordIT:TheLordIT@cluster0.uh1subp.mongodb.net/the_lord_of_crypto_cp';
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+  console.error('[FATAL] MONGODB_URI environment variable is required.');
+  process.exit(1);
+}
 
 async function purgeDatabase() {
   console.log('Connecting to MongoDB...');

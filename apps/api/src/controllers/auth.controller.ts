@@ -11,18 +11,37 @@ import { AuditService } from '../services/audit.service';
 import { AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { AccessRole, WorkStatus } from '@lord/shared-types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'THE_LORD_OF_CRYPTO_SUPER_SECRET_JWT_KEY_2026_X99';
+const getJwtSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is missing');
+  }
+  return secret;
+};
 
 export class AuthController {
   /**
-   * Seed Super Admin Account: thelordit711@gmail.com / thelord777286650
+   * Seed / Bootstrap Initial Super Admin Account from Environment Variables
    */
   static async seedAdmin(req: Request, res: Response): Promise<void> {
     try {
-      const email = 'thelordit711@gmail.com';
-      const password = 'thelord777286650';
+      const existingAdmin = await User.findOne({ accessRole: 'SUPER_ADMIN' });
+      if (existingAdmin && process.env.NODE_ENV === 'production') {
+        res.status(403).json({ success: false, error: 'Admin account already initialized' });
+        return;
+      }
 
-      const existingAdmin = await User.findOne({ email: email.toLowerCase() });
+      const email = (process.env.INITIAL_ADMIN_EMAIL || req.body?.email || 'thelordit711@gmail.com').toLowerCase();
+      const password = process.env.INITIAL_ADMIN_PASSWORD || req.body?.password;
+
+      if (!password) {
+        res.status(400).json({
+          success: false,
+          error: 'INITIAL_ADMIN_PASSWORD environment variable or request body password is required to seed admin.'
+        });
+        return;
+      }
+
       const passwordHash = await bcrypt.hash(password, 10);
 
       if (existingAdmin) {
@@ -33,16 +52,16 @@ export class AuthController {
         res.json({
           success: true,
           message: 'Admin account verified & updated successfully',
-          adminEmail: email
+          adminEmail: existingAdmin.email
         });
         return;
       }
 
       const newAdmin = await User.create({
         fullName: 'القائد الأعلى - إدارة THE LORD',
-        email: email.toLowerCase(),
+        email,
         passwordHash,
-        phoneNumber: '+967777286650',
+        phoneNumber: process.env.INITIAL_ADMIN_PHONE || '+967777286650',
         accessRole: 'SUPER_ADMIN',
         isOnboarded: true,
         workStatus: 'LOGGED_OUT',
@@ -80,28 +99,6 @@ export class AuthController {
         return;
       }
 
-      // Special initial bootstrap check for the admin credentials
-      if (email.toLowerCase() === 'thelordit711@gmail.com' && password === 'thelord777286650') {
-        let adminUser = await User.findOne({ email: email.toLowerCase() });
-        if (!adminUser) {
-          const passwordHash = await bcrypt.hash(password, 10);
-          adminUser = await User.create({
-            fullName: 'القائد الأعلى - إدارة THE LORD',
-            email: email.toLowerCase(),
-            passwordHash,
-            phoneNumber: '+967777286650',
-            accessRole: 'SUPER_ADMIN',
-            isOnboarded: true,
-            workStatus: 'LOGGED_IN',
-            workStatusUpdatedAt: new Date(),
-            presenceStatus: 'ONLINE',
-            jobTitles: ['MARKETING_DEV_LEAD'],
-            primaryDepartment: 'MANAGEMENT',
-            skills: [{ name: 'Executive Management & Trading', level: 'EXPERT' }]
-          });
-        }
-      }
-
       const user = await User.findOne({ email: email.toLowerCase() });
       if (!user) {
         res.status(401).json({ success: false, error: 'بيانات الدخول غير صحيحة أو الحساب غير موجود' });
@@ -118,20 +115,15 @@ export class AuthController {
         return;
       }
 
-      if (user.passwordHash) {
-        const isMatch = await bcrypt.compare(password, user.passwordHash);
-        if (!isMatch) {
-          res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
-          return;
-        }
-      } else {
-        // Fallback for bootstrap admin if passwordHash wasn't set yet
-        if (email.toLowerCase() === 'thelordit711@gmail.com' && password === 'thelord777286650') {
-          user.passwordHash = await bcrypt.hash(password, 10);
-        } else {
-          res.status(401).json({ success: false, error: 'يرجى تسجيل الدخول عبر Kinde أو تعيين كلمة مرور' });
-          return;
-        }
+      if (!user.passwordHash) {
+        res.status(401).json({ success: false, error: 'يرجى تسجيل الدخول عبر Kinde أو تعيين كلمة مرور للحساب' });
+        return;
+      }
+
+      const isMatch = await bcrypt.compare(password, user.passwordHash);
+      if (!isMatch) {
+        res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
+        return;
       }
 
       // Zero-Trust Two-Factor Authentication (2FA) Check
@@ -182,7 +174,7 @@ export class AuthController {
 
       const token = jwt.sign(
         { userId: user._id, email: user.email, accessRole: user.accessRole },
-        JWT_SECRET,
+        getJwtSecret(),
         { expiresIn: '30d' }
       );
 
@@ -453,7 +445,7 @@ export class AuthController {
 
       const authToken = jwt.sign(
         { userId: newUser._id, email: newUser.email, accessRole: newUser.accessRole },
-        JWT_SECRET,
+        getJwtSecret(),
         { expiresIn: '30d' }
       );
 

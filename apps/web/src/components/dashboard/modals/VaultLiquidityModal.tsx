@@ -68,7 +68,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
               }}
               className={`py-2 px-2 text-center rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'FUND_TREASURY'
-                  ? 'bg-cyber-blue text-white shadow-md'
+                  ? 'bg-lord-gold text-black shadow-md'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -82,7 +82,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
               }}
               className={`py-2 px-2 text-center rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'DEPOSIT_BUDGET'
-                  ? 'bg-lord-gold text-obsidian-primary shadow-md'
+                  ? 'bg-lord-gold text-black shadow-md'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -96,7 +96,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
               }}
               className={`py-2 px-2 text-center rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'RETURN_BUDGET'
-                  ? 'bg-emerald-600 text-white shadow-md'
+                  ? 'bg-lord-gold text-black shadow-md'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -109,7 +109,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-obsidian-primary border border-gray-800 text-xs space-y-1.5">
               {activeTab === 'FUND_TREASURY' && (
                 <>
-                  <div className="flex items-center gap-1.5 text-cyber-blue font-bold">
+                  <div className="flex items-center gap-1.5 text-lord-gold font-bold">
                     <ArrowDownLeft className="w-4 h-4" />
                     <span>تغذية الصندوق بخصم من الميزانية العامة</span>
                   </div>
@@ -133,7 +133,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
 
               {activeTab === 'RETURN_BUDGET' && (
                 <>
-                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                  <div className="flex items-center gap-1.5 text-lord-gold font-bold">
                     <ArrowUpRight className="w-4 h-4" />
                     <span>استرجاع سيولة من الصندوق إلى الميزانية</span>
                   </div>
@@ -155,7 +155,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
                     onClick={() => setTargetSegment(undefined)}
                     className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
                       !targetSegment
-                        ? 'bg-cyber-blue text-white border-cyber-blue shadow-xs'
+                        ? 'bg-lord-gold text-black border-lord-gold shadow-xs'
                         : 'bg-obsidian-primary text-gray-400 border-gray-800 hover:text-white'
                     }`}
                   >
@@ -166,7 +166,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
                     onClick={() => setTargetSegment('salaries')}
                     className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
                       targetSegment === 'salaries'
-                        ? 'bg-amber-500 text-obsidian-primary border-amber-500 shadow-xs'
+                        ? 'bg-lord-gold text-black border-lord-gold shadow-xs'
                         : 'bg-obsidian-primary text-gray-400 border-gray-800 hover:text-white'
                     }`}
                   >
@@ -177,7 +177,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
                     onClick={() => setTargetSegment('marketing')}
                     className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
                       targetSegment === 'marketing'
-                        ? 'bg-cyber-blue text-white border-cyber-blue shadow-xs'
+                        ? 'bg-lord-gold text-black border-lord-gold shadow-xs'
                         : 'bg-obsidian-primary text-gray-400 border-gray-800 hover:text-white'
                     }`}
                   >
@@ -188,7 +188,7 @@ export const VaultLiquidityModal: React.FC<VaultLiquidityModalProps> = ({
                     onClick={() => setTargetSegment('operationalReserve')}
                     className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
                       targetSegment === 'operationalReserve'
-                        ? 'bg-emerald-500 text-obsidian-primary border-emerald-500 shadow-xs'
+                        ? 'bg-lord-gold text-black border-lord-gold shadow-xs'
                         : 'bg-obsidian-primary text-gray-400 border-gray-800 hover:text-white'
                     }`}
                   >
