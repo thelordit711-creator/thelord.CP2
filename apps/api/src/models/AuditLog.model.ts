@@ -21,7 +21,13 @@ const AuditLogSchema = new Schema<IAuditLogDocument>(
         'CONFIRM_PAYOUT_RECEIPT',
         'TASK_BUDGET_SETTLED',
         'DELETE_TASK',
-        'SYSTEM_SECURITY_CONFIG'
+        'SYSTEM_SECURITY_CONFIG',
+        'VAULT_TRANSFER',
+        'VAULT_BUDGET_ADJUST',
+        'TRANSACTION_MODIFIED',
+        'TRANSACTION_DELETED',
+        'RECURRING_EXPENSE_CREATED',
+        'RECURRING_EXPENSE_EXECUTED'
       ],
       required: true,
       index: true

@@ -6,6 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -67,6 +68,7 @@ app.use(cors({
 }));
 app.options('*', cors());
 app.use(compression());
+app.use(cookieParser());
 app.use(morgan('combined', {
   stream: {
     write: (msg: string) => logger.info(`[HTTP] ${msg.trim()}`)

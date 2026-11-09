@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { TreasuryController } from '../controllers/treasury.controller';
 import { verifyKindeJWT } from '../middlewares/verifyKindeJWT';
 import { rbacGuard } from '../middlewares/rbacGuard';
+import { treasuryRateLimiter } from '../middlewares/rateLimiter';
 
 const router = Router();
 
@@ -11,12 +12,12 @@ router.use(rbacGuard(['TREASURY', 'SUPER_ADMIN']));
 // Treasury isolation endpoints
 router.get('/orders', TreasuryController.getOrders);
 router.patch('/orders/:id/processing', TreasuryController.startProcessing);
-router.patch('/orders/:id/disbursed', TreasuryController.confirmDisbursed);
+router.patch('/orders/:id/disbursed', treasuryRateLimiter, TreasuryController.confirmDisbursed);
 router.post('/audit-receipt', TreasuryController.auditReceipt);
 
-// Hierarchical sub-vaults
-router.post('/sub-vaults', TreasuryController.createCustomSubVault);
-router.post('/sub-vaults/transfer', TreasuryController.transferToSubVault);
+// Hierarchical sub-vaults (Strictly Super Admin for structural changes & capital allocation)
+router.post('/sub-vaults', rbacGuard(['SUPER_ADMIN']), TreasuryController.createCustomSubVault);
+router.post('/sub-vaults/transfer', rbacGuard(['SUPER_ADMIN']), TreasuryController.transferToSubVault);
 
 // Transaction modification / cancellation requests
 router.post('/orders/:id/request-modification', TreasuryController.requestOrderModification);
@@ -33,9 +34,9 @@ router.post('/recalculate', rbacGuard(['SUPER_ADMIN']), TreasuryController.recal
 
 // Recurring expenses management
 router.get('/recurring-expenses', TreasuryController.getRecurringExpenses);
-router.post('/recurring-expenses', TreasuryController.createRecurringExpense);
-router.delete('/recurring-expenses/:id', TreasuryController.deleteRecurringExpense);
-router.post('/recurring-expenses/:id/execute', TreasuryController.executeRecurringExpense);
+router.post('/recurring-expenses', rbacGuard(['SUPER_ADMIN']), TreasuryController.createRecurringExpense);
+router.delete('/recurring-expenses/:id', rbacGuard(['SUPER_ADMIN']), TreasuryController.deleteRecurringExpense);
+router.post('/recurring-expenses/:id/execute', rbacGuard(['SUPER_ADMIN']), TreasuryController.executeRecurringExpense);
 
 // Accounting & Category Reports
 router.get('/reports', TreasuryController.getAccountingReports);

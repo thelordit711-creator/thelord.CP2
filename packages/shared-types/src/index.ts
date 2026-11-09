@@ -4,6 +4,55 @@
 
 export type AccessRole = 'SUPER_ADMIN' | 'EMPLOYEE' | 'TREASURY';
 
+export type AppPermission =
+  | 'TREASURY:VIEW'
+  | 'TREASURY:DISBURSE'
+  | 'TREASURY:MANAGE_VAULTS'
+  | 'TREASURY:ADJUST_BUDGET'
+  | 'TREASURY:AUDIT_LEDGER'
+  | 'TASKS:VIEW'
+  | 'TASKS:CREATE'
+  | 'TASKS:SUBMIT'
+  | 'TASKS:APPROVE'
+  | 'USERS:VIEW'
+  | 'USERS:MANAGE'
+  | 'USERS:SET_SALARY'
+  | 'AUDIT:VIEW'
+  | 'COMMUNICATIONS:ACCESS';
+
+export const ROLE_PERMISSIONS: Record<AccessRole, readonly AppPermission[]> = {
+  SUPER_ADMIN: [
+    'TREASURY:VIEW',
+    'TREASURY:DISBURSE',
+    'TREASURY:MANAGE_VAULTS',
+    'TREASURY:ADJUST_BUDGET',
+    'TREASURY:AUDIT_LEDGER',
+    'TASKS:VIEW',
+    'TASKS:CREATE',
+    'TASKS:SUBMIT',
+    'TASKS:APPROVE',
+    'USERS:VIEW',
+    'USERS:MANAGE',
+    'USERS:SET_SALARY',
+    'AUDIT:VIEW',
+    'COMMUNICATIONS:ACCESS'
+  ],
+  TREASURY: [
+    'TREASURY:VIEW',
+    'TREASURY:DISBURSE'
+  ],
+  EMPLOYEE: [
+    'TASKS:VIEW',
+    'TASKS:SUBMIT',
+    'USERS:VIEW',
+    'COMMUNICATIONS:ACCESS'
+  ]
+} as const;
+
+export function hasPermission(role: AccessRole, permission: AppPermission): boolean {
+  return (ROLE_PERMISSIONS[role] || []).includes(permission);
+}
+
 export type PrimaryDepartment = 
   | 'TRADING' 
   | 'MARKETING' 
@@ -213,6 +262,8 @@ export interface IUser {
   compensation: IUserCompensation;
   presenceStatus: PresenceStatus;
   isTwoFactorEnabled?: boolean;
+  failedLoginAttempts?: number;
+  lockUntil?: Date | string;
   isSuspended?: boolean;
   suspendedAt?: Date | string;
   suspensionReason?: string;
@@ -708,7 +759,13 @@ export type AuditActionType =
   | 'CONFIRM_PAYOUT_RECEIPT'
   | 'TASK_BUDGET_SETTLED'
   | 'DELETE_TASK'
-  | 'SYSTEM_SECURITY_CONFIG';
+  | 'SYSTEM_SECURITY_CONFIG'
+  | 'VAULT_TRANSFER'
+  | 'VAULT_BUDGET_ADJUST'
+  | 'TRANSACTION_MODIFIED'
+  | 'TRANSACTION_DELETED'
+  | 'RECURRING_EXPENSE_CREATED'
+  | 'RECURRING_EXPENSE_EXECUTED';
 
 export type AuditSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
 

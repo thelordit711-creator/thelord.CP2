@@ -41,23 +41,23 @@ export const verifyKindeJWT = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
+    let token: string | undefined;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // Dev mock user support
-      if (process.env.NODE_ENV === 'development' && req.headers['x-mock-user-id']) {
-        const mockUser = await User.findById(req.headers['x-mock-user-id']);
-        if (mockUser) {
-          req.user = (mockUser.toObject() as unknown) as IUser;
-          next();
-          return;
-        }
-      }
+    // 1. Extract from HttpOnly Secure Cookie if present
+    if (req.cookies && req.cookies.auth_token) {
+      token = req.cookies.auth_token;
+    }
+
+    // 2. Fallback to Authorization Header (Bearer token)
+    const authHeader = req.headers.authorization;
+    if (!token && authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+
+    if (!token) {
       res.status(401).json({ success: false, error: 'يرجى تسجيل الدخول أولاً' });
       return;
     }
-
-    const token = authHeader.split(' ')[1];
 
     // 1. Check direct JWT token (HS256)
     const jwtSecret = process.env.JWT_SECRET;
@@ -81,35 +81,11 @@ export const verifyKindeJWT = async (
           }
         }
       } catch (_err) {
-        // Not an HS256 direct token, try other methods
+        // Not an HS256 direct token, try RS256
       }
     }
 
-    // 2. Dev token bypass for offline/testing DX
-    if (process.env.NODE_ENV === 'development' && token.startsWith('dev_token_')) {
-      const parts = token.split('_');
-      const targetRole = parts[2]?.toUpperCase();
-      let user = null;
-      if (targetRole === 'TREASURY') {
-        user = await User.findOne({ accessRole: 'TREASURY' });
-      } else if (targetRole === 'EMPLOYEE') {
-        user = await User.findOne({ accessRole: 'EMPLOYEE' });
-      } else {
-        user = await User.findOne({ accessRole: 'SUPER_ADMIN' });
-      }
-
-      if (!user) {
-        user = await User.findOne({});
-      }
-
-      if (user) {
-        req.user = (user.toObject() as unknown) as IUser;
-        next();
-        return;
-      }
-    }
-
-    // 3. Kinde RS256 token verification
+    // 2. Kinde RS256 token verification
     jwt.verify(
       token,
       getKey,

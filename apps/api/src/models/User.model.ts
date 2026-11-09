@@ -117,6 +117,8 @@ const UserSchema = new Schema<IUserDocument>({
   twoFactorSecret: { type: String },
   twoFactorTempSecret: { type: String },
   twoFactorRecoveryCodes: [{ type: String }],
+  failedLoginAttempts: { type: Number, default: 0 },
+  lockUntil: { type: Date },
   lastActiveAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 

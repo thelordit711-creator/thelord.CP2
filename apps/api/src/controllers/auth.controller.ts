@@ -10,6 +10,7 @@ import { SocketService } from '../services/socket.service';
 import { AuditService } from '../services/audit.service';
 import { AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { AccessRole, WorkStatus } from '@lord/shared-types';
+import { logger } from '../utils/logger';
 
 const getJwtSecret = (): string => {
   const secret = process.env.JWT_SECRET;
@@ -105,7 +106,17 @@ export class AuthController {
         return;
       }
 
-      // Check if user is suspended/banned by management
+      // 1. Account Lockout Protection (Brute Force Defense)
+      if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
+        const remainingMinutes = Math.ceil((new Date(user.lockUntil).getTime() - Date.now()) / 60000);
+        res.status(429).json({
+          success: false,
+          error: `تم قفل الحساب مؤقتاً لحمايته بسبب تكرار محاولات الدخول الخاطئة. يرجى المحاولة بعد ${remainingMinutes} دقيقة.`
+        });
+        return;
+      }
+
+      // 2. Check if user is suspended/banned by management
       if (user.isSuspended) {
         const reasonText = user.suspensionReason ? ` السبب: ${user.suspensionReason}` : '';
         res.status(403).json({
@@ -122,9 +133,30 @@ export class AuthController {
 
       const isMatch = await bcrypt.compare(password, user.passwordHash);
       if (!isMatch) {
-        res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
+        const attempts = (user.failedLoginAttempts || 0) + 1;
+        user.failedLoginAttempts = attempts;
+        if (attempts >= 5) {
+          user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
+          await user.save();
+          logger.security(`Account locked due to 5 failed login attempts: ${user.email}`);
+          res.status(429).json({
+            success: false,
+            error: 'تم تجاوز الحد الأقصى لمحاولات تسجيل الدخول (5 محاولات). تم قفل الحساب لمدة 15 دقيقة لدواعي الأمان.'
+          });
+          return;
+        }
+        await user.save();
+        const remaining = 5 - attempts;
+        res.status(401).json({
+          success: false,
+          error: `كلمة المرور غير صحيحة. متبقي ${remaining} محاولات قبل قفل الحساب مؤقتاً.`
+        });
         return;
       }
+
+      // Password matches -> reset failed attempts and unlock
+      user.failedLoginAttempts = 0;
+      user.lockUntil = undefined;
 
       // Zero-Trust Two-Factor Authentication (2FA) Check
       if (user.isTwoFactorEnabled && user.twoFactorSecret) {
@@ -178,6 +210,15 @@ export class AuthController {
         { expiresIn: '30d' }
       );
 
+      // Set HttpOnly Secure SameSite Cookie
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'strict' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      });
+
       res.json({
         success: true,
         token,
@@ -195,6 +236,44 @@ export class AuthController {
           payoutMethods: user.payoutMethods
         }
       });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * Secure Logout - Clears HttpOnly Cookie and updates work presence
+   */
+  static async logout(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.clearCookie('auth_token', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'strict' : 'lax'
+      });
+
+      if (req.user) {
+        const user = await User.findById(req.user._id);
+        if (user) {
+          user.workStatus = 'LOGGED_OUT';
+          user.workStatusUpdatedAt = new Date();
+          user.presenceStatus = 'OFFLINE';
+          await user.save();
+
+          SocketService.getIO()?.emit('STAFF_STATUS_CHANGED', {
+            userId: user._id,
+            fullName: user.fullName,
+            email: user.email,
+            accessRole: user.accessRole,
+            workStatus: user.workStatus,
+            workStatusUpdatedAt: user.workStatusUpdatedAt,
+            presenceStatus: user.presenceStatus
+          });
+        }
+      }
+
+      res.json({ success: true, message: 'تم تسجيل الخروج بنجاح' });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
     }
