@@ -221,7 +221,7 @@ export default function PayoutDeskPage() {
                 هندسة الصناديق الهرمية وأرصدة السيولة
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
-                صندوق الرواتب، التسويق، والاحتياطي التشغيلي + الصناديق المخصصة. إنشاء صناديق جديدة وتخصيص السيولة.
+                صندوق الرواتب، التسويق، والاحتياطي التشغيلي، إضافةً إلى الصناديق المخصصة. إنشاء صناديق جديدة وتخصيص السيولة.
               </p>
             </div>
 
@@ -280,7 +280,7 @@ export default function PayoutDeskPage() {
                 أوامر الصرف المعتمدة والتدقيق البصري
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
-                تنفيذ الحوالات عبر BEP20 USDT ومحافظ جيب وجوالي مع التدقيق البصري بالذكاء الاصطناعي (Gemini Vision OCR).
+                تنفيذ الحوالات عبر <bdi className="font-mono text-gray-300">BEP20 USDT</bdi> ومحافظ جيب وجوالي مع التدقيق البصري الذكي <bdi className="font-mono text-lord-gold">(Gemini Vision OCR)</bdi>.
               </p>
             </div>
 

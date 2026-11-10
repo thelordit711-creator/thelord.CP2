@@ -154,15 +154,15 @@ export const FinancialMetricsGrid: React.FC<FinancialMetricsGridProps> = ({
         {/* 2. Treasury Balance */}
         <div
           onClick={() => toggleCard('treasuryBalance')}
-          className="bg-obsidian-card border border-cyber-blue/30 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-cyber-blue/60 transition-all cursor-pointer select-none"
+          className="bg-obsidian-card border border-lord-gold/30 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-lord-gold/60 transition-all cursor-pointer select-none"
           title="انقر للكشف أو الحجب"
         >
           <div className="flex items-center justify-between mb-4">
             <div>
-              <span className="text-xs text-cyber-blue font-bold block">رصيد الصندوق المتاح للصرف</span>
+              <span className="text-xs text-lord-gold font-bold block">رصيد الصندوق المتاح للصرف</span>
               <span className="text-[11px] text-gray-400">Treasury Payout Desk</span>
             </div>
-            <div className="p-2.5 rounded-xl bg-cyber-blue/15 text-cyber-blue group-hover:scale-105 transition-transform">
+            <div className="p-2.5 rounded-xl bg-lord-gold/15 text-lord-gold group-hover:scale-105 transition-transform">
               <Coins className="w-5 h-5" />
             </div>
           </div>
@@ -172,7 +172,7 @@ export const FinancialMetricsGrid: React.FC<FinancialMetricsGridProps> = ({
               {isCardVisible('treasuryBalance') ? (
                 <>
                   ${(vault?.treasuryBalance ?? 0).toLocaleString()}{' '}
-                  <span className="text-xs text-cyber-blue font-normal">USDT</span>
+                  <span className="text-xs text-lord-gold font-normal">USDT</span>
                 </>
               ) : (
                 <span className="text-2xl font-mono text-gray-500 tracking-widest flex items-center gap-2">
@@ -184,7 +184,7 @@ export const FinancialMetricsGrid: React.FC<FinancialMetricsGridProps> = ({
               )}
             </div>
 
-            <span className="text-[10px] text-gray-500 group-hover:text-cyber-blue transition-colors">
+            <span className="text-[10px] text-gray-500 group-hover:text-lord-gold transition-colors">
               {isCardVisible('treasuryBalance') ? '👁️ إخفاء' : '👁️ كشف'}
             </span>
           </div>
@@ -261,7 +261,7 @@ export const FinancialMetricsGrid: React.FC<FinancialMetricsGridProps> = ({
           <button
             type="button"
             onClick={onOpenFundTreasury}
-            className="flex-1 md:flex-none px-3.5 py-2 rounded-xl bg-cyber-blue/15 text-cyber-blue border border-cyber-blue/30 hover:bg-cyber-blue/25 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            className="flex-1 md:flex-none px-3.5 py-2 rounded-xl bg-lord-gold/15 text-lord-gold border border-lord-gold/30 hover:bg-lord-gold/25 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
           >
             <ArrowLeftRight className="w-3.5 h-3.5" />
             <span>تغذية الصندوق من الميزانية</span>

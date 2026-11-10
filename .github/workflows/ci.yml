@@ -53,3 +53,6 @@ jobs:
           npm run build --if-present
           cd ../..
 
+      - name: 🧪 Automated Test Suite (RBAC, Accounting, Storage, BEP20)
+        run: npm test
+
