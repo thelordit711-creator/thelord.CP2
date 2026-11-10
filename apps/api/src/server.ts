@@ -98,7 +98,13 @@ try {
 } catch (e) {
   // safe fallback
 }
-app.use('/uploads', express.static(uploadsStaticDir));
+app.use('/uploads', express.static(uploadsStaticDir, {
+  dotfiles: 'ignore',
+  index: false,
+  setHeaders: (res) => {
+    res.set('X-Content-Type-Options', 'nosniff');
+  }
+}));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

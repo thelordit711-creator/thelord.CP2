@@ -10,17 +10,41 @@ import { IConfirmDisbursedDto } from '@lord/shared-types';
 export class TreasuryController {
   public static async getOrders(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const { status } = req.query;
+      const { status, page, limit } = req.query;
       const filter: Record<string, unknown> = {};
 
       if (status && status !== 'ALL') {
         filter.executionStatus = status;
       }
 
-      const orders = await PayoutOrder.find(filter)
+      const pageNum = page ? Math.max(1, Number(page)) : undefined;
+      const limitNum = limit ? Math.min(100, Math.max(1, Number(limit))) : undefined;
+
+      const baseQuery = PayoutOrder.find(filter)
         .populate('beneficiaryId', 'fullName email phoneNumber avatarUrl')
         .sort({ createdAt: -1 });
 
+      if (pageNum && limitNum) {
+        const skip = (pageNum - 1) * limitNum;
+        const [orders, total] = await Promise.all([
+          baseQuery.skip(skip).limit(limitNum),
+          PayoutOrder.countDocuments(filter)
+        ]);
+
+        res.json({
+          success: true,
+          data: orders,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum)
+          }
+        });
+        return;
+      }
+
+      const orders = await baseQuery;
       res.json({ success: true, data: orders });
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message });
