@@ -55,3 +55,4 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
 
   return <>{children}</>;
 };
+

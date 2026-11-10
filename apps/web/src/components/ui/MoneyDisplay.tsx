@@ -59,3 +59,4 @@ export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({
     </span>
   );
 };
+
