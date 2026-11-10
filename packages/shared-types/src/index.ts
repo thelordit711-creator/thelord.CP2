@@ -177,7 +177,33 @@ export type PayoutCategory =
   | 'SOFTWARE_SUBSCRIPTION'
   | 'GENERAL';
 
-export type PayoutExecutionStatus = 'WAITING_TREASURY' | 'IN_PROGRESS' | 'DISBURSED';
+export type PayoutExecutionStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'WAITING_TREASURY'
+  | 'IN_PROGRESS'
+  | 'AWAITING_VERIFICATION'
+  | 'DISBURSED'
+  | 'REJECTED'
+  | 'CANCELLED';
+
+export const VALID_PAYOUT_TRANSITIONS: Record<PayoutExecutionStatus, readonly PayoutExecutionStatus[]> = {
+  DRAFT: ['PENDING_APPROVAL', 'CANCELLED'],
+  PENDING_APPROVAL: ['WAITING_TREASURY', 'REJECTED', 'CANCELLED'],
+  WAITING_TREASURY: ['IN_PROGRESS', 'DISBURSED', 'CANCELLED'],
+  IN_PROGRESS: ['AWAITING_VERIFICATION', 'DISBURSED', 'WAITING_TREASURY', 'CANCELLED'],
+  AWAITING_VERIFICATION: ['DISBURSED', 'IN_PROGRESS', 'CANCELLED'],
+  DISBURSED: [], // Terminal state
+  REJECTED: [],  // Terminal state
+  CANCELLED: []  // Terminal state
+};
+
+export function canTransitionPayoutStatus(
+  current: PayoutExecutionStatus,
+  next: PayoutExecutionStatus
+): boolean {
+  return VALID_PAYOUT_TRANSITIONS[current]?.includes(next) ?? false;
+}
 
 export type WarningLevel = 'NONE' | 'FIRST' | 'SECOND' | 'FINAL';
 
@@ -186,7 +212,9 @@ export type LedgerEntryType =
   | 'BONUS' 
   | 'DEDUCTION' 
   | 'ADVANCE_REQUEST' 
-  | 'WARNING';
+  | 'WARNING'
+  | 'ADJUSTMENT_REVERSAL'
+  | 'ADJUSTMENT_CREDIT';
 
 // ------------------------------------------
 // Interfaces
@@ -393,6 +421,7 @@ export interface IPayoutOrder {
   payrollTranche?: 'TRANCHE_1' | 'TRANCHE_2' | 'TRANCHE_3' | 'FULL_MONTH' | 'MONTHLY_ALLOWANCE' | 'NONE';
   summaryForTreasury: string;
   executionStatus: PayoutExecutionStatus;
+  idempotencyKey?: string;
   inProgressClickedAt?: Date | string;
   disbursedClickedAt?: Date | string;
   transferProof?: ITransferProof;
@@ -496,6 +525,9 @@ export interface IEmployeeLedger {
   warningLevel: WarningLevel;
   relatedPayoutOrderId?: string | Partial<IPayoutOrder>;
   recordedBy: string | Partial<IUser>;
+  isReversed?: boolean;
+  reversalReason?: string;
+  reversalEntryId?: string;
   createdAt: Date | string;
 }
 

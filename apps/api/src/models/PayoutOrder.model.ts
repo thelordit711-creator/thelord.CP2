@@ -41,10 +41,20 @@ const PayoutOrderSchema = new Schema<IPayoutOrderDocument>({
 
   executionStatus: {
     type: String,
-    enum: ['WAITING_TREASURY', 'IN_PROGRESS', 'DISBURSED'],
+    enum: [
+      'DRAFT',
+      'PENDING_APPROVAL',
+      'WAITING_TREASURY',
+      'IN_PROGRESS',
+      'AWAITING_VERIFICATION',
+      'DISBURSED',
+      'REJECTED',
+      'CANCELLED'
+    ],
     default: 'WAITING_TREASURY',
     index: true
   },
+  idempotencyKey: { type: String, unique: true, sparse: true, index: true },
   inProgressClickedAt: { type: Date },
   disbursedClickedAt: { type: Date },
 

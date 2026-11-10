@@ -4,6 +4,7 @@ import { PayoutOrder } from '../models/PayoutOrder.model';
 import { AccountingService } from '../services/accounting.service';
 import { SocketService } from '../services/socket.service';
 import { TheLordAIService } from '../services/theLordAI.service';
+import { Bep20VerificationService } from '../services/bep20Verification.service';
 import { IConfirmDisbursedDto } from '@lord/shared-types';
 
 export class TreasuryController {
@@ -29,24 +30,21 @@ export class TreasuryController {
   public static async startProcessing(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const order = await PayoutOrder.findById(id).populate('beneficiaryId', 'fullName');
+
+      // Atomic State Transition with Status Lock (Prevents two cashiers picking the same order)
+      const order = await PayoutOrder.findOneAndUpdate(
+        { _id: id, executionStatus: 'WAITING_TREASURY' },
+        { $set: { executionStatus: 'IN_PROGRESS', inProgressClickedAt: new Date() } },
+        { new: true }
+      ).populate('beneficiaryId', 'fullName');
 
       if (!order) {
-        res.status(404).json({ success: false, error: 'Payout order not found' });
-        return;
-      }
-
-      if (order.executionStatus !== 'WAITING_TREASURY') {
-        res.status(400).json({ 
-          success: false, 
-          error: `Cannot start processing order in state ${order.executionStatus}` 
+        res.status(409).json({
+          success: false,
+          error: 'تعذر بدء المعالجة: الأمر إما قيد المعالجة من قبل محاسب آخر أو لم يعد في حالة انتظار الصرف.'
         });
         return;
       }
-
-      order.executionStatus = 'IN_PROGRESS';
-      order.inProgressClickedAt = new Date();
-      await order.save();
 
       const beneficiaryObj = order.beneficiaryId as any;
       const beneficiaryIdStr = beneficiaryObj?._id ? beneficiaryObj._id.toString() : order.beneficiaryId.toString();
@@ -87,14 +85,38 @@ export class TreasuryController {
         return;
       }
 
-      // Execute atomic accounting deduction from CompanyVault & EmployeeLedger with Liquidity Check
+      // Check on-chain BEP20 transaction if payout method is BEP20_USDT
+      const existingOrder = await PayoutOrder.findById(id);
+      if (existingOrder && existingOrder.payoutMethod === 'BEP20_USDT') {
+        const expectedRecipient = existingOrder.destinationDetails?.bep20Address;
+        const expectedAmount = existingOrder.amount;
+        const onChainResult = await Bep20VerificationService.verifyTransaction(
+          body.txHashOrReferenceNumber.trim(),
+          expectedRecipient,
+          expectedAmount
+        );
+
+        // If transaction explicitly failed or invalid details on-chain, reject disbursement
+        if (!onChainResult.isValid && onChainResult.status !== 'RPC_ERROR' && onChainResult.status !== 'PENDING') {
+          res.status(400).json({
+            success: false,
+            error: `فشل التحقق من معاملة البلوكشين (BSC): ${onChainResult.errorMessage}`
+          });
+          return;
+        }
+      }
+
+      const idempotencyKey = (req.headers['x-idempotency-key'] as string) || (body as any).idempotencyKey;
+
+      // Execute atomic accounting deduction from CompanyVault & EmployeeLedger with Liquidity Check & Idempotency
       const result = await AccountingService.executeDisbursement(
         id,
         req.user?._id?.toString() || '',
         {
           txHashOrReferenceNumber: body.txHashOrReferenceNumber.trim(),
           receiptScreenshot: body.receiptScreenshot
-        }
+        },
+        idempotencyKey
       );
 
       res.json({
@@ -104,6 +126,27 @@ export class TreasuryController {
       });
     } catch (error) {
       res.status(400).json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  /**
+   * On-Chain BSC BEP20 TxHash Verifier Endpoint
+   */
+  public static async verifyTxHash(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { txHash, expectedRecipient, expectedAmount } = req.body;
+      if (!txHash) {
+        res.status(400).json({ success: false, error: 'TxHash مطلوب لإجراء الفحص' });
+        return;
+      }
+      const result = await Bep20VerificationService.verifyTransaction(
+        txHash,
+        expectedRecipient,
+        expectedAmount
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
     }
   }
 

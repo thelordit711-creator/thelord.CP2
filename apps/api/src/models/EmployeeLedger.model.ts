@@ -7,7 +7,15 @@ const EmployeeLedgerSchema = new Schema<IEmployeeLedgerDocument>({
   employeeId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   entryType: { 
     type: String, 
-    enum: ['BASE_SALARY', 'BONUS', 'DEDUCTION', 'ADVANCE_REQUEST', 'WARNING'], 
+    enum: [
+      'BASE_SALARY',
+      'BONUS',
+      'DEDUCTION',
+      'ADVANCE_REQUEST',
+      'WARNING',
+      'ADJUSTMENT_REVERSAL',
+      'ADJUSTMENT_CREDIT'
+    ], 
     required: true,
     index: true 
   },
@@ -24,7 +32,10 @@ const EmployeeLedgerSchema = new Schema<IEmployeeLedgerDocument>({
     default: 'NONE' 
   },
   relatedPayoutOrderId: { type: Schema.Types.ObjectId, ref: 'PayoutOrder' },
-  recordedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  recordedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  isReversed: { type: Boolean, default: false },
+  reversalReason: { type: String },
+  reversalEntryId: { type: Schema.Types.ObjectId, ref: 'EmployeeLedger' }
 }, { timestamps: true });
 
 export const EmployeeLedger = model<IEmployeeLedgerDocument>('EmployeeLedger', EmployeeLedgerSchema);

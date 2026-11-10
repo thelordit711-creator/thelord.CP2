@@ -42,3 +42,4 @@ export const treasuryRateLimiter = rateLimit({
     error: 'تم تجاوز الحد المسموح به لعمليات الخزينة. يرجى الانتظار قليلاً.'
   }
 });
+

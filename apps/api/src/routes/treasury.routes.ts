@@ -14,6 +14,7 @@ router.get('/orders', TreasuryController.getOrders);
 router.patch('/orders/:id/processing', TreasuryController.startProcessing);
 router.patch('/orders/:id/disbursed', treasuryRateLimiter, TreasuryController.confirmDisbursed);
 router.post('/audit-receipt', TreasuryController.auditReceipt);
+router.post('/verify-txhash', TreasuryController.verifyTxHash);
 
 // Hierarchical sub-vaults (Strictly Super Admin for structural changes & capital allocation)
 router.post('/sub-vaults', rbacGuard(['SUPER_ADMIN']), TreasuryController.createCustomSubVault);

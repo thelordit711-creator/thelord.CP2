@@ -12,10 +12,13 @@ export class AccountingService {
   /**
    * Initializes CompanyVault if not created yet
    */
-  public static async getOrCreateVault() {
-    let vault = await CompanyVault.findOne();
+  public static async getOrCreateVault(session?: mongoose.ClientSession) {
+    let vault = session
+      ? await CompanyVault.findOne().session(session)
+      : await CompanyVault.findOne();
+
     if (!vault) {
-      vault = await CompanyVault.create({
+      const defaultData = {
         generalBudget: 0,
         treasuryBalance: 0,
         totalSpentByCategory: {
@@ -29,7 +32,14 @@ export class AccountingService {
         },
         totalDeductionsApplied: 0,
         manualAdjustmentsLog: []
-      });
+      };
+
+      if (session) {
+        const created = await CompanyVault.create([defaultData], { session });
+        vault = created[0];
+      } else {
+        vault = await CompanyVault.create(defaultData);
+      }
     }
     return vault;
   }
@@ -212,19 +222,51 @@ export class AccountingService {
   public static async executeDisbursement(
     payoutOrderId: string,
     treasuryUserId: string,
-    proofData?: { txHashOrReferenceNumber: string; receiptScreenshot?: any }
+    proofData?: { txHashOrReferenceNumber: string; receiptScreenshot?: any },
+    idempotencyKey?: string
   ) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      const order = await PayoutOrder.findById(payoutOrderId).session(session);
-      if (!order) throw new Error('أمر الصرف غير موجود في النظام');
-      if (order.executionStatus === 'DISBURSED') {
-        throw new Error('تم تنفيذ وصرف هذا الأمر مسبقاً');
+      // 1. Idempotency Key Concurrency Protection
+      if (idempotencyKey) {
+        const existingWithKey = await PayoutOrder.findOne({ idempotencyKey }).session(session);
+        if (existingWithKey && String(existingWithKey._id) !== String(payoutOrderId)) {
+          throw new Error('مفتاح عدم التكرار (Idempotency Key) مستخدم في عملية صرف أخرى مسبقاً');
+        }
       }
 
-      const vault = await this.getOrCreateVault();
+      // 2. Atomic State Transition with Concurrency Lock
+      const validStatuses = ['WAITING_TREASURY', 'IN_PROGRESS', 'AWAITING_VERIFICATION'];
+      const order = await PayoutOrder.findOneAndUpdate(
+        {
+          _id: payoutOrderId,
+          executionStatus: { $in: validStatuses }
+        },
+        {
+          $set: {
+            executionStatus: 'DISBURSED',
+            disbursedClickedAt: new Date(),
+            idempotencyKey: idempotencyKey || undefined,
+            ...(proofData ? {
+              transferProof: {
+                txHashOrReferenceNumber: proofData.txHashOrReferenceNumber?.trim() || '',
+                receiptScreenshot: proofData.receiptScreenshot,
+                executedByTreasuryId: treasuryUserId as any
+              }
+            } : {})
+          }
+        },
+        { session, new: false }
+      );
+
+      if (!order) {
+        throw new Error('أمر الصرف غير متاح للتنفيذ (إما تم صرفه بالفعل من قبل محاسب آخر أو تم إلغاؤه أو غير موجود)');
+      }
+
+      // 3. Bind CompanyVault to transaction session
+      const vault = await this.getOrCreateVault(session);
 
       // Enforce strict business rule: All payouts are disbursed ONLY via Treasury
       if (vault.treasuryBalance < order.amount) {
@@ -310,18 +352,6 @@ export class AccountingService {
       }
 
       await vault.save({ session });
-
-      // Update Order Status & Proof
-      order.executionStatus = 'DISBURSED';
-      order.disbursedClickedAt = new Date();
-      if (proofData) {
-        order.transferProof = {
-          txHashOrReferenceNumber: proofData.txHashOrReferenceNumber?.trim() || '',
-          receiptScreenshot: proofData.receiptScreenshot,
-          executedByTreasuryId: treasuryUserId as any
-        };
-      }
-      await order.save({ session });
 
       // Record in EmployeeLedger if this belongs to employee salary/bonus/advance
       let ledgerType: LedgerEntryType | null = null;
@@ -939,7 +969,25 @@ export class AccountingService {
         }
       }
 
-      await EmployeeLedger.deleteMany({ relatedPayoutOrderId: order._id });
+      // Immutability: Create compensating adjustment entries instead of hard-deleting ledger history
+      const existingEntries = await EmployeeLedger.find({ relatedPayoutOrderId: order._id });
+      for (const entry of existingEntries) {
+        entry.isReversed = true;
+        entry.reversalReason = reason || 'إلغاء وعكس العملية بقرار إداري من المدير العام';
+        await entry.save();
+
+        await EmployeeLedger.create({
+          employeeId: entry.employeeId,
+          entryType: 'ADJUSTMENT_REVERSAL',
+          amount: -Math.abs(entry.amount),
+          payoutMethodUsed: entry.payoutMethodUsed,
+          reason: `[قيد تسوية عكسي] إلغاء واسترجاع القيد #${entry._id}: ${entry.reason}`,
+          warningLevel: 'NONE',
+          relatedPayoutOrderId: order._id,
+          recordedBy: adminId,
+          reversalEntryId: entry._id
+        });
+      }
 
       if (order.relatedTaskId) {
         try {
@@ -1064,11 +1112,17 @@ export class AccountingService {
           vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].totalSpent += delta;
         }
 
-        const ledgerEntry = await EmployeeLedger.findOne({ relatedPayoutOrderId: order._id });
-        if (ledgerEntry) {
-          ledgerEntry.amount = newAmount;
-          await ledgerEntry.save();
-        }
+        // Immutability: Post a differential adjustment entry instead of modifying historical rows
+        await EmployeeLedger.create({
+          employeeId: order.beneficiaryId,
+          entryType: delta > 0 ? 'ADJUSTMENT_CREDIT' : 'ADJUSTMENT_REVERSAL',
+          amount: delta,
+          payoutMethodUsed: order.payoutMethod,
+          reason: `[قيد تسوية فروقات] تعديل مبلغ أمر الصرف #${order._id} من ${oldAmount} إلى ${newAmount} USDT`,
+          warningLevel: 'NONE',
+          relatedPayoutOrderId: order._id,
+          recordedBy: adminId
+        });
       }
 
       order.amount = newAmount;
