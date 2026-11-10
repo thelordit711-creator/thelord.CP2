@@ -12,6 +12,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { validateEnvironment } from './config/envValidator';
+import { isOriginAllowed } from './config/cors';
 import { logger } from './utils/logger';
 
 // Execute fail-fast security check on runtime environment
@@ -43,14 +44,18 @@ SocketService.init(server);
 // Essential Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
-// Robust CORS Middleware for Vercel, Production, and Localhost
+// Secure CORS Middleware for Enterprise Production, Vercel, and Localhost
 app.use((req, res, next) => {
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Set-Cookie');
-  res.setHeader('Access-Control-Max-Age', '86400');
+  const origin = req.headers.origin;
+  if (isOriginAllowed(origin)) {
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Set-Cookie');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -60,7 +65,11 @@ app.use((req, res, next) => {
 
 app.use(cors({
   origin: (origin, callback) => {
-    callback(null, true);
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS policy violation: Origin ${origin} not allowed`));
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

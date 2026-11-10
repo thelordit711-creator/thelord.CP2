@@ -3,7 +3,7 @@
  * Ensures all tokens, secrets, credentials, and sensitive financial payloads are redacted.
  */
 
-type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'SECURITY';
+type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'SECURITY' | 'DEBUG';
 
 const SENSITIVE_KEYS = new Set([
   'password',
@@ -76,6 +76,12 @@ class Logger {
 
   security(message: string, meta?: unknown): void {
     console.warn(this.format('SECURITY', `🛡️ [AUDIT] ${message}`, meta));
+  }
+
+  debug(message: string, meta?: unknown): void {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug(this.format('DEBUG', message, meta));
+    }
   }
 }
 
