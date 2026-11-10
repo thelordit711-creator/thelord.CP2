@@ -92,5 +92,71 @@ router.post('/generate-project', async (req: AuthenticatedRequest, res: Response
   }
 });
 
+router.post('/quality-review', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { taskTitle, stageTitle, submissionText, attachmentsCount } = req.body;
+    if (!submissionText) {
+      res.status(400).json({ success: false, error: 'نص التسليم مطلوب لإجراء فحص الجودة' });
+      return;
+    }
+
+    const result = await TheLordAIService.reviewTaskSubmissionQuality({
+      taskTitle: taskTitle || 'مهمة بدون عنوان',
+      stageTitle: stageTitle || 'مرحلة تنفيذية',
+      submissionText,
+      attachmentsCount: Number(attachmentsCount) || 0
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.post('/summarize-meeting', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { meetingTitle, notesOrTranscript } = req.body;
+    if (!notesOrTranscript) {
+      res.status(400).json({ success: false, error: 'محضر الاجتماع أو التسجيل مطلوب' });
+      return;
+    }
+
+    const result = await TheLordAIService.summarizeMeeting({
+      meetingTitle: meetingTitle || 'اجتماع تنفيذي',
+      notesOrTranscript
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
+router.get('/cashflow-forecast', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { CompanyVault } = await import('../models/CompanyVault.model');
+    const { RecurringExpense } = await import('../models/RecurringExpense.model');
+    const { User } = await import('../models/User.model');
+
+    const vault = await CompanyVault.findOne({});
+    const recurring = await RecurringExpense.find({ isActive: true });
+    const employees = await User.find({ status: 'ACTIVE' });
+
+    const totalSubscriptions = recurring.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const totalPayroll = employees.reduce((sum, e) => sum + (e.compensation?.baseSalary || 0), 0);
+
+    const forecast = await TheLordAIService.generateCashflowForecast({
+      generalBudget: vault?.generalBudget || 0,
+      treasuryBalance: vault?.treasuryBalance || 0,
+      committedPayroll: totalPayroll,
+      committedSubscriptions: totalSubscriptions
+    });
+
+    res.json({ success: true, data: forecast });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+});
+
 export default router;
 
