@@ -32,3 +32,4 @@ const result = spawnSync('node', args, {
 });
 
 process.exit(result.status ?? 0);
+

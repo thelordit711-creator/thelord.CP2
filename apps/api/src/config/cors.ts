@@ -45,3 +45,4 @@ export function isOriginAllowed(origin?: string): boolean {
 
   return false;
 }
+
