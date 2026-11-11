@@ -2,12 +2,14 @@ import express from 'express';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 
 dotenv.config();
 
@@ -69,7 +71,10 @@ app.use(cors({
     if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS policy violation: Origin ${origin} not allowed`));
+      const corsErr: any = new Error(`CORS policy violation: Origin ${origin} not allowed`);
+      corsErr.status = 403;
+      corsErr.code = 'CORS_ORIGIN_FORBIDDEN';
+      callback(corsErr);
     }
   },
   credentials: true,
@@ -89,8 +94,20 @@ app.use(morgan('combined', {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Ensure database connection middleware
+// Attach deterministic X-Request-Id for audit & error correlation
+app.use((req, res, next) => {
+  const incomingId = typeof req.headers['x-request-id'] === 'string' ? req.headers['x-request-id'].trim() : '';
+  const requestId = incomingId || crypto.randomUUID();
+  (req as any).requestId = requestId;
+  res.setHeader('X-Request-Id', requestId);
+  next();
+});
+
+// Ensure database connection middleware (skipped in isolated unit/HTTP test mode)
 app.use(async (req, res, next) => {
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
   try {
     await connectDatabase();
     next();
@@ -117,11 +134,29 @@ app.use('/uploads', express.static(uploadsStaticDir, {
   }
 }));
 
-// Health check endpoint
+// Health check (liveness) endpoint
 app.get('/health', (req, res) => {
   res.json({
     status: 'online',
     system: 'THE LORD OF CRYPTO — Control Panel C.P API',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Readiness check endpoint (verifies database connectivity)
+app.get('/ready', (_req, res) => {
+  const isDbConnected = mongoose.connection.readyState === 1;
+  if (!isDbConnected) {
+    res.status(503).json({
+      status: 'not_ready',
+      database: 'disconnected',
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+  res.json({
+    status: 'ready',
+    database: 'connected',
     timestamp: new Date().toISOString()
   });
 });
@@ -139,12 +174,30 @@ app.use('/api/v1/meetings', meetingRoutes);
 app.use('/api/v1/notifications', notificationsRoutes);
 app.use('/api/v1/projects', projectsRoutes);
 
-// Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  logger.error('Unhandled Server Error', err);
-  res.status(err.status || 500).json({
+// Standardized Global Error Handling Middleware (never leaks internal details in production)
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = Number(err?.status || err?.statusCode) || 500;
+  const requestId = (req as any).requestId;
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  logger.error('Unhandled Server Error', {
+    requestId,
+    status,
+    path: req.originalUrl,
+    method: req.method,
+    error: err?.message || err
+  });
+
+  const safeMessage =
+    isProduction && status >= 500
+      ? 'حدث خطأ داخلي في الخادم، يرجى مراجعة فريق التشغيل باستخدام رقم الطلب.'
+      : err?.message || 'Internal Server Error';
+
+  res.status(status).json({
     success: false,
-    error: err.message || 'Internal Server Error'
+    errorCode: err?.code || (status >= 500 ? 'INTERNAL_SERVER_ERROR' : 'REQUEST_ERROR'),
+    error: safeMessage,
+    requestId
   });
 });
 
@@ -161,7 +214,9 @@ async function startServer() {
   }
 }
 
-startServer();
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
 
 export { app, server };
 export default app;
