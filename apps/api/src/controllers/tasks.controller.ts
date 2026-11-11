@@ -5,6 +5,8 @@ import { User } from '../models/User.model';
 import { PayoutOrder } from '../models/PayoutOrder.model';
 import { SocketService } from '../services/socket.service';
 import { AuditService } from '../services/audit.service';
+import { ProjectSyncService } from '../services/projectSync.service';
+import mongoose from 'mongoose';
 import { ICreateTaskDto, ISubmitStageDto, IReviewStageDto } from '@lord/shared-types';
 
 export class TasksController {
@@ -77,8 +79,22 @@ export class TasksController {
           adminApprovalStatus: body.financialRequirement?.requiresBudget ? 'PENDING_ADMIN' : 'NOT_REQUIRED'
         },
         adminBriefAttachments: body.adminBriefAttachments || [],
+        projectId:
+          body.projectId && mongoose.Types.ObjectId.isValid(body.projectId)
+            ? body.projectId
+            : undefined,
+        milestoneIndex:
+          typeof body.milestoneIndex === 'number' ? body.milestoneIndex : undefined,
         status: isProposed ? 'PENDING_ADMIN_REVIEW' : 'TODO'
       });
+
+      if (body.projectId && mongoose.Types.ObjectId.isValid(body.projectId)) {
+        await ProjectSyncService.attachTaskToProjectMilestone(
+          body.projectId,
+          body.milestoneIndex,
+          task._id
+        );
+      }
 
       const populatedTask = await Task.findById(task._id)
         .populate('assignedTo', 'fullName email avatarUrl jobTitles')
@@ -142,6 +158,7 @@ export class TasksController {
       const tasks = await Task.find(filter)
         .populate('assignedTo', 'fullName email avatarUrl jobTitles')
         .populate('createdBy', 'fullName email avatarUrl')
+        .populate('projectId', 'title code status')
         .populate('financialRequirement.payoutOrderId')
         .sort({ createdAt: -1 });
 
@@ -320,6 +337,7 @@ export class TasksController {
         task.overallProgressPercent = Math.round((approvedCount / task.stages.length) * 100);
 
         await task.save();
+        await ProjectSyncService.syncMilestoneProgressByTaskId(task._id);
 
         const populatedTask = await Task.findById(task._id)
           .populate('assignedTo', 'fullName email avatarUrl jobTitles')
@@ -352,6 +370,7 @@ export class TasksController {
       } else {
         currentStage.status = 'NEEDS_REVISION';
         await task.save();
+        await ProjectSyncService.syncMilestoneProgressByTaskId(task._id);
 
         const populatedTask = await Task.findById(task._id)
           .populate('assignedTo', 'fullName email avatarUrl jobTitles')
@@ -460,6 +479,7 @@ export class TasksController {
       }
 
       await task.save();
+      await ProjectSyncService.syncMilestoneProgressByTaskId(task._id);
 
       const updatedTask = await Task.findById(task._id)
         .populate('assignedTo', 'fullName email avatarUrl jobTitles')
@@ -505,6 +525,7 @@ export class TasksController {
 
       const assignedEmpIds = (task.assignedTo || []).map((e: any) => e.toString());
       await Task.findByIdAndDelete(id);
+      await ProjectSyncService.unlinkTaskFromProjects(id);
 
       // Realtime notification of deletion to all dashboards
       SocketService.broadcast('task:deleted', { taskId: id, title: task.title });

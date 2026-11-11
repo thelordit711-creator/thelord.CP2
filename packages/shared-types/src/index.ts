@@ -53,12 +53,12 @@ export function hasPermission(role: AccessRole, permission: AppPermission): bool
   return (ROLE_PERMISSIONS[role] || []).includes(permission);
 }
 
-export type PrimaryDepartment = 
-  | 'TRADING' 
-  | 'MARKETING' 
-  | 'CONTENT_MEDIA' 
-  | 'DEVELOPMENT' 
-  | 'SUPPORT' 
+export type PrimaryDepartment =
+  | 'TRADING'
+  | 'MARKETING'
+  | 'CONTENT_MEDIA'
+  | 'DEVELOPMENT'
+  | 'SUPPORT'
   | 'MANAGEMENT';
 
 export type JobTitle =
@@ -95,13 +95,13 @@ export interface IInvitation {
   createdAt?: Date | string;
 }
 
-export type MediaFileType = 
-  | 'IMAGE' 
-  | 'VOICE_NOTE' 
-  | 'AUDIO_FILE' 
-  | 'VIDEO' 
-  | 'DOCUMENT' 
-  | 'ARCHIVE' 
+export type MediaFileType =
+  | 'IMAGE'
+  | 'VOICE_NOTE'
+  | 'AUDIO_FILE'
+  | 'VIDEO'
+  | 'DOCUMENT'
+  | 'ARCHIVE'
   | 'URL';
 
 export type TargetPlatform =
@@ -129,27 +129,27 @@ export type ExecutionType = 'ADMIN_ASSIGNED' | 'SELF' | 'DELEGATED_TO_COLLEAGUE'
 
 export type PriorityLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
-export type TaskStatus = 
-  | 'PENDING_ADMIN_REVIEW' 
-  | 'TODO' 
-  | 'IN_PROGRESS' 
-  | 'COMPLETED' 
+export type TaskStatus =
+  | 'PENDING_ADMIN_REVIEW'
+  | 'TODO'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
   | 'REJECTED';
 
-export type StageStatus = 
-  | 'LOCKED' 
-  | 'IN_PROGRESS' 
-  | 'SUBMITTED_FOR_REVIEW' 
-  | 'APPROVED' 
+export type StageStatus =
+  | 'LOCKED'
+  | 'IN_PROGRESS'
+  | 'SUBMITTED_FOR_REVIEW'
+  | 'APPROVED'
   | 'NEEDS_REVISION';
 
-export type RequiredFieldType = 
-  | 'TEXT' 
-  | 'NUMBER' 
-  | 'URL' 
-  | 'IMAGE' 
-  | 'VIDEO' 
-  | 'VOICE_NOTE' 
+export type RequiredFieldType =
+  | 'TEXT'
+  | 'NUMBER'
+  | 'URL'
+  | 'IMAGE'
+  | 'VIDEO'
+  | 'VOICE_NOTE'
   | 'DOCUMENT'
   | 'CODE_SNIPPET'
   | 'ANY_FILE';
@@ -161,11 +161,11 @@ export type ExpenseCategory =
   | 'OPERATIONAL'
   | 'OTHER';
 
-export type AdminApprovalStatus = 
-  | 'NOT_REQUIRED' 
-  | 'PENDING_ADMIN' 
-  | 'APPROVED' 
-  | 'REJECTED' 
+export type AdminApprovalStatus =
+  | 'NOT_REQUIRED'
+  | 'PENDING_ADMIN'
+  | 'APPROVED'
+  | 'REJECTED'
   | 'NEEDS_CHANGES';
 
 export type PayoutCategory =
@@ -207,11 +207,11 @@ export function canTransitionPayoutStatus(
 
 export type WarningLevel = 'NONE' | 'FIRST' | 'SECOND' | 'FINAL';
 
-export type LedgerEntryType = 
-  | 'BASE_SALARY' 
-  | 'BONUS' 
-  | 'DEDUCTION' 
-  | 'ADVANCE_REQUEST' 
+export type LedgerEntryType =
+  | 'BASE_SALARY'
+  | 'BONUS'
+  | 'DEDUCTION'
+  | 'ADVANCE_REQUEST'
   | 'WARNING'
   | 'ADJUSTMENT_REVERSAL'
   | 'ADJUSTMENT_CREDIT';
@@ -381,6 +381,8 @@ export interface ITask {
   claimedBy?: string | Partial<IUser>;
   claimedAt?: Date | string;
   bountyPayoutStatus?: 'UNCLAIMED' | 'IN_PROGRESS' | 'SUBMITTED_FOR_PAYOUT' | 'DISBURSED';
+  projectId?: string | Partial<IProject>;
+  milestoneIndex?: number;
   status: TaskStatus;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -608,6 +610,8 @@ export interface ICreateTaskDto {
   dueDate?: string;
   executionType?: ExecutionType;
   isProposedByEmployee?: boolean;
+  projectId?: string;
+  milestoneIndex?: number;
   stages?: Array<{
     stageOrder: number;
     stageTitle: string;
@@ -724,6 +728,16 @@ export interface ICreateChannelDto {
   isPublic?: boolean;
 }
 
+export interface IProjectMilestone {
+  _id?: string;
+  title: string;
+  description?: string;
+  dueDate?: Date | string;
+  isCompleted: boolean;
+  suggestedAssigneeId?: string | Partial<IUser>;
+  assignedTasks: Array<string | Partial<ITask>>;
+}
+
 export interface IProject {
   _id: string;
   title: string;
@@ -738,16 +752,55 @@ export interface IProject {
   targetEndDate: Date | string;
   status: 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
   createdBy: string | Partial<IUser>;
-  teamMembers: string[];
-  wbsMilestones: Array<{
+  teamMembers: Array<string | Partial<IUser>>;
+  chatChannelId?: string;
+  wbsMilestones: IProjectMilestone[];
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface ICreateProjectDto {
+  title: string;
+  description: string;
+  code?: string;
+  objectives?: string[];
+  requirements?: string[];
+  toolsAndResources?: string[];
+  allocatedBudget?: number;
+  startDate?: Date | string;
+  targetEndDate: Date | string;
+  status?: 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+  teamMembers?: string[];
+  wbsMilestones?: Array<{
     title: string;
     description?: string;
     dueDate?: Date | string;
-    isCompleted: boolean;
-    assignedTasks: string[];
+    isCompleted?: boolean;
+    suggestedAssigneeId?: string;
+    assignedTasks?: string[];
   }>;
-  createdAt: Date | string;
-  updatedAt: Date | string;
+}
+
+export interface IUpdateProjectDto {
+  title?: string;
+  description?: string;
+  objectives?: string[];
+  requirements?: string[];
+  toolsAndResources?: string[];
+  allocatedBudget?: number;
+  startDate?: Date | string;
+  targetEndDate?: Date | string;
+  status?: 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+  teamMembers?: string[];
+  chatChannelId?: string;
+  wbsMilestones?: Array<{
+    title: string;
+    description?: string;
+    dueDate?: Date | string;
+    isCompleted?: boolean;
+    suggestedAssigneeId?: string;
+    assignedTasks?: string[];
+  }>;
 }
 
 export interface IDailyReport {

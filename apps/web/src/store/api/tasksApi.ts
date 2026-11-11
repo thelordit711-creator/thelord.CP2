@@ -20,7 +20,7 @@ export const tasksApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data
       }),
-      invalidatesTags: ['Task']
+      invalidatesTags: ['Task', 'Project']
     }),
     updateTask: builder.mutation<IApiResponse<ITask>, { id: string; data: Partial<ICreateTaskDto> }>({
       query: ({ id, data }) => ({
@@ -28,14 +28,14 @@ export const tasksApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: data
       }),
-      invalidatesTags: (result, error, { id }) => ['Task', { type: 'Task', id }]
+      invalidatesTags: (result, error, { id }) => ['Task', { type: 'Task', id }, 'Project']
     }),
     deleteTask: builder.mutation<IApiResponse<{ message: string }>, string>({
       query: (id) => ({
         url: `/tasks/${id}`,
         method: 'DELETE'
       }),
-      invalidatesTags: ['Task']
+      invalidatesTags: ['Task', 'Project']
     }),
     submitTaskStage: builder.mutation<IApiResponse<ITask>, { taskId: string; stageOrder: number; data: ISubmitStageDto }>({
       query: ({ taskId, stageOrder, data }) => ({
@@ -51,7 +51,7 @@ export const tasksApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: data
       }),
-      invalidatesTags: (result, error, { taskId }) => ['Task', { type: 'Task', id: taskId }]
+      invalidatesTags: (result, error, { taskId }) => ['Task', { type: 'Task', id: taskId }, 'Project']
     }),
     addDirectReport: builder.mutation<IApiResponse<any>, { taskId: string; textContent?: string; attachments?: any[] }>({
       query: ({ taskId, ...body }) => ({

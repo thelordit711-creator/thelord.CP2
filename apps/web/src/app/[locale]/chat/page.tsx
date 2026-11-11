@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSocket } from '../../../providers/SocketProvider';
 import {
   useGetRoomsAndMembersQuery,
@@ -23,8 +23,12 @@ import { ManageMembersModal } from '../../../components/chat/modals/ManageMember
 import { AudioCallModal } from '../../../components/chat/AudioCallModal';
 import { ImageLightboxModal } from '../../../components/ui/ImageLightboxModal';
 
-export default function ChatPage() {
+function ChatPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialRoomId = searchParams.get('roomId');
+  const initialUserId = searchParams.get('userId');
+  const handledDeepLinkRef = useRef<string | null>(null);
   const { socket, isConnected } = useSocket();
 
   // Current User
@@ -187,6 +191,38 @@ export default function ChatPage() {
     setEditingMessage(null);
     setShowMobileChatRoom(true);
   };
+
+  useEffect(() => {
+    const key = initialRoomId
+      ? `room:${initialRoomId}`
+      : initialUserId
+      ? `user:${initialUserId}`
+      : null;
+    if (!key || handledDeepLinkRef.current === key) return;
+
+    if (initialRoomId && channels.length > 0) {
+      const targetChannel = channels.find(
+        (c: any) =>
+          String(c.id || c.channelId) === initialRoomId ||
+          String(c._id) === initialRoomId
+      );
+      if (targetChannel) {
+        handledDeepLinkRef.current = key;
+        handleSelectChannel(targetChannel);
+        return;
+      }
+    }
+
+    if (initialUserId && allMembers.length > 0) {
+      const targetMember = allMembers.find(
+        (m: any) => String(m._id || m.id) === initialUserId
+      );
+      if (targetMember) {
+        handledDeepLinkRef.current = key;
+        handleSelectMember(targetMember);
+      }
+    }
+  }, [initialRoomId, initialUserId, channels, allMembers]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -431,5 +467,13 @@ export default function ChatPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-obsidian-deep" />}>
+      <ChatPageContent />
+    </Suspense>
   );
 }

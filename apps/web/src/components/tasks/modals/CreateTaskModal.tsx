@@ -18,6 +18,7 @@ import {
 import { lordToast } from '../../../lib/lordToast';
 import { useCreateOrProposeTaskMutation } from '../../../store/api/tasksApi';
 import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
+import { useGetProjectsQuery } from '../../../store/api/projectsApi';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -37,6 +38,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const currentUser = meRes?.data;
   const { data: employeesRes } = useGetAllEmployeesQuery();
   const employees = employeesRes?.data || [];
+  const { data: projectsRes } = useGetProjectsQuery();
+  const projects = projectsRes?.data || [];
+
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedMilestoneIndex, setSelectedMilestoneIndex] = useState<string>('');
 
   // Form States
   const [taskTitle, setTaskTitle] = useState('');
@@ -361,16 +367,16 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         assignmentMode === 'SELF'
           ? (currentUser?._id ? [currentUser._id] : [])
           : assignmentMode === 'EMPLOYEES'
-          ? selectedAssignees
-          : [];
+            ? selectedAssignees
+            : [];
 
       const executionType = isProposal
         ? assignmentMode === 'SELF'
           ? 'SELF'
           : 'DELEGATED_TO_COLLEAGUE'
         : assignmentMode === 'EMPLOYEES'
-        ? 'ADMIN_ASSIGNED'
-        : undefined;
+          ? 'ADMIN_ASSIGNED'
+          : undefined;
 
       await createTask({
         title: taskTitle,
@@ -383,6 +389,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         isProposedByEmployee: isProposal,
         priority: priority as any,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        projectId: selectedProjectId || undefined,
+        milestoneIndex:
+          selectedProjectId && selectedMilestoneIndex !== ''
+            ? Number(selectedMilestoneIndex)
+            : undefined,
         isDailyRecurring,
         dailyRecurrenceTime: isDailyRecurring ? dailyRecurrenceTime : undefined,
         isBountyTask,
@@ -550,6 +561,52 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             />
           </div>
 
+          {/* Optional Project & Milestone Link */}
+          {projects.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-gray-950/60 border border-lord-gold/20">
+              <div>
+                <label className="text-[11px] font-bold text-lord-gold mb-1 block">
+                  ربط بمشروع (اختياري)
+                </label>
+                <select
+                  value={selectedProjectId}
+                  onChange={(e) => {
+                    setSelectedProjectId(e.target.value);
+                    setSelectedMilestoneIndex('');
+                  }}
+                  className="w-full h-10 bg-gray-950 border border-gray-800 rounded-xl px-3 text-xs text-gray-200 focus:border-lord-gold/50 focus:outline-none"
+                >
+                  <option value="">مهمة مستقلة (بدون مشروع)</option>
+                  {projects.map((p: any) => (
+                    <option key={p._id} value={p._id}>
+                      {p.code ? `[${p.code}] ` : ''}{p.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-400 mb-1 block">
+                  المرحلة في خطة العمل (اختياري)
+                </label>
+                <select
+                  value={selectedMilestoneIndex}
+                  onChange={(e) => setSelectedMilestoneIndex(e.target.value)}
+                  disabled={!selectedProjectId}
+                  className="w-full h-10 bg-gray-950 border border-gray-800 rounded-xl px-3 text-xs text-gray-200 focus:border-lord-gold/50 focus:outline-none disabled:opacity-40"
+                >
+                  <option value="">عام على المشروع</option>
+                  {(projects.find((p: any) => p._id === selectedProjectId)?.wbsMilestones || []).map(
+                    (m: any, idx: number) => (
+                      <option key={idx} value={String(idx)}>
+                        {idx + 1}. {m.title}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* Platform & Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -682,11 +739,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setAssignmentMode('SELF')}
-                    className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                      assignmentMode === 'SELF'
+                    className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'SELF'
                         ? 'bg-lord-gold text-black font-black shadow-sm'
                         : 'text-gray-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     تنفيذ ذاتي 🙋‍♂️
                   </button>
@@ -694,22 +750,20 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setAssignmentMode('EMPLOYEES')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    assignmentMode === 'EMPLOYEES'
+                  className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'EMPLOYEES'
                       ? 'bg-lord-gold text-black font-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   {isProposal ? 'تكليف زميل بالكادر 👥' : 'موظف أو أكثر 👤'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setAssignmentMode('DEPARTMENT')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    assignmentMode === 'DEPARTMENT'
+                  className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'DEPARTMENT'
                       ? 'bg-lord-gold text-black font-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   قسم كامل 🏢
                 </button>
@@ -745,11 +799,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                       <div
                         key={emp._id}
                         onClick={() => handleToggleAssignee(emp._id)}
-                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                          isSelected
+                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isSelected
                             ? 'bg-lord-gold/15 border-lord-gold text-white font-bold'
                             : 'bg-obsidian-primary border-gray-800 text-gray-300 hover:bg-gray-800'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <span className="w-6 h-6 rounded-lg bg-obsidian-card border border-gray-700 flex items-center justify-center text-[10px] text-lord-gold">
@@ -760,9 +813,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                             <span className="text-[9px] text-gray-400 block">{emp.primaryDepartment} - {emp.jobTitles?.[0] || emp.accessRole}</span>
                           </div>
                         </div>
-                        <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${
-                          isSelected ? 'bg-lord-gold text-obsidian-primary border-lord-gold' : 'border-gray-600'
-                        }`}>
+                        <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${isSelected ? 'bg-lord-gold text-obsidian-primary border-lord-gold' : 'border-gray-600'
+                          }`}>
                           {isSelected ? '✓' : ''}
                         </span>
                       </div>
