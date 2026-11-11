@@ -9,14 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@kinde-oss/kinde-auth-nextjs": "^2.2.3",
+    "@kinde-oss/kinde-auth-nextjs": "^2.13.2",
     "@lord/shared-types": "*",
     "@reduxjs/toolkit": "^2.2.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.378.0",
-    "next": "^14.2.35",
-    "next-intl": "^3.11.3",
+    "next": "^16.4.6",
+    "next-intl": "^4.14.10",
     "qrcode.react": "^3.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
