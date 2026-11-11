@@ -367,16 +367,16 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         assignmentMode === 'SELF'
           ? (currentUser?._id ? [currentUser._id] : [])
           : assignmentMode === 'EMPLOYEES'
-          ? selectedAssignees
-          : [];
+            ? selectedAssignees
+            : [];
 
       const executionType = isProposal
         ? assignmentMode === 'SELF'
           ? 'SELF'
           : 'DELEGATED_TO_COLLEAGUE'
         : assignmentMode === 'EMPLOYEES'
-        ? 'ADMIN_ASSIGNED'
-        : undefined;
+          ? 'ADMIN_ASSIGNED'
+          : undefined;
 
       await createTask({
         title: taskTitle,
@@ -739,11 +739,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setAssignmentMode('SELF')}
-                    className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                      assignmentMode === 'SELF'
+                    className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'SELF'
                         ? 'bg-lord-gold text-black font-black shadow-sm'
                         : 'text-gray-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     تنفيذ ذاتي 🙋‍♂️
                   </button>
@@ -751,22 +750,20 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setAssignmentMode('EMPLOYEES')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    assignmentMode === 'EMPLOYEES'
+                  className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'EMPLOYEES'
                       ? 'bg-lord-gold text-black font-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   {isProposal ? 'تكليف زميل بالكادر 👥' : 'موظف أو أكثر 👤'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setAssignmentMode('DEPARTMENT')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    assignmentMode === 'DEPARTMENT'
+                  className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'DEPARTMENT'
                       ? 'bg-lord-gold text-black font-black shadow-sm'
                       : 'text-gray-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   قسم كامل 🏢
                 </button>
@@ -802,11 +799,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                       <div
                         key={emp._id}
                         onClick={() => handleToggleAssignee(emp._id)}
-                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                          isSelected
+                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isSelected
                             ? 'bg-lord-gold/15 border-lord-gold text-white font-bold'
                             : 'bg-obsidian-primary border-gray-800 text-gray-300 hover:bg-gray-800'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <span className="w-6 h-6 rounded-lg bg-obsidian-card border border-gray-700 flex items-center justify-center text-[10px] text-lord-gold">
@@ -817,9 +813,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                             <span className="text-[9px] text-gray-400 block">{emp.primaryDepartment} - {emp.jobTitles?.[0] || emp.accessRole}</span>
                           </div>
                         </div>
-                        <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${
-                          isSelected ? 'bg-lord-gold text-obsidian-primary border-lord-gold' : 'border-gray-600'
-                        }`}>
+                        <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${isSelected ? 'bg-lord-gold text-obsidian-primary border-lord-gold' : 'border-gray-600'
+                          }`}>
                           {isSelected ? '✓' : ''}
                         </span>
                       </div>
