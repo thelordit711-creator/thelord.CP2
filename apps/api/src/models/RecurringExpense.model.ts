@@ -1,5 +1,6 @@
 import { Schema, model, Document } from 'mongoose';
 import { IRecurringExpense } from '@lord/shared-types';
+import { decimal128Field } from '../utils/financialMath';
 
 export interface IRecurringExpenseDocument extends Omit<IRecurringExpense, '_id'>, Document {}
 
@@ -11,7 +12,7 @@ const RecurringExpenseSchema = new Schema<IRecurringExpenseDocument>({
     default: 'OTHER',
     index: true 
   },
-  amount: { type: Number, required: true },
+  amount: decimal128Field({ required: true }),
   currency: { type: String, enum: ['USDT', 'USD', 'SAR', 'YER'], default: 'USDT' },
   targetVault: { type: String, default: 'operationalReserve' },
   beneficiaryName: { type: String, required: true },
@@ -25,7 +26,7 @@ const RecurringExpenseSchema = new Schema<IRecurringExpenseDocument>({
   isAutoDisburse: { type: Boolean, default: false },
   lastDisbursedAt: { type: Date },
   status: { type: String, enum: ['ACTIVE', 'PAUSED'], default: 'ACTIVE', index: true }
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });
 
 export const RecurringExpense = model<IRecurringExpenseDocument>('RecurringExpense', RecurringExpenseSchema);
 

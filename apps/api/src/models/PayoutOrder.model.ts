@@ -1,13 +1,14 @@
 import { Schema, model, Document } from 'mongoose';
 import { IPayoutOrder } from '@lord/shared-types';
 import { MediaAttachmentSchema } from './User.model';
+import { decimal128Field } from '../utils/financialMath';
 
 export interface IPayoutOrderDocument extends Omit<IPayoutOrder, '_id'>, Document {}
 
 const PayoutOrderSchema = new Schema<IPayoutOrderDocument>({
   relatedTaskId: { type: Schema.Types.ObjectId, ref: 'Task' },
   beneficiaryId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  amount: { type: Number, required: true },
+  amount: decimal128Field({ required: true }),
   currency: { type: String, enum: ['USDT', 'USD', 'SAR', 'YER'], default: 'USDT' },
 
   payoutMethod: { 
@@ -94,12 +95,12 @@ const PayoutOrderSchema = new Schema<IPayoutOrderDocument>({
   // Task budget expense breakdown and settlement (Optional, filled by employee)
   taskExpenseSettlement: {
     isSettled: { type: Boolean, default: false },
-    settledAmount: { type: Number },
+    settledAmount: decimal128Field(),
     expenseDetails: { type: String },
     invoicesOrProofs: [MediaAttachmentSchema],
     settledAt: { type: Date }
   }
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });
 
 export const PayoutOrder = model<IPayoutOrderDocument>('PayoutOrder', PayoutOrderSchema);
 

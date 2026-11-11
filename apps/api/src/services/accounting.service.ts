@@ -6,14 +6,15 @@ import { User } from '../models/User.model';
 import { RecurringExpense } from '../models/RecurringExpense.model';
 import { SocketService } from './socket.service';
 import { AuditService } from './audit.service';
+import { FinancialMath } from '../utils/financialMath';
 import { PayoutCategory, LedgerEntryType } from '@lord/shared-types';
 
 export class AccountingService {
   /**
-   * Safe financial precision rounding (prevents IEEE 754 floating-point drift)
+   * Safe financial precision rounding (delegates to BigInt micro-unit FinancialMath)
    */
   public static roundCurrency(value: number): number {
-    return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+    return FinancialMath.roundCurrency(value, 2);
   }
 
   /**

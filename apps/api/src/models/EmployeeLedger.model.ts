@@ -1,5 +1,6 @@
 import { Schema, model, Document } from 'mongoose';
 import { IEmployeeLedger } from '@lord/shared-types';
+import { decimal128Field } from '../utils/financialMath';
 
 export interface IEmployeeLedgerDocument extends Omit<IEmployeeLedger, '_id'>, Document {}
 
@@ -19,7 +20,7 @@ const EmployeeLedgerSchema = new Schema<IEmployeeLedgerDocument>({
     required: true,
     index: true 
   },
-  amount: { type: Number, default: 0 },
+  amount: decimal128Field({ default: 0 }),
   payoutMethodUsed: { 
     type: String, 
     enum: ['BEP20_USDT', 'JEEB_WALLET', 'JAWALI_WALLET', 'NONE'], 
@@ -36,7 +37,7 @@ const EmployeeLedgerSchema = new Schema<IEmployeeLedgerDocument>({
   isReversed: { type: Boolean, default: false },
   reversalReason: { type: String },
   reversalEntryId: { type: Schema.Types.ObjectId, ref: 'EmployeeLedger' }
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } });
 
 export const EmployeeLedger = model<IEmployeeLedgerDocument>('EmployeeLedger', EmployeeLedgerSchema);
 
