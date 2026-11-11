@@ -2,6 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { hasPermission, AppPermission, AccessRole } from '@lord/shared-types';
 import { isTreasuryPathAllowed } from '../../src/middlewares/treasuryIsolationGuard';
+import { validateCsrfRequest } from '../../src/middlewares/csrfGuard';
+import { getLocalDateString, buildCronWindowKey } from '../../src/services/cron.service';
 import { SocketService } from '../../src/services/socket.service';
 import { AccountingService } from '../../src/services/accounting.service';
 import type { Socket } from 'socket.io';
@@ -128,5 +130,63 @@ describe('RBAC & Permission Matrix Security Tests', () => {
     assert.strictEqual(AccountingService.roundCurrency(100.125), 100.13);
     assert.strictEqual(AccountingService.roundCurrency(19.999), 20);
     assert.strictEqual(AccountingService.roundCurrency(0), 0);
+  });
+
+  it('validateCsrfRequest should block untrusted cross-site mutations while allowing safe XHR/Bearer requests', () => {
+    assert.strictEqual(
+      validateCsrfRequest({ method: 'GET', hasCookieToken: true, hasBearerToken: false }).valid,
+      true
+    );
+
+    assert.strictEqual(
+      validateCsrfRequest({
+        method: 'POST',
+        hasCookieToken: true,
+        hasBearerToken: false,
+        origin: 'https://evil-attacker.example',
+        xRequestedWith: 'XMLHttpRequest'
+      }).valid,
+      false
+    );
+
+    assert.strictEqual(
+      validateCsrfRequest({
+        method: 'POST',
+        hasCookieToken: true,
+        hasBearerToken: false,
+        origin: 'http://localhost:3000',
+        contentType: 'application/x-www-form-urlencoded'
+      }).valid,
+      false
+    );
+
+    assert.strictEqual(
+      validateCsrfRequest({
+        method: 'POST',
+        hasCookieToken: true,
+        hasBearerToken: false,
+        origin: 'http://localhost:3000',
+        xRequestedWith: 'XMLHttpRequest',
+        contentType: 'multipart/form-data'
+      }).valid,
+      true
+    );
+
+    assert.strictEqual(
+      validateCsrfRequest({
+        method: 'POST',
+        hasCookieToken: true,
+        hasBearerToken: true
+      }).valid,
+      true
+    );
+  });
+
+  it('CronService date/window helpers should compute deterministic Asia/Riyadh lock keys', () => {
+    // 22:30 UTC on 2026-11-11 is already 01:30 on 2026-11-12 in Asia/Riyadh (UTC+3)
+    const utcNight = new Date('2026-11-11T22:30:00.000Z');
+    assert.strictEqual(getLocalDateString(utcNight, 'Asia/Riyadh'), '2026-11-12');
+    assert.strictEqual(buildCronWindowKey('daily-report', utcNight, 1440), 'daily-report:2026-11-12');
+    assert.strictEqual(buildCronWindowKey('escalation', utcNight, 60), 'escalation:2026-11-12:b22');
   });
 });

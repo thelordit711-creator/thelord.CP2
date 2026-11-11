@@ -84,7 +84,8 @@ export default function RegisterPage() {
       }
 
       try {
-        const res = await fetch(`${apiUrl}/auth/verify-invite/${token}`);
+        const { apiFetch } = await import('../../../lib/apiClient');
+        const res = await apiFetch(`/auth/verify-invite/${token}`);
         const data = await res.json();
 
         if (!res.ok || !data.success) {
@@ -149,7 +150,8 @@ export default function RegisterPage() {
         }
       };
 
-      const res = await fetch(`${apiUrl}/auth/accept-invite`, {
+      const { apiFetch, clearClientAuthTokens } = await import('../../../lib/apiClient');
+      const res = await apiFetch('/auth/accept-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -160,10 +162,10 @@ export default function RegisterPage() {
         throw new Error(data.error || 'تعذر إتمام التسجيل، يرجى المحاولة لاحقاً');
       }
 
-      // Save session
-      localStorage.setItem('lord_auth_token', data.token);
-      localStorage.setItem('auth_token', data.token);
+      // Save non-sensitive UI profile only; JWT lives in HttpOnly cookie
+      clearClientAuthTokens();
       localStorage.setItem('lord_current_user', JSON.stringify(data.user));
+      window.dispatchEvent(new Event('lord:session-changed'));
 
       // Route to Celebration & Post-Registration Page
       router.push(`/${locale}/registered-success`);

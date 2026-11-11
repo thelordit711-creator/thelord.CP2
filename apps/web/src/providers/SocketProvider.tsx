@@ -71,31 +71,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
-  const getStoredUserData = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('lord_current_user') || localStorage.getItem('lord_user_profile');
-        const token = localStorage.getItem('lord_auth_token') || localStorage.getItem('auth_token') || '';
-        if (stored) {
-          const u = JSON.parse(stored);
-          return {
-            userId: u?._id || u?.id || '',
-            role: u?.accessRole || u?.role || '',
-            token
-          };
-        }
-        return { userId: '', role: '', token };
-      } catch {
-        return { userId: '', role: '', token: '' };
-      }
-    }
-    return { userId: '', role: '', token: '' };
-  }, []);
-
-  const joinUser = useCallback((userId: string, role?: string) => {
-    if (socketRef.current && userId) {
-      socketRef.current.emit('user:join', { userId, role });
-    }
+  const joinUser = useCallback((_userId: string, _role?: string) => {
+    // Identity binding is strictly derived server-side from the HttpOnly JWT cookie
   }, []);
 
   useEffect(() => {
@@ -106,34 +83,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socketUrl = isLocal ? 'http://localhost:5000' : window.location.origin;
     }
 
-    const { userId, role, token } = getStoredUserData();
-
     const s = io(socketUrl || 'http://localhost:5000', {
       withCredentials: true,
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1500,
-      timeout: 10000,
-      query: {
-        userId: userId || '',
-        role: role || ''
-      },
-      auth: {
-        userId: userId || '',
-        role: role || '',
-        token: token || ''
-      }
+      timeout: 10000
     });
 
     socketRef.current = s;
 
     s.on('connect', () => {
       setIsConnected(true);
-      // Immediately identify user upon connect
-      const latest = getStoredUserData();
-      if (latest.userId) {
-        s.emit('user:join', { userId: latest.userId, role: latest.role });
-      }
     });
 
     s.on('disconnect', () => {
@@ -310,20 +271,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     setSocket(s);
 
-    // Watch for login changes in window
-    const handleStorageChange = () => {
-      const freshUser = getStoredUserData();
-      if (freshUser.userId && s.connected) {
-        s.emit('user:join', { userId: freshUser.userId, role: freshUser.role });
-      }
+    // Reconnect socket cleanly on login/logout so the latest HttpOnly cookie is bound
+    const handleSessionChange = () => {
+      s.disconnect();
+      s.connect();
     };
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('lord:session-changed', handleSessionChange);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('lord:session-changed', handleSessionChange);
       s.disconnect();
     };
-  }, [getStoredUserData]);
+  }, []);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected, joinUser }}>

@@ -15,8 +15,9 @@ export default function LoggedOutPage() {
   const [logoutTime, setLogoutTime] = useState<string>('');
 
   useEffect(() => {
-    // Clear any remaining tokens/session state
+    // Clear any remaining session state & legacy token keys
     localStorage.removeItem('lord_auth_token');
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('lord_current_user');
     setLogoutTime(new Date().toLocaleTimeString(isRtl ? 'ar-YE' : 'en-US', {
       hour: '2-digit',

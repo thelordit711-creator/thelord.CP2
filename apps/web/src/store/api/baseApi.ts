@@ -1,19 +1,13 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+import { API_BASE_URL } from '../../lib/apiClient';
 
 export const baseApi = createApi({
   reducerPath: 'baseApi',
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE_URL,
+    credentials: 'include',
     prepareHeaders: (headers) => {
-      // Prioritize official system session token, then fallback
-      const token = typeof window !== 'undefined'
-        ? localStorage.getItem('lord_auth_token') || localStorage.getItem('auth_token')
-        : null;
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
+      headers.set('X-Requested-With', 'XMLHttpRequest');
       return headers;
     }
   }),

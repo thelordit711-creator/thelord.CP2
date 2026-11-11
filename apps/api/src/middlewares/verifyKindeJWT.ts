@@ -45,8 +45,8 @@ export const verifyKindeJWT = async (
     let token: string | undefined;
 
     // 1. Extract from HttpOnly Secure Cookie if present
-    if (req.cookies && req.cookies.auth_token) {
-      token = req.cookies.auth_token;
+    if (req.cookies && (req.cookies.auth_token || req.cookies.lord_auth_token)) {
+      token = req.cookies.auth_token || req.cookies.lord_auth_token;
     }
 
     // 2. Fallback to Authorization Header (Bearer token)

@@ -23,6 +23,7 @@ import {
 } from '../../store/api/notificationsApi';
 import { NotificationDrawer } from '../notifications/NotificationDrawer';
 import { lordToast } from '../../lib/lordToast';
+import { apiFetch, clearClientSession } from '../../lib/apiClient';
 
 // Modular Subcomponents
 import { WorkStatusSelector } from './WorkStatusSelector';
@@ -228,14 +229,10 @@ export const TopBar: React.FC = () => {
 
     setUpdatingStatus(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-      const token = localStorage.getItem('lord_auth_token');
-
-      const res = await fetch(`${apiUrl}/auth/work-status`, {
+      const res = await apiFetch('/auth/work-status', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ workStatus: newStatus })
       });
@@ -268,24 +265,13 @@ export const TopBar: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-      const token = localStorage.getItem('lord_auth_token');
-      if (token) {
-        await fetch(`${apiUrl}/auth/work-status`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ workStatus: 'LOGGED_OUT' })
-        });
-      }
+      await apiFetch('/auth/logout', { method: 'POST' });
     } catch (_err) {
       // ignore
     }
 
-    localStorage.removeItem('lord_auth_token');
-    localStorage.removeItem('lord_current_user');
+    clearClientSession();
+    window.dispatchEvent(new Event('lord:session-changed'));
     lordToast.gold('تم تسجيل الخروج بنجاح');
     router.push(`/${locale}/logged-out`);
   };

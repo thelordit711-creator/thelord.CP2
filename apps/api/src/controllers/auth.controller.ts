@@ -20,6 +20,39 @@ const getJwtSecret = (): string => {
   return secret;
 };
 
+const getAuthCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const configuredSameSite = process.env.COOKIE_SAME_SITE?.toLowerCase();
+  const sameSite: 'strict' | 'lax' | 'none' =
+    configuredSameSite === 'strict' || configuredSameSite === 'lax' || configuredSameSite === 'none'
+      ? configuredSameSite
+      : isProduction
+        ? 'none'
+        : 'lax';
+  const secure =
+    (isProduction && process.env.ALLOW_INSECURE_COOKIES !== 'true') || sameSite === 'none';
+
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: '/'
+  };
+};
+
+const setAuthCookie = (res: Response, token: string): void => {
+  res.cookie('auth_token', token, {
+    ...getAuthCookieOptions(),
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  });
+};
+
+const clearAuthCookie = (res: Response): void => {
+  const opts = getAuthCookieOptions();
+  res.clearCookie('auth_token', opts);
+  res.clearCookie('lord_auth_token', opts);
+};
+
 export class AuthController {
   /**
    * Seed / Bootstrap Initial Super Admin Account from Environment Variables
@@ -211,13 +244,7 @@ export class AuthController {
       );
 
       // Set HttpOnly Secure SameSite Cookie
-      const isProduction = process.env.NODE_ENV === 'production';
-      res.cookie('auth_token', token, {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'strict' : 'lax',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-      });
+      setAuthCookie(res, token);
 
       res.json({
         success: true,
@@ -246,12 +273,7 @@ export class AuthController {
    */
   static async logout(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const isProduction = process.env.NODE_ENV === 'production';
-      res.clearCookie('auth_token', {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? 'strict' : 'lax'
-      });
+      clearAuthCookie(res);
 
       if (req.user) {
         const user = await User.findById(req.user._id);
@@ -527,6 +549,8 @@ export class AuthController {
         getJwtSecret(),
         { expiresIn: '30d' }
       );
+
+      setAuthCookie(res, authToken);
 
       res.status(201).json({
         success: true,

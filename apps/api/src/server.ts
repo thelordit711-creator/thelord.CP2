@@ -13,6 +13,7 @@ dotenv.config();
 
 import { validateEnvironment } from './config/envValidator';
 import { isOriginAllowed } from './config/cors';
+import { csrfGuard } from './middlewares/csrfGuard';
 import { logger } from './utils/logger';
 
 // Execute fail-fast security check on runtime environment
@@ -78,6 +79,7 @@ app.use(cors({
 app.options('*', cors());
 app.use(compression());
 app.use(cookieParser());
+app.use(csrfGuard);
 app.use(morgan('combined', {
   stream: {
     write: (msg: string) => logger.info(`[HTTP] ${msg.trim()}`)

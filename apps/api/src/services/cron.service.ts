@@ -1,49 +1,137 @@
 import cron from 'node-cron';
+import os from 'os';
 import { User } from '../models/User.model';
 import { Task } from '../models/Task.model';
 import { DailyReport } from '../models/DailyReport.model';
 import { AttendanceSession } from '../models/AttendanceSession.model';
 import { CompanyVault } from '../models/CompanyVault.model';
+import { CronLock } from '../models/CronLock.model';
 import { SocketService } from './socket.service';
+import { logger } from '../utils/logger';
+
+export const DEFAULT_APP_TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Riyadh';
+
+/**
+ * Pure deterministic date formatter in a fixed operational timezone (YYYY-MM-DD).
+ */
+export function getLocalDateString(date: Date = new Date(), timeZone: string = DEFAULT_APP_TIMEZONE): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
+
+/**
+ * Builds deterministic time-bucket lock keys so multi-instance API replicas
+ * execute each scheduled window at most once.
+ */
+export function buildCronWindowKey(jobName: string, date: Date = new Date(), bucketMinutes: number = 1440): string {
+  const dayStr = getLocalDateString(date);
+  if (bucketMinutes >= 1440) {
+    return `${jobName}:${dayStr}`;
+  }
+  const totalMinutes = date.getUTCHours() * 60 + date.getUTCMinutes();
+  const bucketIndex = Math.floor(totalMinutes / bucketMinutes);
+  return `${jobName}:${dayStr}:b${bucketIndex}`;
+}
 
 export class CronService {
   private static isInitialized = false;
+  private static instanceId = `${os.hostname()}-${process.pid}`;
+
+  /**
+   * Acquires an atomic MongoDB distributed lock for a cron window.
+   * Returns false if another replica already claimed this execution window.
+   */
+  public static async acquireDistributedLock(lockKey: string, ttlSeconds: number = 3600): Promise<boolean> {
+    try {
+      await CronLock.create({
+        lockKey,
+        lockedBy: this.instanceId,
+        expiresAt: new Date(Date.now() + ttlSeconds * 1000)
+      });
+      return true;
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        return false;
+      }
+      logger.error(`[CronService] Distributed lock check failed for ${lockKey}`, err);
+      return false;
+    }
+  }
 
   public static init() {
+    if (process.env.DISABLE_EMBEDDED_CRON === 'true') {
+      logger.info('[CronService] Embedded cron disabled via DISABLE_EMBEDDED_CRON=true (external worker mode)');
+      return;
+    }
     if (this.isInitialized) return;
     this.isInitialized = true;
 
-    console.log('⏰ [CronService] Initializing scheduled jobs & automated reminders');
+    const tzOptions = { timezone: DEFAULT_APP_TIMEZONE };
+    logger.info(`[CronService] Initializing scheduled jobs & distributed locks (TZ=${DEFAULT_APP_TIMEZONE})`);
 
-    // 1. Midnight Daily Executive Report (Every day at 00:00 / 12:00 AM)
-    cron.schedule('0 0 * * *', async () => {
-      console.log('🌙 [CronService] Running midnight 12:00 AM executive audit report');
-      await this.generateMidnightExecutiveReport();
-    });
+    // 1. Midnight Daily Executive Report (Every day at 00:00 in operational timezone)
+    cron.schedule(
+      '0 0 * * *',
+      async () => {
+        const lockKey = buildCronWindowKey('midnight-executive-report');
+        if (!(await this.acquireDistributedLock(lockKey, 23 * 3600))) return;
+        logger.info('[CronService] Running midnight executive audit report');
+        await this.generateMidnightExecutiveReport();
+      },
+      tzOptions
+    );
 
-    // 2. Daily Report Evening Reminder (Every day at 21:00 / 9:00 PM)
-    cron.schedule('0 21 * * *', async () => {
-      console.log('📢 [CronService] Sending daily report submission reminders');
-      await this.sendDailyReportReminders();
-    });
+    // 2. Daily Report Evening Reminder (Every day at 21:00 in operational timezone)
+    cron.schedule(
+      '0 21 * * *',
+      async () => {
+        const lockKey = buildCronWindowKey('daily-report-reminders');
+        if (!(await this.acquireDistributedLock(lockKey, 23 * 3600))) return;
+        logger.info('[CronService] Sending daily report submission reminders');
+        await this.sendDailyReportReminders();
+      },
+      tzOptions
+    );
 
-    // 3. Morning Routine Tasks Generation (Every day at 08:30 AM)
-    cron.schedule('30 8 * * *', async () => {
-      console.log('🌅 [CronService] Generating morning routine tasks at 08:30 AM');
-      await this.generateMorningRoutineTasks();
-    });
+    // 3. Morning Routine Tasks Generation (Every day at 08:30 AM in operational timezone)
+    cron.schedule(
+      '30 8 * * *',
+      async () => {
+        const lockKey = buildCronWindowKey('morning-routine-tasks');
+        if (!(await this.acquireDistributedLock(lockKey, 23 * 3600))) return;
+        logger.info('[CronService] Generating morning routine tasks at 08:30 AM');
+        await this.generateMorningRoutineTasks();
+      },
+      tzOptions
+    );
 
     // 4. Multi-Tier Escalation Ladder (Every hour)
-    cron.schedule('0 * * * *', async () => {
-      console.log('🪜 [CronService] Running automated escalation ladder for pending & delayed tasks');
-      await this.runEscalationLadder();
-    });
+    cron.schedule(
+      '0 * * * *',
+      async () => {
+        const lockKey = buildCronWindowKey('escalation-ladder', new Date(), 60);
+        if (!(await this.acquireDistributedLock(lockKey, 55 * 60))) return;
+        logger.info('[CronService] Running automated escalation ladder for pending & delayed tasks');
+        await this.runEscalationLadder();
+      },
+      tzOptions
+    );
 
     // 5. Task Delay / Overdue Checks (Every 2 hours)
-    cron.schedule('0 */2 * * *', async () => {
-      console.log('⏱️ [CronService] Checking for overdue tasks and approaching deadlines');
-      await this.checkOverdueTasks();
-    });
+    cron.schedule(
+      '0 */2 * * *',
+      async () => {
+        const lockKey = buildCronWindowKey('overdue-tasks-check', new Date(), 120);
+        if (!(await this.acquireDistributedLock(lockKey, 110 * 60))) return;
+        logger.info('[CronService] Checking for overdue tasks and approaching deadlines');
+        await this.checkOverdueTasks();
+      },
+      tzOptions
+    );
   }
 
   /**
@@ -52,7 +140,7 @@ export class CronService {
   public static async generateMidnightExecutiveReport() {
     try {
       const yesterday = new Date(Date.now() - 86400000);
-      const targetDateStr = yesterday.toISOString().split('T')[0];
+      const targetDateStr = getLocalDateString(yesterday);
 
       // 1. Fetch all registered employees
       const allEmployees = await User.find({ accessRole: 'EMPLOYEE' })
@@ -132,7 +220,7 @@ ${allEmployees.map(m => {
    */
   public static async sendDailyReportReminders() {
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       const allEmployees = await User.find({ accessRole: 'EMPLOYEE' }).select('_id fullName');
       const submittedReports = await DailyReport.find({ reportDate: todayStr }).select('employeeId');
 
@@ -159,7 +247,7 @@ ${allEmployees.map(m => {
    */
   public static async generateMorningRoutineTasks() {
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateString();
       const existing = await Task.findOne({
         title: { $regex: /الفحص الصباحي لخوادم البوتات/i },
         createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }

@@ -25,13 +25,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const { apiFetch, clearClientAuthTokens } = await import('../../../lib/apiClient');
       const payload: any = { email: email.trim(), password };
       if (requiresTwoFactor && twoFactorCode) {
         payload.twoFactorCode = twoFactorCode.trim();
       }
 
-      const res = await fetch(`${apiUrl}/auth/login`, {
+      const res = await apiFetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -50,10 +50,10 @@ export default function LoginPage() {
         return;
       }
 
-      // Store auth session
-      localStorage.setItem('lord_auth_token', data.token);
-      localStorage.setItem('auth_token', data.token);
+      // Store non-sensitive UI profile only; JWT lives exclusively in HttpOnly cookie
+      clearClientAuthTokens();
       localStorage.setItem('lord_current_user', JSON.stringify(data.user));
+      window.dispatchEvent(new Event('lord:session-changed'));
 
       // Route based on role
       if (data.user.accessRole === 'SUPER_ADMIN') {

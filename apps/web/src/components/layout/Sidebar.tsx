@@ -74,9 +74,18 @@ export const Sidebar: React.FC = () => {
     router.push(newPath);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('lord_auth_token');
-    localStorage.removeItem('lord_current_user');
+  const handleLogout = async () => {
+    try {
+      const { apiFetch, clearClientSession } = await import('../../lib/apiClient');
+      await apiFetch('/auth/logout', { method: 'POST' });
+      clearClientSession();
+    } catch {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('lord_auth_token');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('lord_current_user');
+      }
+    }
     lordToast.gold('تم تسجيل الخروج بنجاح');
     setMobileOpen(false);
     router.push(`/${locale}/logged-out`);
@@ -195,20 +204,17 @@ export const Sidebar: React.FC = () => {
             key={idx}
             href={item.href}
             onClick={onItemClick}
-            className={`flex items-center p-3 rounded-2xl transition-all duration-200 group ${
-              collapsed ? 'justify-center px-0' : 'justify-between px-3.5'
-            } ${
-              isActive
+            className={`flex items-center p-3 rounded-2xl transition-all duration-200 group ${collapsed ? 'justify-center px-0' : 'justify-between px-3.5'
+              } ${isActive
                 ? 'bg-lord-gold text-obsidian-primary font-black shadow-gold-glow'
                 : 'text-gray-400 hover:text-white hover:bg-obsidian-surface'
-            }`}
+              }`}
             title={collapsed ? (isRtl ? item.title : item.titleEn) : undefined}
           >
             <div className={`flex items-center gap-3 min-w-0 ${collapsed ? 'justify-center' : ''}`}>
               <Icon
-                className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${
-                  isActive ? 'text-obsidian-primary stroke-[2.5]' : 'text-gray-400 group-hover:text-lord-gold'
-                }`}
+                className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-obsidian-primary stroke-[2.5]' : 'text-gray-400 group-hover:text-lord-gold'
+                  }`}
               />
               {!collapsed && (
                 <span className="text-xs font-bold tracking-wide truncate">
@@ -219,11 +225,10 @@ export const Sidebar: React.FC = () => {
 
             {!collapsed && item.badge && (
               <span
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg whitespace-nowrap shrink-0 transition-colors ${
-                  isActive
+                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-lg whitespace-nowrap shrink-0 transition-colors ${isActive
                     ? 'bg-obsidian-primary text-lord-gold shadow-xs'
                     : 'bg-obsidian-surface text-gray-400 group-hover:text-white border border-gray-800/80'
-                }`}
+                  }`}
               >
                 {item.badge}
               </span>
@@ -238,9 +243,8 @@ export const Sidebar: React.FC = () => {
     <>
       {/* 1. Desktop Executive Laptop Sidebar */}
       <aside
-        className={`hidden md:flex relative flex-col justify-between bg-obsidian-card border-l border-obsidian-border transition-all duration-300 z-40 select-none ${
-          collapsed ? 'w-20' : 'w-72'
-        }`}
+        className={`hidden md:flex relative flex-col justify-between bg-obsidian-card border-l border-obsidian-border transition-all duration-300 z-40 select-none ${collapsed ? 'w-20' : 'w-72'
+          }`}
         style={{
           borderLeft: isRtl ? '1px solid #1F2937' : 'none',
           borderRight: isRtl ? 'none' : '1px solid #1F2937'
@@ -249,11 +253,10 @@ export const Sidebar: React.FC = () => {
         {/* Brand Header */}
         <div>
           <div
-            className={`border-b border-obsidian-border transition-all ${
-              collapsed
+            className={`border-b border-obsidian-border transition-all ${collapsed
                 ? 'py-4 px-2 flex flex-col items-center justify-center gap-3'
                 : 'p-4 sm:p-5 flex items-center justify-between'
-            }`}
+              }`}
           >
             <Link
               href={`/${locale}`}
@@ -357,9 +360,8 @@ export const Sidebar: React.FC = () => {
 
           {/* Drawer Container */}
           <div
-            className={`relative z-10 w-72 max-w-[85vw] h-full bg-[#090c15] border-r border-lord-gold/30 shadow-2xl flex flex-col justify-between animate-in ${
-              isRtl ? 'slide-in-from-right' : 'slide-in-from-left'
-            } duration-200 text-right`}
+            className={`relative z-10 w-72 max-w-[85vw] h-full bg-[#090c15] border-r border-lord-gold/30 shadow-2xl flex flex-col justify-between animate-in ${isRtl ? 'slide-in-from-right' : 'slide-in-from-left'
+              } duration-200 text-right`}
           >
             {/* Mobile Brand Header */}
             <div>
@@ -410,11 +412,10 @@ export const Sidebar: React.FC = () => {
                       key={idx}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`flex items-center justify-between p-3 rounded-2xl transition-all ${
-                        isActive
+                      className={`flex items-center justify-between p-3 rounded-2xl transition-all ${isActive
                           ? 'bg-lord-gold text-black font-black shadow-md'
                           : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <Icon className={`w-5 h-5 ${isActive ? 'text-black' : 'text-lord-gold'}`} />
@@ -422,9 +423,8 @@ export const Sidebar: React.FC = () => {
                       </div>
                       {item.badge && (
                         <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
-                            isActive ? 'bg-black text-lord-gold' : 'bg-gray-800 text-gray-400'
-                          }`}
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${isActive ? 'bg-black text-lord-gold' : 'bg-gray-800 text-gray-400'
+                            }`}
                         >
                           {item.badge}
                         </span>

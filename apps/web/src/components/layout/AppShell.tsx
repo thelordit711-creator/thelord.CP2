@@ -10,6 +10,7 @@ import { TheLordAIFloatingAssistant } from '../ai/TheLordAIFloatingAssistant';
 import { DynamicIslandNotification } from '../notifications/DynamicIslandNotification';
 import { TelegramDirectCallModal, CallTargetUser, IncomingCallPayload } from '../call/TelegramDirectCallModal';
 import { useSocket } from '../../providers/SocketProvider';
+import { apiFetch, clearClientAuthTokens, clearClientSession } from '../../lib/apiClient';
 import { toast } from 'sonner';
 
 const PUBLIC_ROUTES = ['/login', '/register', '/logged-out', '/registered-success'];
@@ -90,8 +91,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 ? `تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري. السبب: ${data.reason}`
                 : 'تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري'
             );
-            localStorage.removeItem('lord_auth_token');
-            localStorage.removeItem('lord_current_user');
+            clearClientSession();
             router.replace(`/${locale}/login`);
           }
         } catch (e) {}
@@ -105,8 +105,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           const user = JSON.parse(userStr);
           if (String(user._id) === String(data.userId)) {
             toast.error('تم حذف حسابك نهائياً من المنظومة من قِبل الإدارة');
-            localStorage.removeItem('lord_auth_token');
-            localStorage.removeItem('lord_current_user');
+            clearClientSession();
             router.replace(`/${locale}/login`);
           }
         } catch (e) {}
@@ -126,27 +125,21 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.includes(route));
 
   useEffect(() => {
+    clearClientAuthTokens();
+
     if (isPublicRoute) {
       setAuthorized(true);
       return;
     }
 
-    // Check user authentication
-    const token = typeof window !== 'undefined' ? localStorage.getItem('lord_auth_token') : null;
-    const userStr = typeof window !== 'undefined' ? localStorage.getItem('lord_current_user') : null;
+    let cancelled = false;
 
-    if (!token || !userStr) {
-      router.replace(`/${locale}/login`);
-      return;
-    }
+    const enforceRoleAccess = (user: any) => {
+      const role = user?.accessRole;
 
-    try {
-      const user = JSON.parse(userStr);
-      const role = user.accessRole;
-
-      // 1. Strict Treasury Isolation Guard
+      // 1. Strict Treasury Isolation Guard (Zero-Access to chat, tasks, AI, or HR)
       if (role === 'TREASURY') {
-        const allowedForTreasury = pathname.includes('/payout-desk') || pathname.includes('/chat');
+        const allowedForTreasury = pathname.includes('/payout-desk');
         if (!allowedForTreasury) {
           router.replace(`/${locale}/payout-desk`);
           return;
@@ -166,10 +159,43 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         }
       }
 
-      setAuthorized(true);
-    } catch (_err) {
-      router.replace(`/${locale}/login`);
-    }
+      if (!cancelled) {
+        setAuthorized(true);
+      }
+    };
+
+    // Always validate authoritative session against server HttpOnly cookie (/auth/me)
+    const verifyServerSession = async () => {
+      try {
+        const res = await apiFetch('/auth/me');
+        if (!res.ok) {
+          throw new Error('Unauthorized');
+        }
+        const data = await res.json();
+        if (!data?.success || !data?.user) {
+          throw new Error('Unauthorized');
+        }
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('lord_current_user', JSON.stringify(data.user));
+        }
+        if (!cancelled) {
+          setCurrentSessionUser(data.user);
+          enforceRoleAccess(data.user);
+        }
+      } catch {
+        clearClientSession();
+        if (!cancelled) {
+          setAuthorized(false);
+          router.replace(`/${locale}/login`);
+        }
+      }
+    };
+
+    verifyServerSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [pathname, isPublicRoute, locale, router]);
 
   // Public standalone pages: Render clean full-screen view (No Sidebar, No TopBar, No Assistant)

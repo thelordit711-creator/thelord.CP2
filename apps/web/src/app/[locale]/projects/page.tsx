@@ -56,7 +56,7 @@ export default function ProjectsPage() {
       try {
         const stored = localStorage.getItem('lord_current_user');
         if (stored) setCurrentUser(JSON.parse(stored));
-      } catch (e) {}
+      } catch (e) { }
     }
   }, []);
 
@@ -64,10 +64,8 @@ export default function ProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${apiUrl}/projects`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch('/projects');
       const data = await res.json();
       if (data.success) {
         setProjects(data.data);
@@ -103,17 +101,16 @@ export default function ProjectsPage() {
   // Create Project Submit
   const handleCreateProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem('lord_auth_token');
+    const { apiFetch } = await import('../../../lib/apiClient');
     const targetEndDate = new Date(Date.now() + targetDays * 86400000);
 
     if (createMode === 'AI') {
       setIsGeneratingAI(true);
       try {
-        const planRes = await fetch(`${apiUrl}/projects/ai-generate-plan`, {
+        const planRes = await apiFetch('/projects/ai-generate-plan', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             title,
@@ -127,11 +124,10 @@ export default function ProjectsPage() {
 
         const aiPlan = planData.data;
 
-        const createRes = await fetch(`${apiUrl}/projects`, {
+        const createRes = await apiFetch('/projects', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             title,
@@ -167,11 +163,10 @@ export default function ProjectsPage() {
       }
     } else {
       try {
-        const createRes = await fetch(`${apiUrl}/projects`, {
+        const createRes = await apiFetch('/projects', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             title,
@@ -211,12 +206,11 @@ export default function ProjectsPage() {
   // Convert milestone into executable Task
   const handleDecomposeMilestone = async (projectId: string, milestoneIndex: number) => {
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${apiUrl}/projects/${projectId}/decompose-milestone`, {
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch(`/projects/${projectId}/decompose-milestone`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ milestoneIndex })
       });
@@ -234,12 +228,11 @@ export default function ProjectsPage() {
   const handleDecomposeAll = async (projectId: string) => {
     setIsDecomposingAll(true);
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${apiUrl}/projects/${projectId}/decompose-all`, {
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch(`/projects/${projectId}/decompose-all`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         }
       });
       const data = await res.json();
@@ -277,12 +270,11 @@ export default function ProjectsPage() {
     if (!editingProjectId) return;
     setIsUpdatingProject(true);
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${apiUrl}/projects/${editingProjectId}`, {
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch(`/projects/${editingProjectId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           title: editTitle,
@@ -317,10 +309,9 @@ export default function ProjectsPage() {
     }
     setIsDeletingProject(true);
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${apiUrl}/projects/${projectId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch(`/projects/${projectId}`, {
+        method: 'DELETE'
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'فشل حذف المشروع');
@@ -338,12 +329,11 @@ export default function ProjectsPage() {
   // Quick Status Switch
   const handleQuickStatusChange = async (projectId: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${apiUrl}/projects/${projectId}`, {
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch(`/projects/${projectId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ status: newStatus })
       });
@@ -436,11 +426,10 @@ export default function ProjectsPage() {
           <button
             type="button"
             onClick={() => setViewMode('CARDS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              viewMode === 'CARDS'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'CARDS'
                 ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
-            }`}
+              }`}
           >
             <FolderKanban className="w-4 h-4" />
             <span>عرض بطاقات المشاريع ومعالم WBS</span>
@@ -448,11 +437,10 @@ export default function ProjectsPage() {
           <button
             type="button"
             onClick={() => setViewMode('GANTT')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              viewMode === 'GANTT'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'GANTT'
                 ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
-            }`}
+              }`}
           >
             <Calendar className="w-4 h-4" />
             <span>مخطط جانت التفاعلي (Gantt Timeline) 📊</span>

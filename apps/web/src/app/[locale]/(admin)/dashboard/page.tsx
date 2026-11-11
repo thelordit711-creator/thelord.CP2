@@ -78,10 +78,8 @@ export default function AdminDashboardPage() {
   // Fetch staff statuses
   const fetchStaffStatuses = useCallback(async () => {
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${apiUrl}/auth/staff-statuses`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { apiFetch } = await import('../../../../lib/apiClient');
+      const res = await apiFetch('/auth/staff-statuses');
       const data = await res.json();
       if (data.success && data.data) {
         setStaffList(data.data);
@@ -91,7 +89,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoadingStaff(false);
     }
-  }, [apiUrl]);
+  }, []);
 
   useEffect(() => {
     fetchStaffStatuses();

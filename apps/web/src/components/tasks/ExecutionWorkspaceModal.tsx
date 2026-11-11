@@ -65,14 +65,12 @@ export const ExecutionWorkspaceModal: React.FC<ExecutionWorkspaceModalProps> = (
     setIsCopilotThinking(true);
 
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const { apiFetch } = await import('../../lib/apiClient');
 
-      const res = await fetch(`${apiUrl}/ai/chat`, {
+      const res = await apiFetch('/ai/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           message: `أنا أعمل الآن على المهمة: [${task.title}]. وصف المهمة: [${task.description}]. استفساري هو: ${userText}`
@@ -97,8 +95,7 @@ export const ExecutionWorkspaceModal: React.FC<ExecutionWorkspaceModalProps> = (
     setIsCopilotThinking(true);
     setActiveCopilotTab('DRAFT');
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const { apiFetch } = await import('../../lib/apiClient');
 
       const prompt = `
 قم بصياغة تقرير إنجاز وتسليم إداري رفيع المستوى لمهمة المنظومة التالية:
@@ -113,11 +110,10 @@ export const ExecutionWorkspaceModal: React.FC<ExecutionWorkspaceModalProps> = (
 3. التوصيات والخطوات اللاحقة.
       `;
 
-      const res = await fetch(`${apiUrl}/ai/chat`, {
+      const res = await apiFetch('/ai/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ message: prompt })
       });

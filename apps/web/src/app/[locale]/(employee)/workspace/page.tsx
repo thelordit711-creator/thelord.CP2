@@ -44,10 +44,8 @@ export default function EmployeeWorkspacePage() {
   useEffect(() => {
     const fetchStatement = async () => {
       try {
-        const token = localStorage.getItem('lord_auth_token');
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/finance/ledger/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const { apiFetch } = await import('../../../../lib/apiClient');
+        const res = await apiFetch('/finance/ledger/me');
         const data = await res.json();
         if (data.success) {
           setStatement(data.data || []);
@@ -66,12 +64,11 @@ export default function EmployeeWorkspacePage() {
   const handleStatusChange = async (newStatus: WorkStatus) => {
     setUpdatingStatus(true);
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/auth/work-status`, {
+      const { apiFetch } = await import('../../../../lib/apiClient');
+      const res = await apiFetch('/auth/work-status', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ workStatus: newStatus })
       });

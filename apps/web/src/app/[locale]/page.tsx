@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { apiFetch, clearClientSession, clearClientAuthTokens } from '../../lib/apiClient';
 
 interface ExecutiveModule {
   title: string;
@@ -39,28 +40,41 @@ export default function HomePage() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
 
-  // Automatically direct user to Login page or their designated workspace
+  // Automatically verify HttpOnly cookie session with server and redirect to designated workspace
   useEffect(() => {
-    const token = localStorage.getItem('lord_auth_token');
-    const userStr = localStorage.getItem('lord_current_user');
-
-    if (!token || !userStr) {
-      router.replace(`/${locale}/login`);
-      return;
-    }
-
-    try {
-      const user = JSON.parse(userStr);
-      if (user.accessRole === 'SUPER_ADMIN') {
-        router.replace(`/${locale}/dashboard`);
-      } else if (user.accessRole === 'TREASURY') {
-        router.replace(`/${locale}/payout-desk`);
-      } else {
-        router.replace(`/${locale}/workspace`);
+    let cancelled = false;
+    const resolveSession = async () => {
+      try {
+        clearClientAuthTokens();
+        const res = await apiFetch('/auth/me');
+        if (!res.ok) {
+          throw new Error('Unauthorized');
+        }
+        const data = await res.json();
+        const user = data?.user;
+        if (!data?.success || !user) {
+          throw new Error('Unauthorized');
+        }
+        localStorage.setItem('lord_current_user', JSON.stringify(user));
+        if (cancelled) return;
+        if (user.accessRole === 'SUPER_ADMIN') {
+          router.replace(`/${locale}/dashboard`);
+        } else if (user.accessRole === 'TREASURY') {
+          router.replace(`/${locale}/payout-desk`);
+        } else {
+          router.replace(`/${locale}/workspace`);
+        }
+      } catch {
+        clearClientSession();
+        if (!cancelled) {
+          router.replace(`/${locale}/login`);
+        }
       }
-    } catch (_err) {
-      router.replace(`/${locale}/login`);
-    }
+    };
+    resolveSession();
+    return () => {
+      cancelled = true;
+    };
   }, [locale, router]);
 
   const executiveModules: ExecutiveModule[] = [
@@ -72,8 +86,8 @@ export default function HomePage() {
       icon: TrendingUp,
       badge: 'ERP Vault',
       color: 'border-lord-gold/40 hover:border-lord-gold bg-lord-gold/5',
-      stat: '$65,000 USDT',
-      statLabel: 'إجمالي السيولة'
+      stat: 'تزامن فوري',
+      statLabel: 'بيانات الخزينة الحية'
     },
     {
       title: 'إدارة الموظفين وكشوفات الرواتب (HR)',
@@ -194,9 +208,9 @@ export default function HomePage() {
       {/* Enterprise Metrics Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'الميزانية العامة المعتمدة', val: '$50,000 USDT', change: '+12% شهرياً', icon: DollarSign, color: 'text-lord-gold' },
-          { label: 'رصيد الصندوق المتاح للصرف', val: '$15,000 USDT', change: 'جاهز للحوالات', icon: Coins, color: 'text-cyber-blue' },
-          { label: 'الكادر الإداري النشط', val: '11 مسلماً وظيفياً', change: '100% Onboarded', icon: Users, color: 'text-emerald-400' },
+          { label: 'الميزانية العامة المعتمدة', val: 'تُقرأ من الخزينة', change: 'سجل محاسبي غير قابل للحذف', icon: DollarSign, color: 'text-lord-gold' },
+          { label: 'رصيد الصندوق المتاح للصرف', val: 'متصل بالبلوكشين', change: 'مطابقة BEP20 USDT', icon: Coins, color: 'text-cyber-blue' },
+          { label: 'الكادر الإداري النشط', val: '11 مسمى وظيفياً', change: 'صلاحيات RBAC معزولة', icon: Users, color: 'text-emerald-400' },
           { label: 'سرعة التنفيذ اللحظي', val: '< 2 ثانية', change: 'WebSockets Live', icon: Activity, color: 'text-purple-400' }
         ].map((m, idx) => {
           const Icon = m.icon;

@@ -82,14 +82,10 @@ export const StageDeliverableBox: React.FC<StageDeliverableBoxProps> = ({
 
       const formData = new FormData();
       formData.append('file', file);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('lord_auth_token') : '';
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const { apiFetch } = await import('../../lib/apiClient');
 
-      const res = await fetch(`${apiUrl}/upload`, {
+      const res = await apiFetch('/upload', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
         body: formData
       });
 
@@ -132,12 +128,10 @@ export const StageDeliverableBox: React.FC<StageDeliverableBoxProps> = ({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('lord_auth_token') : '';
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const { apiFetch } = await import('../../lib/apiClient');
 
-      const res = await fetch(`${apiUrl}/upload`, {
+      const res = await apiFetch('/upload', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
       const data = await res.json();

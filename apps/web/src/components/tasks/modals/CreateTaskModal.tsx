@@ -293,13 +293,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     setIsAnalyzingVoice(true);
     setVoiceClarificationQuestions([]);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('lord_auth_token') : null;
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-      const res = await fetch(`${apiUrl}/ai/voice-to-task`, {
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch('/ai/voice-to-task', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ transcript: voiceText })
       });

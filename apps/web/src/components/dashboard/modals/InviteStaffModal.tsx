@@ -29,12 +29,11 @@ export const InviteStaffModal: React.FC<InviteStaffModalProps> = ({
     e.preventDefault();
     setSendingInvite(true);
     try {
-      const token = localStorage.getItem('lord_auth_token');
-      const res = await fetch(`${apiUrl}/auth/invite`, {
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch(`${apiUrl}/auth/invite`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole })
       });

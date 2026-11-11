@@ -42,21 +42,17 @@ export default function RegisteredSuccessPage() {
 
   const handleStartWorking = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-      const token = localStorage.getItem('lord_auth_token');
-      if (token) {
-        await fetch(`${apiUrl}/auth/work-status`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ workStatus: 'WORKING' })
-        });
-        if (user) {
-          const updated = { ...user, workStatus: 'WORKING' };
-          localStorage.setItem('lord_current_user', JSON.stringify(updated));
-        }
+      const { apiFetch } = await import('../../../lib/apiClient');
+      const res = await apiFetch('/auth/work-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ workStatus: 'WORKING' })
+      });
+      if (res.ok && user) {
+        const updated = { ...user, workStatus: 'WORKING' };
+        localStorage.setItem('lord_current_user', JSON.stringify(updated));
       }
     } catch (_err) {}
 
