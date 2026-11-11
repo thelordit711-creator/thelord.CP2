@@ -1,0 +1,32 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY apps/web/package.json ./apps/web/
+
+RUN npm ci --workspace=@lord/shared-types --workspace=@lord/web --include-workspace-root
+
+COPY tsconfig.json ./
+COPY packages/shared-types ./packages/shared-types
+COPY apps/web ./apps/web
+
+ARG NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV KINDE_ISSUER_URL=""
+
+RUN npm run build --workspace=@lord/shared-types && npm run build --workspace=@lord/web
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/packages/shared-types ./packages/shared-types
+COPY --from=builder /app/apps/web ./apps/web
+
+EXPOSE 3000
+CMD ["npm", "run", "start", "--workspace=@lord/web"]
+

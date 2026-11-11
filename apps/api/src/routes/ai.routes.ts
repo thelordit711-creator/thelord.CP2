@@ -1,17 +1,21 @@
 import { Router, Response } from 'express';
 import { verifyKindeJWT, AuthenticatedRequest } from '../middlewares/verifyKindeJWT';
 import { TheLordAIService } from '../services/theLordAI.service';
+import { validateBody } from '../middlewares/validateRequest';
+import {
+  aiChatSchema,
+  aiVoiceToTaskSchema,
+  aiGenerateProjectPlanSchema,
+  aiQualityReviewSchema,
+  aiSummarizeMeetingSchema
+} from '../schemas/api.schemas';
 
 const router = Router();
 router.use(verifyKindeJWT);
 
-router.post('/chat', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/chat', validateBody(aiChatSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { message, history } = req.body;
-    if (!message) {
-      res.status(400).json({ success: false, error: 'Message content is required' });
-      return;
-    }
 
     const role = req.user?.accessRole || 'EMPLOYEE';
     const userId = req.user?._id?.toString() || 'anonymous';
@@ -27,14 +31,10 @@ router.post('/chat', async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 });
 
-router.post('/voice-to-task', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/voice-to-task', validateBody(aiVoiceToTaskSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { transcript, audioText } = req.body;
-    const text = transcript || audioText;
-    if (!text || !text.trim()) {
-      res.status(400).json({ success: false, error: 'النص الصوتي مطلوب لتحليله عبر الذكاء الاصطناعي' });
-      return;
-    }
+    const text = (transcript || audioText || '').trim();
 
     const { User } = await import('../models/User.model');
     const members = await User.find({}).select('_id fullName primaryDepartment jobTitles');
@@ -58,13 +58,9 @@ router.post('/voice-to-task', async (req: AuthenticatedRequest, res: Response): 
   }
 });
 
-router.post('/generate-project', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/generate-project', validateBody(aiGenerateProjectPlanSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { title, description, budget, targetDays } = req.body;
-    if (!title || !description) {
-      res.status(400).json({ success: false, error: 'عنوان المشروع ووصفه مطلوبان' });
-      return;
-    }
 
     const { User } = await import('../models/User.model');
     const members = await User.find({}).select('_id fullName primaryDepartment jobTitles');
@@ -92,13 +88,9 @@ router.post('/generate-project', async (req: AuthenticatedRequest, res: Response
   }
 });
 
-router.post('/quality-review', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/quality-review', validateBody(aiQualityReviewSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { taskTitle, stageTitle, submissionText, attachmentsCount } = req.body;
-    if (!submissionText) {
-      res.status(400).json({ success: false, error: 'نص التسليم مطلوب لإجراء فحص الجودة' });
-      return;
-    }
 
     const result = await TheLordAIService.reviewTaskSubmissionQuality({
       taskTitle: taskTitle || 'مهمة بدون عنوان',
@@ -113,13 +105,9 @@ router.post('/quality-review', async (req: AuthenticatedRequest, res: Response):
   }
 });
 
-router.post('/summarize-meeting', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/summarize-meeting', validateBody(aiSummarizeMeetingSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { meetingTitle, notesOrTranscript } = req.body;
-    if (!notesOrTranscript) {
-      res.status(400).json({ success: false, error: 'محضر الاجتماع أو التسجيل مطلوب' });
-      return;
-    }
 
     const result = await TheLordAIService.summarizeMeeting({
       meetingTitle: meetingTitle || 'اجتماع تنفيذي',

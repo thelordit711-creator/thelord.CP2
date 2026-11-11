@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { NotificationsController } from '../controllers/notifications.controller';
 import { verifyKindeJWT } from '../middlewares/verifyKindeJWT';
+import { validateParams } from '../middlewares/validateRequest';
+import { idParamSchema } from '../schemas/api.schemas';
 
 const router = Router();
 
@@ -13,10 +15,10 @@ router.get('/', NotificationsController.getMyNotifications);
 router.patch('/read-all', NotificationsController.markAllAsRead);
 
 // Mark single notification as read
-router.patch('/:id/read', NotificationsController.markAsRead);
+router.patch('/:id/read', validateParams(idParamSchema), NotificationsController.markAsRead);
 
 // Delete notification
-router.delete('/:id', NotificationsController.deleteNotification);
+router.delete('/:id', validateParams(idParamSchema), NotificationsController.deleteNotification);
 
 export default router;
 

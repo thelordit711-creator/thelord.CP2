@@ -195,3 +195,180 @@ export const updateProjectSchema = z
     teamMembers: z.array(objectIdSchema).optional()
   })
   .passthrough();
+
+// ==========================================
+// TASKS & STAGES SCHEMAS
+// ==========================================
+
+export const stageOrderParamSchema = z.object({
+  id: objectIdSchema,
+  order: z.coerce.number().int().min(1)
+});
+
+export const createTaskSchema = z
+  .object({
+    title: z.string({ message: 'عنوان المهمة مطلوب' }).trim().min(2, 'عنوان المهمة قصير جداً'),
+    description: z.string({ message: 'وصف المهمة مطلوب' }).trim().min(2, 'وصف المهمة مطلوب'),
+    priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'URGENT']).optional(),
+    projectId: objectIdSchema.optional(),
+    milestoneIndex: z.coerce.number().int().min(0).optional()
+  })
+  .passthrough();
+
+export const updateTaskSchema = z
+  .object({
+    title: z.string().trim().min(2).optional(),
+    description: z.string().trim().min(2).optional(),
+    status: z.string().trim().optional(),
+    priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'URGENT']).optional(),
+    projectId: objectIdSchema.nullable().optional(),
+    milestoneIndex: z.coerce.number().int().min(0).optional()
+  })
+  .passthrough();
+
+export const submitStageSchema = z
+  .object({
+    submissionText: z.string().trim().optional(),
+    attachments: z.array(z.any()).optional()
+  })
+  .passthrough();
+
+export const reviewStageSchema = z
+  .object({
+    decision: z.enum(['APPROVED', 'REJECTED', 'NEEDS_CHANGES'], {
+      message: 'قرار المراجعة غير صالح'
+    }),
+    adminFeedback: z.string().trim().max(2000).optional()
+  })
+  .passthrough();
+
+export const addDirectReportSchema = z
+  .object({
+    textContent: z.string({ message: 'محتوى التقرير مطلوب' }).trim().min(1, 'يرجى كتابة نص التقرير'),
+    attachments: z.array(z.any()).optional()
+  })
+  .passthrough();
+
+export const settleTaskBudgetSchema = z
+  .object({
+    spentAmount: z.coerce.number({ message: 'المبلغ المصروف يجب أن يكون رقماً' }).min(0),
+    breakdownDetails: z.string().trim().max(2000).optional(),
+    invoicesAndReceipts: z.array(z.any()).optional()
+  })
+  .passthrough();
+
+// ==========================================
+// USERS, CHAT, MEETING & AI SCHEMAS
+// ==========================================
+
+export const completeOnboardingSchema = z
+  .object({
+    primaryDepartment: z.string({ message: 'القسم الرئيسي مطلوب' }).trim().min(2)
+  })
+  .passthrough();
+
+export const changeUserPasswordSchema = z
+  .object({
+    newPassword: z.string({ message: 'كلمة المرور الجديدة مطلوبة' }).min(6, 'كلمة المرور يجب أن لا تقل عن 6 أحرف')
+  })
+  .passthrough();
+
+export const toggleUserSuspensionSchema = z
+  .object({
+    isSuspended: z.boolean({ message: 'حالة الإيقاف مطلوبة' }),
+    reason: z.string().trim().max(500).optional()
+  })
+  .passthrough();
+
+export const createChannelSchema = z
+  .object({
+    name: z.string({ message: 'اسم القناة مطلوب' }).trim().min(2, 'اسم القناة قصير جداً').max(80),
+    description: z.string().trim().max(500).optional(),
+    isPublic: z.boolean().optional(),
+    members: z.array(objectIdSchema).optional()
+  })
+  .passthrough();
+
+export const addChannelMemberSchema = z
+  .object({
+    userIds: z.array(objectIdSchema).min(1, 'يرجى تحديد عضو واحد على الأقل')
+  })
+  .passthrough();
+
+export const channelUserParamSchema = z.object({
+  channelId: z.string().trim().min(1),
+  userId: objectIdSchema
+});
+
+export const sendMessageSchema = z
+  .object({
+    chatRoomId: z.string({ message: 'معرّف غرفة الدردشة مطلوب' }).trim().min(1),
+    content: z.string().optional(),
+    attachments: z.array(z.any()).optional()
+  })
+  .passthrough();
+
+export const editMessageSchema = z
+  .object({
+    content: z.string({ message: 'محتوى الرسالة مطلوب' }).trim().min(1, 'محتوى الرسالة لا يمكن أن يكون فارغاً')
+  })
+  .passthrough();
+
+export const inviteMemberSchema = z
+  .object({
+    targetUserId: objectIdSchema
+  })
+  .passthrough();
+
+export const startMeetingSchema = z
+  .object({
+    title: z.string().trim().min(2).max(160).optional(),
+    agenda: z.string().trim().max(1000).optional()
+  })
+  .passthrough();
+
+export const updateMeetingNotesSchema = z
+  .object({
+    meetingNotes: z.string().optional(),
+    agenda: z.string().optional()
+  })
+  .passthrough();
+
+export const convertMeetingTasksSchema = z
+  .object({
+    notes: z.string().trim().optional(),
+    projectId: objectIdSchema.optional()
+  })
+  .passthrough();
+
+export const aiChatSchema = z
+  .object({
+    message: z.string({ message: 'نص الرسالة مطلوب' }).trim().min(1, 'نص الرسالة مطلوب'),
+    history: z.array(z.any()).optional()
+  })
+  .passthrough();
+
+export const aiVoiceToTaskSchema = z
+  .object({
+    transcript: z.string().trim().optional(),
+    audioText: z.string().trim().optional()
+  })
+  .refine((data) => Boolean((data.transcript && data.transcript.trim()) || (data.audioText && data.audioText.trim())), {
+    message: 'النص الصوتي مطلوب لتحليله عبر الذكاء الاصطناعي'
+  });
+
+export const aiQualityReviewSchema = z
+  .object({
+    submissionText: z.string({ message: 'نص التسليم مطلوب' }).trim().min(1, 'نص التسليم مطلوب لإجراء فحص الجودة'),
+    taskTitle: z.string().trim().optional(),
+    stageTitle: z.string().trim().optional(),
+    attachmentsCount: z.coerce.number().int().min(0).optional()
+  })
+  .passthrough();
+
+export const aiSummarizeMeetingSchema = z
+  .object({
+    notesOrTranscript: z.string({ message: 'محضر الاجتماع مطلوب' }).trim().min(1, 'محضر الاجتماع أو التسجيل مطلوب'),
+    meetingTitle: z.string().trim().optional()
+  })
+  .passthrough();

@@ -6,6 +6,7 @@ import { useGetTasksQuery, useDeleteTaskMutation } from '../../../store/api/task
 import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
 import { useSocket } from '../../../providers/SocketProvider';
 import { Button } from '../../../components/ui/Button';
+import { TaskBoardSkeleton } from '../../../components/ui/SkeletonLoaders';
 import { Plus, CheckSquare } from 'lucide-react';
 import { lordToast } from '../../../lib/lordToast';
 
@@ -213,9 +214,7 @@ function TasksPageContent() {
 
       {/* Main View Display */}
       {isLoading ? (
-        <div className="flex items-center justify-center p-16">
-          <div className="w-10 h-10 border-4 border-lord-gold border-t-transparent rounded-full animate-spin" />
-        </div>
+        <TaskBoardSkeleton />
       ) : activeView === 'board' ? (
         <TaskKanbanBoard
           tasks={filteredTasks}

@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { FolderKanban, Plus, Calendar, AlertTriangle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { AppModalPortal } from '../../../components/ui/AppModalPortal';
+import { ProjectCardSkeletonGrid } from '../../../components/ui/SkeletonLoaders';
 import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
 import { useGetVaultQuery } from '../../../store/api/financeApi';
 import {
@@ -332,12 +333,7 @@ function ProjectsContent() {
   const isAdmin = currentUser?.accessRole === 'SUPER_ADMIN';
 
   if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-12 text-lord-gold">
-        <span className="w-8 h-8 rounded-full border-2 border-lord-gold border-t-transparent animate-spin ml-3" />
-        <span>جاري تحميل المشاريع وسجلات WBS من قاعدة البيانات...</span>
-      </div>
-    );
+    return <ProjectCardSkeletonGrid />;
   }
 
   return (

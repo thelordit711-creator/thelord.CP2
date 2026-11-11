@@ -7,7 +7,10 @@ import {
   idParamSchema,
   loginSchema,
   adjustVaultSchema,
-  createProjectSchema
+  createProjectSchema,
+  createTaskSchema,
+  reviewStageSchema,
+  aiVoiceToTaskSchema
 } from '../../src/schemas/api.schemas';
 
 function createMockRes() {
@@ -107,6 +110,49 @@ describe('Zod Request Validation & Vercel CORS Configuration', () => {
         String(h.value).trim() === '*'
     );
     assert.strictEqual(wildcardOrigin, undefined);
+  });
+
+  it('createTaskSchema enforces valid title, description, priority, and projectId', () => {
+    const valid = createTaskSchema.safeParse({
+      title: 'Implement OpenAPI docs',
+      description: 'Expose /api/docs.json manifest',
+      priority: 'HIGH',
+      projectId: '507f1f77bcf86cd799439011',
+      milestoneIndex: 0,
+    });
+    assert.strictEqual(valid.success, true);
+
+    const invalid = createTaskSchema.safeParse({
+      title: 'A',
+      description: '',
+      priority: 'INVALID_PRIORITY',
+      projectId: 'not-an-object-id',
+    });
+    assert.strictEqual(invalid.success, false);
+  });
+
+  it('reviewStageSchema validates decision enum and optional adminFeedback', () => {
+    const approve = reviewStageSchema.safeParse({ decision: 'APPROVED', adminFeedback: 'Looks good' });
+    assert.strictEqual(approve.success, true);
+
+    const badAction = reviewStageSchema.safeParse({ decision: 'DELETE' });
+    assert.strictEqual(badAction.success, false);
+  });
+
+  it('aiVoiceToTaskSchema accepts non-empty transcript and optional assignees', () => {
+    const valid = aiVoiceToTaskSchema.safeParse({ transcript: 'Create a backend monitoring task for Ali' });
+    assert.strictEqual(valid.success, true);
+
+    const empty = aiVoiceToTaskSchema.safeParse({ transcript: '   ' });
+    assert.strictEqual(empty.success, false);
+  });
+
+  it('openApiSpec exposes OpenAPI 3.0.3 schema paths', async () => {
+    const { openApiSpec } = await import('../../src/config/openapi');
+    assert.strictEqual(openApiSpec.openapi, '3.0.3');
+    assert.ok(openApiSpec.paths['/auth/login']);
+    assert.ok(openApiSpec.paths['/tasks']);
+    assert.ok(openApiSpec.paths['/projects']);
   });
 });
 

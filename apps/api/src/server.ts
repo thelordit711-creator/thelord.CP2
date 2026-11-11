@@ -15,6 +15,7 @@ dotenv.config();
 
 import { validateEnvironment } from './config/envValidator';
 import { isOriginAllowed } from './config/cors';
+import { openApiSpec } from './config/openapi';
 import { csrfGuard } from './middlewares/csrfGuard';
 import { logger } from './utils/logger';
 
@@ -159,6 +160,11 @@ app.get('/ready', (_req, res) => {
     database: 'connected',
     timestamp: new Date().toISOString()
   });
+});
+
+// OpenAPI 3.0 JSON manifest
+app.get('/api/docs.json', (_req, res) => {
+  res.json(openApiSpec);
 });
 
 // API Routes

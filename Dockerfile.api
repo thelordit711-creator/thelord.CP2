@@ -1,0 +1,28 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY apps/api/package.json ./apps/api/
+
+RUN npm ci --workspace=@lord/shared-types --workspace=@lord/api --include-workspace-root
+
+COPY tsconfig.json ./
+COPY packages/shared-types ./packages/shared-types
+COPY apps/api ./apps/api
+
+RUN npm run build --workspace=@lord/shared-types && npm run build --workspace=@lord/api
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/packages/shared-types ./packages/shared-types
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+EXPOSE 5000
+CMD ["node", "apps/api/dist/server.js"]
+
