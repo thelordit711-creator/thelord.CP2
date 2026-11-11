@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
+import { AppErrorBoundary } from '../ui/AppErrorBoundary';
 import { TheLordAIFloatingAssistant } from '../ai/TheLordAIFloatingAssistant';
 import { DynamicIslandNotification } from '../notifications/DynamicIslandNotification';
 import { TelegramDirectCallModal, CallTargetUser, IncomingCallPayload } from '../call/TelegramDirectCallModal';
@@ -28,15 +29,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null);
   const [activeCallType, setActiveCallType] = useState<'audio' | 'video'>('audio');
   const [currentSessionUser, setCurrentSessionUser] = useState<any>(null);
+  const currentSessionUserRef = useRef<any>(null);
 
   useEffect(() => {
+    currentSessionUserRef.current = currentSessionUser;
+  }, [currentSessionUser]);
+
+  // Scrub any legacy cached user payload from localStorage; server HttpOnly session is authoritative
+  useEffect(() => {
     if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('lord_current_user');
-      if (userStr) {
-        try {
-          setCurrentSessionUser(JSON.parse(userStr));
-        } catch (e) {}
-      }
+      localStorage.removeItem('lord_current_user');
     }
   }, []);
 
@@ -81,34 +83,24 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (!socket) return;
 
     const handleAccessRevoked = (data: { userId: string; reason?: string }) => {
-      const userStr = typeof window !== 'undefined' ? localStorage.getItem('lord_current_user') : null;
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr);
-          if (String(user._id) === String(data.userId)) {
-            toast.error(
-              data.reason
-                ? `تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري. السبب: ${data.reason}`
-                : 'تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري'
-            );
-            clearClientSession();
-            router.replace(`/${locale}/login`);
-          }
-        } catch (e) {}
+      const activeUser = currentSessionUserRef.current;
+      if (activeUser && String(activeUser._id) === String(data.userId)) {
+        toast.error(
+          data.reason
+            ? `تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري. السبب: ${data.reason}`
+            : 'تم إيقاف حسابك ومنعك من دخول المنظومة بقرار إداري'
+        );
+        clearClientSession();
+        router.replace(`/${locale}/login`);
       }
     };
 
     const handleUserDeleted = (data: { userId: string }) => {
-      const userStr = typeof window !== 'undefined' ? localStorage.getItem('lord_current_user') : null;
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr);
-          if (String(user._id) === String(data.userId)) {
-            toast.error('تم حذف حسابك نهائياً من المنظومة من قِبل الإدارة');
-            clearClientSession();
-            router.replace(`/${locale}/login`);
-          }
-        } catch (e) {}
+      const activeUser = currentSessionUserRef.current;
+      if (activeUser && String(activeUser._id) === String(data.userId)) {
+        toast.error('تم حذف حسابك نهائياً من المنظومة من قِبل الإدارة');
+        clearClientSession();
+        router.replace(`/${locale}/login`);
       }
     };
 
@@ -175,9 +167,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         if (!data?.success || !data?.user) {
           throw new Error('Unauthorized');
         }
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('lord_current_user', JSON.stringify(data.user));
-        }
         if (!cancelled) {
           setCurrentSessionUser(data.user);
           enforceRoleAccess(data.user);
@@ -222,7 +211,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <TopBar />
         <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 pb-32 md:pb-8 scroll-touch">
-          {children}
+          <AppErrorBoundary>{children}</AppErrorBoundary>
         </main>
       </div>
       <BottomNav />

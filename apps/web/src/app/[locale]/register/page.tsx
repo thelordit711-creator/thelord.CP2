@@ -162,9 +162,11 @@ export default function RegisterPage() {
         throw new Error(data.error || 'تعذر إتمام التسجيل، يرجى المحاولة لاحقاً');
       }
 
-      // Save non-sensitive UI profile only; JWT lives in HttpOnly cookie
+      // Session relies exclusively on HttpOnly cookies; scrub any legacy localStorage user profile
       clearClientAuthTokens();
-      localStorage.setItem('lord_current_user', JSON.stringify(data.user));
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('lord_current_user');
+      }
       window.dispatchEvent(new Event('lord:session-changed'));
 
       // Route to Celebration & Post-Registration Page

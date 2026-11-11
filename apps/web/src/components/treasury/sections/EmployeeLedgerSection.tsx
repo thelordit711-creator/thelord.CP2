@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
+import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
 import {
   Users,
   Coins,
@@ -19,24 +19,13 @@ import { SetEmployeeSalaryModal } from '../modals/SetEmployeeSalaryModal';
 
 export const EmployeeLedgerSection: React.FC = () => {
   const { data: employeesRes, isLoading, refetch } = useGetAllEmployeesQuery();
+  const { data: meRes } = useGetMeQuery();
   const employees = employeesRes?.data || [];
 
-  const [currentUserRole, setCurrentUserRole] = useState<string>('TREASURY');
+  const currentUserRole = meRes?.data?.accessRole || 'TREASURY';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('lord_current_user');
-      if (stored) {
-        try {
-          const u = JSON.parse(stored);
-          if (u.accessRole) setCurrentUserRole(u.accessRole);
-        } catch {}
-      }
-    }
-  }, []);
 
   const filteredEmployees = employees.filter((emp: any) => {
     const matchesSearch =

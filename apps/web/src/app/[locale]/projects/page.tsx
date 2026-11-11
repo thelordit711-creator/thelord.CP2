@@ -5,7 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { FolderKanban, Plus, Calendar, AlertTriangle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { AppModalPortal } from '../../../components/ui/AppModalPortal';
-import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
+import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
 import { useGetVaultQuery } from '../../../store/api/financeApi';
 import {
   useGetProjectsQuery,
@@ -34,6 +34,7 @@ function ProjectsContent() {
 
   const { socket } = useSocket();
   const { data: employeesRes } = useGetAllEmployeesQuery();
+  const { data: meRes } = useGetMeQuery();
   const { data: vaultRes } = useGetVaultQuery();
   const { data: projectsRes, isLoading, refetch } = useGetProjectsQuery();
 
@@ -49,7 +50,7 @@ function ProjectsContent() {
   const projects = projectsRes?.data || [];
   const vault = vaultRes?.data;
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const currentUser = meRes?.data || null;
   const [viewMode, setViewMode] = useState<'CARDS' | 'GANTT'>('CARDS');
 
   // Modals state
@@ -79,15 +80,6 @@ function ProjectsContent() {
   const [manualMilestones, setManualMilestones] = useState<ManualMilestoneDraft[]>([
     { title: 'المعلم 1: الإعداد والتجهيز الأولي', description: 'تجهيز خطة العمل والمتطلبات', daysFromStart: 4 }
   ]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('lord_current_user');
-        if (stored) setCurrentUser(JSON.parse(stored));
-      } catch {}
-    }
-  }, []);
 
   // Open project modal if linked via ?projectId=
   useEffect(() => {

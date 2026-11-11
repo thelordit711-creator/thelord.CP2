@@ -3,18 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --bg-obsidian-primary: #07090E;
-  --bg-card-surface: #0F141C;
-  --bg-card-secondary: #141B26;
-  --border-primary: #1F2937;
-  --text-primary: #F1F5F9;
+  /* Obsidian Nova Palette (with legacy token compatibility) */
+  --bg-obsidian-primary: #05080F;
+  --bg-card-surface: #0A0F1A;
+  --bg-card-secondary: #0E1520;
+  --bg-elevated: #121A28;
+  --border-primary: #1E293B;
+  --border-gold: rgba(201, 168, 76, 0.16);
+  --border-blue: rgba(56, 189, 248, 0.16);
+
+  --text-primary: #F8FAFC;
   --text-muted: #94A3B8;
-  --lord-gold-primary: #D4AF37;
-  --lord-gold-hover: #F3E5AB;
-  --cyber-blue-accent: #00A8FF;
-  --status-processing: #F59E0B;
-  --status-disbursed: #10B981;
-  --status-danger: #EF4444;
+  --text-subtle: #64748B;
+
+  --lord-gold-primary: #C9A84C;
+  --lord-gold-hover: #E8D5A3;
+  --lord-gold-glow: rgba(201, 168, 76, 0.25);
+
+  --cyber-blue-accent: #38BDF8;
+  --cyber-blue-glow: rgba(56, 189, 248, 0.25);
+
+  --status-processing: #FBBF24;
+  --status-disbursed: #34D399;
+  --status-danger: #F87171;
 }
 
 * {
@@ -24,7 +35,11 @@
 
 html, body {
   background-color: var(--bg-obsidian-primary);
-  color: #E2E8F0;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(201, 168, 76, 0.045) 0%, transparent 38%),
+    radial-gradient(circle at 88% 92%, rgba(56, 189, 248, 0.035) 0%, transparent 42%);
+  background-attachment: fixed;
+  color: var(--text-primary);
   min-height: 100vh;
   min-height: -webkit-fill-available;
   font-family: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -42,6 +57,18 @@ body {
   padding-right: env(safe-area-inset-right, 0px);
 }
 
+/* Focus Ring & Selection Refinements */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-obsidian-primary),
+              0 0 0 4px var(--lord-gold-glow);
+}
+
+::selection {
+  background: rgba(201, 168, 76, 0.28);
+  color: var(--text-primary);
+}
+
 /* GPU Accelerated Smooth Momentum Scrolling */
 .scroll-touch {
   -webkit-overflow-scrolling: touch;
@@ -51,13 +78,13 @@ body {
 
 /* Select & Options Dark Theme Enforcer */
 select, option {
-  background-color: #0F141C !important;
+  background-color: var(--bg-card-surface) !important;
   color: #F3F4F6 !important;
 }
 
 select option:checked, select option:hover {
-  background-color: #1F2937 !important;
-  color: #D4AF37 !important;
+  background-color: var(--bg-elevated) !important;
+  color: var(--lord-gold-primary) !important;
 }
 
 /* Custom Scrollbars */
@@ -67,24 +94,72 @@ select option:checked, select option:hover {
 }
 
 ::-webkit-scrollbar-track {
-  background: #07090E;
+  background: var(--bg-obsidian-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1F2937;
+  background: #1E293B;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #D4AF37;
+  background: var(--lord-gold-primary);
 }
 
-/* High-Performance Glass Surfaces */
-.glass-surface {
-  background: rgba(15, 20, 28, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 175, 55, 0.18);
+/* Obsidian Nova Glass Surfaces & Elevation */
+.glass-surface,
+.glass-nova {
+  background: rgba(10, 15, 26, 0.78);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid var(--border-gold);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.38);
+}
+
+.obsidian-card {
+  background: linear-gradient(180deg, rgba(14, 21, 32, 0.96) 0%, rgba(10, 15, 26, 0.98) 100%);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.55);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+/* Animated Gradient Border */
+.gold-border-animated {
+  position: relative;
+  isolation: isolate;
+  background: var(--bg-card-surface);
+  border-radius: 16px;
+}
+
+.gold-border-animated::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--lord-gold-primary), transparent 42%, var(--cyber-blue-accent));
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  z-index: -1;
+}
+
+.gold-border-animated:hover::before {
+  opacity: 0.55;
+}
+
+/* Shimmer Loading Skeleton */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    110deg,
+    var(--bg-card-surface) 30%,
+    var(--bg-elevated) 50%,
+    var(--bg-card-surface) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
 
 /* Hide Mobile Bottom Nav when an AppModalPortal is active to prevent content overlay */
@@ -92,14 +167,18 @@ body.modal-open .bottom-nav-capsule {
   display: none !important;
 }
 
-.gold-border-glow {
-  border: 1px solid #D4AF37;
-  box-shadow: 0 0 20px -2px rgba(212, 175, 55, 0.35);
+.gold-border-glow,
+.glow-gold {
+  border: 1px solid var(--lord-gold-primary);
+  box-shadow: 0 0 20px -4px var(--lord-gold-glow),
+              0 0 36px -8px var(--lord-gold-glow);
 }
 
-.cyber-border-glow {
-  border: 1px solid #00A8FF;
-  box-shadow: 0 0 20px -2px rgba(0, 168, 255, 0.35);
+.cyber-border-glow,
+.glow-blue {
+  border: 1px solid var(--cyber-blue-accent);
+  box-shadow: 0 0 20px -4px var(--cyber-blue-glow),
+              0 0 36px -8px var(--cyber-blue-glow);
 }
 
 /* Prevent unwanted pull-to-refresh reload in standalone mobile app */

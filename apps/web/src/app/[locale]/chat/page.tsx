@@ -31,13 +31,9 @@ function ChatPageContent() {
   const handledDeepLinkRef = useRef<string | null>(null);
   const { socket, isConnected } = useSocket();
 
-  // Current User
+  // Current User (backed by HttpOnly session via /users/me)
   const { data: meResponse } = useGetMeQuery();
-  const currentUser =
-    meResponse?.data ||
-    (typeof window !== 'undefined'
-      ? JSON.parse(localStorage.getItem('lord_current_user') || '{}')
-      : {});
+  const currentUser = meResponse?.data || ({} as any);
   const currentUserId = currentUser?._id || '';
 
   // Real MongoDB Rooms & Members

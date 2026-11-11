@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useGetTasksQuery, useDeleteTaskMutation } from '../../../store/api/tasksApi';
-import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
+import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
 import { useSocket } from '../../../providers/SocketProvider';
 import { Button } from '../../../components/ui/Button';
 import { Plus, CheckSquare } from 'lucide-react';
@@ -28,26 +28,12 @@ function TasksPageContent() {
   const { data: tasksRes, isLoading, refetch } = useGetTasksQuery();
   const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
   const { data: employeesRes } = useGetAllEmployeesQuery();
+  const { data: meRes } = useGetMeQuery();
   const { socket } = useSocket();
 
-  // Current User & RBAC
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('lord_current_user');
-      if (stored) {
-        try {
-          const user = JSON.parse(stored);
-          setCurrentUser(user);
-          setIsAdmin(user.accessRole === 'SUPER_ADMIN');
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
-  }, []);
+  // Current User & RBAC (derived from HttpOnly server session)
+  const currentUser = meRes?.data || null;
+  const isAdmin = currentUser?.accessRole === 'SUPER_ADMIN';
 
   // Real-time Socket Event Handling
   useEffect(() => {

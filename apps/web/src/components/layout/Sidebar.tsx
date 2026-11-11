@@ -29,6 +29,7 @@ import {
 import { useSocket } from '../../providers/SocketProvider';
 import { AccessRole } from '@lord/shared-types';
 import { lordToast } from '../../lib/lordToast';
+import { useGetMeQuery } from '../../store/api/usersApi';
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
@@ -36,25 +37,16 @@ export const Sidebar: React.FC = () => {
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const { isConnected } = useSocket();
+  const { data: meRes } = useGetMeQuery();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [userRole, setUserRole] = useState<AccessRole>('SUPER_ADMIN');
-  const [userName, setUserName] = useState<string>('The Lord Admin');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  const userRole: AccessRole = (meRes?.data?.accessRole as AccessRole) || 'EMPLOYEE';
+  const userName: string = meRes?.data?.fullName || 'عضو المنظومة';
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('lord_current_user');
-      if (stored) {
-        try {
-          const user = JSON.parse(stored);
-          if (user.accessRole) setUserRole(user.accessRole);
-          if (user.fullName) setUserName(user.fullName);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
       const savedTheme = (localStorage.getItem('lord_theme') as 'dark' | 'light') || 'dark';
       setTheme(savedTheme);
 
@@ -80,11 +72,8 @@ export const Sidebar: React.FC = () => {
       await apiFetch('/auth/logout', { method: 'POST' });
       clearClientSession();
     } catch {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('lord_auth_token');
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('lord_current_user');
-      }
+      const { clearClientSession } = await import('../../lib/apiClient');
+      clearClientSession();
     }
     lordToast.gold('تم تسجيل الخروج بنجاح');
     setMobileOpen(false);

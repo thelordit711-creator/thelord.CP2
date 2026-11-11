@@ -11,35 +11,36 @@ const config: Config = {
     extend: {
       colors: {
         obsidian: {
-          primary: 'var(--bg-obsidian-primary, #07090E)',
-          surface: 'var(--bg-card-surface, #0F141C)',
-          card: '#141B26',
-          border: '#1F2937'
+          primary: 'var(--bg-obsidian-primary, #05080F)',
+          surface: 'var(--bg-card-surface, #0A0F1A)',
+          card: 'var(--bg-card-secondary, #0E1520)',
+          border: 'var(--border-primary, #1E293B)'
         },
         lord: {
-          gold: 'var(--lord-gold-primary, #D4AF37)',
-          hover: 'var(--lord-gold-hover, #F3E5AB)',
+          gold: 'var(--lord-gold-primary, #C9A84C)',
+          hover: 'var(--lord-gold-hover, #E8D5A3)',
           muted: '#997D25',
-          dark: '#07090E',
-          slate: '#0F141C',
-          card: '#131A24'
+          dark: '#05080F',
+          slate: '#0A0F1A',
+          card: '#0E1520'
         },
         cyber: {
-          blue: 'var(--cyber-blue-accent, #00A8FF)',
+          blue: 'var(--cyber-blue-accent, #38BDF8)',
           dark: '#004C75'
         },
         status: {
-          processing: 'var(--status-processing, #F59E0B)',
-          disbursed: 'var(--status-disbursed, #10B981)',
-          danger: 'var(--status-danger, #EF4444)'
+          processing: 'var(--status-processing, #FBBF24)',
+          disbursed: 'var(--status-disbursed, #34D399)',
+          danger: 'var(--status-danger, #F87171)'
         }
       },
       fontFamily: {
-        sans: ['Cairo', 'Tajawal', 'Inter', 'sans-serif']
+        sans: ['Cairo', 'Tajawal', 'Inter', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
       },
       boxShadow: {
-        'gold-glow': '0 0 20px -3px rgba(212, 175, 55, 0.35)',
-        'blue-glow': '0 0 20px -3px rgba(0, 168, 255, 0.35)'
+        'gold-glow': '0 0 22px -4px rgba(201, 168, 76, 0.32)',
+        'blue-glow': '0 0 22px -4px rgba(56, 189, 248, 0.32)'
       }
     },
   },

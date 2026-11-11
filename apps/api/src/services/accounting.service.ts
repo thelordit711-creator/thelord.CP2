@@ -18,6 +18,28 @@ export class AccountingService {
   }
 
   /**
+   * Executes multi-document financial mutations inside an atomic MongoDB transaction session.
+   */
+  private static async withFinancialTransaction<T>(
+    work: (session: mongoose.ClientSession) => Promise<T>
+  ): Promise<T> {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const result = await work(session);
+      await session.commitTransaction();
+      session.endSession();
+      return result;
+    } catch (error) {
+      try {
+        await session.abortTransaction();
+      } catch {}
+      session.endSession();
+      throw error;
+    }
+  }
+
+  /**
    * Initializes CompanyVault if not created yet
    */
   public static async getOrCreateVault(session?: mongoose.ClientSession) {
@@ -59,23 +81,26 @@ export class AccountingService {
     if (amount <= 0) {
       throw new Error('المبلغ المودع يجب أن يكون أكبر من الصفر');
     }
-    const vault = await this.getOrCreateVault();
 
-    vault.generalBudget += amount;
+    const vault = await this.withFinancialTransaction(async (session) => {
+      const activeVault = await this.getOrCreateVault(session);
+      activeVault.generalBudget = FinancialMath.add(activeVault.generalBudget, amount, 2);
 
-    vault.manualAdjustmentsLog.push({
-      adjustedBy: adminId as any,
-      targetBalance: 'GENERAL_BUDGET',
-      operation: 'DEPOSIT',
-      amount,
-      reason: reason || 'إيداع رأس مال / أرباح في الميزانية العامة للشركة',
-      createdAt: new Date()
+      activeVault.manualAdjustmentsLog.push({
+        adjustedBy: adminId as any,
+        targetBalance: 'GENERAL_BUDGET',
+        operation: 'DEPOSIT',
+        amount,
+        reason: reason || 'إيداع رأس مال / أرباح في الميزانية العامة للشركة',
+        createdAt: new Date()
+      });
+
+      await activeVault.save({ session });
+      return activeVault;
     });
 
-    await vault.save();
     SocketService.emitToAdmins('vault:updated', vault);
 
-    // Record audit trail for Surplus Return
     try {
       const adminUser = adminId ? await User.findById(adminId) : null;
       await AuditService.logAction({
@@ -88,7 +113,7 @@ export class AccountingService {
         targetType: 'SYSTEM',
         severity: 'INFO',
         details: {
-          action: 'استرجاع فائض سيولة من الصندوق إلى الميزانية العامة',
+          action: 'إيداع سيولة في الميزانية العامة للشركة',
           amount,
           reason
         }
@@ -110,47 +135,58 @@ export class AccountingService {
     if (amount <= 0) {
       throw new Error('المبلغ المطلوب تحويله لتغذية الصندوق يجب أن يكون أكبر من الصفر');
     }
-    const vault = await this.getOrCreateVault();
 
-    if (vault.generalBudget < amount) {
-      throw new Error(
-        `رصيد الميزانية العامة للشركة (${vault.generalBudget.toLocaleString()} USDT) غير كافٍ لتغذية الصندوق بمبلغ (${amount.toLocaleString()} USDT). يرجى إيداع رصيد أولاً في الميزانية العامة.`
-      );
-    }
+    const vault = await this.withFinancialTransaction(async (session) => {
+      const activeVault = await this.getOrCreateVault(session);
 
-    vault.generalBudget -= amount;
-    vault.treasuryBalance += amount;
-
-    // Credit the specific sub-vault segment if specified
-    if (targetSegment && vault.segmentedVaults && vault.segmentedVaults[targetSegment]) {
-      vault.segmentedVaults[targetSegment].balance += amount;
-      if (vault.segmentedVaults[targetSegment].balance > vault.segmentedVaults[targetSegment].monthlyAllocated) {
-        vault.segmentedVaults[targetSegment].monthlyAllocated = vault.segmentedVaults[targetSegment].balance;
+      if (activeVault.generalBudget < amount) {
+        throw new Error(
+          `رصيد الميزانية العامة للشركة (${activeVault.generalBudget.toLocaleString()} USDT) غير كافٍ لتغذية الصندوق بمبلغ (${amount.toLocaleString()} USDT). يرجى إيداع رصيد أولاً في الميزانية العامة.`
+        );
       }
-    }
 
-    const segmentLabel =
-      targetSegment === 'salaries'
-        ? ' (صندوق الرواتب والأجور)'
-        : targetSegment === 'marketing'
-        ? ' (صندوق التسويق والإعلانات)'
-        : targetSegment === 'operationalReserve'
-        ? ' (صندوق الاحتياطي التقني والتشغيلي)'
-        : '';
+      activeVault.generalBudget = FinancialMath.subtract(activeVault.generalBudget, amount, 2);
+      activeVault.treasuryBalance = FinancialMath.add(activeVault.treasuryBalance, amount, 2);
 
-    vault.manualAdjustmentsLog.push({
-      adjustedBy: adminId as any,
-      targetBalance: 'TRANSFER_BETWEEN_BUDGETS',
-      operation: 'FUND_TREASURY',
-      amount,
-      reason: (reason || 'تغذية رصيد الصندوق المتاح للصرف بالخصم من الميزانية العامة') + segmentLabel,
-      createdAt: new Date()
+      if (targetSegment && activeVault.segmentedVaults && activeVault.segmentedVaults[targetSegment]) {
+        activeVault.segmentedVaults[targetSegment].balance = FinancialMath.add(
+          activeVault.segmentedVaults[targetSegment].balance,
+          amount,
+          2
+        );
+        if (
+          activeVault.segmentedVaults[targetSegment].balance >
+          activeVault.segmentedVaults[targetSegment].monthlyAllocated
+        ) {
+          activeVault.segmentedVaults[targetSegment].monthlyAllocated =
+            activeVault.segmentedVaults[targetSegment].balance;
+        }
+      }
+
+      const segmentLabel =
+        targetSegment === 'salaries'
+          ? ' (صندوق الرواتب والأجور)'
+          : targetSegment === 'marketing'
+          ? ' (صندوق التسويق والإعلانات)'
+          : targetSegment === 'operationalReserve'
+          ? ' (صندوق الاحتياطي التقني والتشغيلي)'
+          : '';
+
+      activeVault.manualAdjustmentsLog.push({
+        adjustedBy: adminId as any,
+        targetBalance: 'TRANSFER_BETWEEN_BUDGETS',
+        operation: 'FUND_TREASURY',
+        amount,
+        reason: (reason || 'تغذية رصيد الصندوق المتاح للصرف بالخصم من الميزانية العامة') + segmentLabel,
+        createdAt: new Date()
+      });
+
+      await activeVault.save({ session });
+      return activeVault;
     });
 
-    await vault.save();
     SocketService.emitToAdmins('vault:updated', vault);
 
-    // Record audit trail for Surplus Return
     try {
       const adminUser = adminId ? await User.findById(adminId) : null;
       await AuditService.logAction({
@@ -163,7 +199,7 @@ export class AccountingService {
         targetType: 'SYSTEM',
         severity: 'INFO',
         details: {
-          action: 'استرجاع فائض سيولة من الصندوق إلى الميزانية العامة',
+          action: 'تغذية صندوق الصرف من الميزانية العامة',
           amount,
           reason
         }
@@ -179,30 +215,34 @@ export class AccountingService {
     if (amount <= 0) {
       throw new Error('المبلغ المطلوب استرجاعه يجب أن يكون أكبر من الصفر');
     }
-    const vault = await this.getOrCreateVault();
 
-    if (vault.treasuryBalance < amount) {
-      throw new Error(
-        `رصيد الصندوق المتاح للصرف (${vault.treasuryBalance.toLocaleString()} USDT) أقل من المبلغ المطلوب استرجاعه (${amount.toLocaleString()} USDT).`
-      );
-    }
+    const vault = await this.withFinancialTransaction(async (session) => {
+      const activeVault = await this.getOrCreateVault(session);
 
-    vault.treasuryBalance -= amount;
-    vault.generalBudget += amount;
+      if (activeVault.treasuryBalance < amount) {
+        throw new Error(
+          `رصيد الصندوق المتاح للصرف (${activeVault.treasuryBalance.toLocaleString()} USDT) أقل من المبلغ المطلوب استرجاعه (${amount.toLocaleString()} USDT).`
+        );
+      }
 
-    vault.manualAdjustmentsLog.push({
-      adjustedBy: adminId as any,
-      targetBalance: 'TRANSFER_BETWEEN_BUDGETS',
-      operation: 'RETURN_TO_BUDGET',
-      amount,
-      reason: reason || 'استرجاع فائض سيولة من الصندوق إلى الميزانية العامة',
-      createdAt: new Date()
+      activeVault.treasuryBalance = FinancialMath.subtract(activeVault.treasuryBalance, amount, 2);
+      activeVault.generalBudget = FinancialMath.add(activeVault.generalBudget, amount, 2);
+
+      activeVault.manualAdjustmentsLog.push({
+        adjustedBy: adminId as any,
+        targetBalance: 'TRANSFER_BETWEEN_BUDGETS',
+        operation: 'RETURN_TO_BUDGET',
+        amount,
+        reason: reason || 'استرجاع فائض سيولة من الصندوق إلى الميزانية العامة',
+        createdAt: new Date()
+      });
+
+      await activeVault.save({ session });
+      return activeVault;
     });
 
-    await vault.save();
     SocketService.emitToAdmins('vault:updated', vault);
 
-    // Record audit trail for Surplus Return
     try {
       const adminUser = adminId ? await User.findById(adminId) : null;
       await AuditService.logAction({
@@ -533,35 +573,52 @@ export class AccountingService {
     userId: string
   ) {
     if (amount <= 0) throw new Error('المبلغ يجب أن يكون أكبر من الصفر');
-    const vault = await this.getOrCreateVault();
-    if (vault.treasuryBalance < amount) {
-      throw new Error(`رصيد صندوق الصرف المتاح (${vault.treasuryBalance} USDT) لا يكفي لنقل (${amount} USDT)`);
-    }
 
-    if (subVaultCode === 'salaries' && vault.segmentedVaults?.salaries) {
-      vault.segmentedVaults.salaries.balance += amount;
-    } else if (subVaultCode === 'marketing' && vault.segmentedVaults?.marketing) {
-      vault.segmentedVaults.marketing.balance += amount;
-    } else if (subVaultCode === 'operationalReserve' && vault.segmentedVaults?.operationalReserve) {
-      vault.segmentedVaults.operationalReserve.balance += amount;
-    } else {
-      const customSub = vault.customSubVaults?.find((v: any) => v.code === subVaultCode);
-      if (!customSub) {
-        throw new Error(`الصندوق الفرعي (${subVaultCode}) غير موجود`);
+    const vault = await this.withFinancialTransaction(async (session) => {
+      const activeVault = await this.getOrCreateVault(session);
+      if (activeVault.treasuryBalance < amount) {
+        throw new Error(`رصيد صندوق الصرف المتاح (${activeVault.treasuryBalance} USDT) لا يكفي لنقل (${amount} USDT)`);
       }
-      customSub.balance += amount;
-    }
 
-    vault.manualAdjustmentsLog.push({
-      adjustedBy: userId as any,
-      targetBalance: 'TRANSFER_BETWEEN_BUDGETS',
-      operation: 'SET',
-      amount,
-      reason: reason || `تخصيص سيولة إلى الصندوق الفرعي: ${subVaultCode}`,
-      createdAt: new Date()
+      if (subVaultCode === 'salaries' && activeVault.segmentedVaults?.salaries) {
+        activeVault.segmentedVaults.salaries.balance = FinancialMath.add(
+          activeVault.segmentedVaults.salaries.balance,
+          amount,
+          2
+        );
+      } else if (subVaultCode === 'marketing' && activeVault.segmentedVaults?.marketing) {
+        activeVault.segmentedVaults.marketing.balance = FinancialMath.add(
+          activeVault.segmentedVaults.marketing.balance,
+          amount,
+          2
+        );
+      } else if (subVaultCode === 'operationalReserve' && activeVault.segmentedVaults?.operationalReserve) {
+        activeVault.segmentedVaults.operationalReserve.balance = FinancialMath.add(
+          activeVault.segmentedVaults.operationalReserve.balance,
+          amount,
+          2
+        );
+      } else {
+        const customSub = activeVault.customSubVaults?.find((v: any) => v.code === subVaultCode);
+        if (!customSub) {
+          throw new Error(`الصندوق الفرعي (${subVaultCode}) غير موجود`);
+        }
+        customSub.balance = FinancialMath.add(customSub.balance, amount, 2);
+      }
+
+      activeVault.manualAdjustmentsLog.push({
+        adjustedBy: userId as any,
+        targetBalance: 'TRANSFER_BETWEEN_BUDGETS',
+        operation: 'SET',
+        amount,
+        reason: reason || `تخصيص سيولة إلى الصندوق الفرعي: ${subVaultCode}`,
+        createdAt: new Date()
+      });
+
+      await activeVault.save({ session });
+      return activeVault;
     });
 
-    await vault.save();
     SocketService.emitToAdmins('vault:updated', vault);
     return vault;
   }
@@ -695,20 +752,33 @@ export class AccountingService {
   }
 
   public static async executeRecurringExpense(id: string, treasuryUserId: string) {
-    const expense = await RecurringExpense.findById(id);
-    if (!expense) throw new Error('المصروف الدوري غير موجود');
+    const { expense, vault } = await this.withFinancialTransaction(async (session) => {
+      const activeExpense = await RecurringExpense.findById(id).session(session);
+      if (!activeExpense) throw new Error('المصروف الدوري غير موجود');
 
-    const vault = await this.getOrCreateVault();
-    if (vault.treasuryBalance < expense.amount) {
-      throw new Error(`رصيد الصندوق (${vault.treasuryBalance} USDT) لا يكفي لصرف المصروف (${expense.amount} USDT)`);
-    }
+      const activeVault = await this.getOrCreateVault(session);
+      if (activeVault.treasuryBalance < activeExpense.amount) {
+        throw new Error(
+          `رصيد الصندوق (${activeVault.treasuryBalance} USDT) لا يكفي لصرف المصروف (${activeExpense.amount} USDT)`
+        );
+      }
 
-    vault.treasuryBalance -= expense.amount;
-    vault.totalSpentByCategory.otherExpenses += expense.amount;
-    await vault.save();
+      activeVault.treasuryBalance = FinancialMath.subtract(
+        activeVault.treasuryBalance,
+        activeExpense.amount,
+        2
+      );
+      activeVault.totalSpentByCategory.otherExpenses = FinancialMath.add(
+        activeVault.totalSpentByCategory.otherExpenses,
+        activeExpense.amount,
+        2
+      );
+      await activeVault.save({ session });
 
-    expense.lastDisbursedAt = new Date();
-    await expense.save();
+      activeExpense.lastDisbursedAt = new Date();
+      await activeExpense.save({ session });
+      return { expense: activeExpense, vault: activeVault };
+    });
 
     try {
       const treasuryUser = await User.findById(treasuryUserId);
@@ -963,79 +1033,98 @@ export class AccountingService {
     adminId: string,
     reason?: string
   ) {
-    const vault = await this.getOrCreateVault();
     const adminUser = await User.findById(adminId);
 
     if (type === 'PAYOUT') {
-      const order = await PayoutOrder.findById(id);
-      if (!order) throw new Error('أمر الصرف غير موجود');
-      if (order.executionStatus === 'CANCELLED') {
-        throw new Error('أمر الصرف ملغي ومعكوس مسبقاً ولا يمكن عكس رصيده مرتين');
-      }
-
-      const wasDisbursed = order.executionStatus === 'DISBURSED';
-
-      if (wasDisbursed) {
-        vault.treasuryBalance = this.roundCurrency(vault.treasuryBalance + order.amount);
-
-        const seg = (order as any).targetVaultSegment;
-        if (seg && vault.segmentedVaults && vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve']) {
-          const segment = vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'];
-          segment.balance = this.roundCurrency(segment.balance + order.amount);
-          segment.totalSpent = Math.max(0, this.roundCurrency(segment.totalSpent - order.amount));
-        } else if (vault.segmentedVaults?.salaries && (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE')) {
-          vault.segmentedVaults.salaries.balance = this.roundCurrency(vault.segmentedVaults.salaries.balance + order.amount);
-          vault.segmentedVaults.salaries.totalSpent = Math.max(0, this.roundCurrency(vault.segmentedVaults.salaries.totalSpent - order.amount));
+      const txResult = await this.withFinancialTransaction(async (session) => {
+        const vault = await this.getOrCreateVault(session);
+        const order = await PayoutOrder.findById(id).session(session);
+        if (!order) throw new Error('أمر الصرف غير موجود');
+        if (order.executionStatus === 'CANCELLED') {
+          throw new Error('أمر الصرف ملغي ومعكوس مسبقاً ولا يمكن عكس رصيده مرتين');
         }
 
-        if (vault.totalSpentByCategory && (vault.totalSpentByCategory as any)[order.category.toLowerCase()]) {
-          (vault.totalSpentByCategory as any)[order.category.toLowerCase()] = Math.max(
-            0,
-            this.roundCurrency((vault.totalSpentByCategory as any)[order.category.toLowerCase()] - order.amount)
+        const wasDisbursed = order.executionStatus === 'DISBURSED';
+
+        if (wasDisbursed) {
+          vault.treasuryBalance = FinancialMath.add(vault.treasuryBalance, order.amount, 2);
+
+          const seg = (order as any).targetVaultSegment;
+          if (seg && vault.segmentedVaults && vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve']) {
+            const segment = vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'];
+            segment.balance = FinancialMath.add(segment.balance, order.amount, 2);
+            segment.totalSpent = Math.max(0, FinancialMath.subtract(segment.totalSpent, order.amount, 2));
+          } else if (vault.segmentedVaults?.salaries && (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE')) {
+            vault.segmentedVaults.salaries.balance = FinancialMath.add(vault.segmentedVaults.salaries.balance, order.amount, 2);
+            vault.segmentedVaults.salaries.totalSpent = Math.max(0, FinancialMath.subtract(vault.segmentedVaults.salaries.totalSpent, order.amount, 2));
+          }
+
+          if (vault.totalSpentByCategory && (vault.totalSpentByCategory as any)[order.category.toLowerCase()]) {
+            (vault.totalSpentByCategory as any)[order.category.toLowerCase()] = Math.max(
+              0,
+              FinancialMath.subtract((vault.totalSpentByCategory as any)[order.category.toLowerCase()], order.amount, 2)
+            );
+          }
+        }
+
+        const existingEntries = await EmployeeLedger.find({ relatedPayoutOrderId: order._id }).session(session);
+        for (const entry of existingEntries) {
+          entry.isReversed = true;
+          entry.reversalReason = reason || 'إلغاء وعكس العملية بقرار إداري من المدير العام';
+          await entry.save({ session });
+
+          await EmployeeLedger.create(
+            [
+              {
+                employeeId: entry.employeeId,
+                entryType: 'ADJUSTMENT_REVERSAL',
+                amount: -Math.abs(entry.amount),
+                payoutMethodUsed: entry.payoutMethodUsed,
+                reason: `[قيد تسوية عكسي] إلغاء واسترجاع القيد #${entry._id}: ${entry.reason}`,
+                warningLevel: 'NONE',
+                relatedPayoutOrderId: order._id,
+                recordedBy: adminId,
+                reversalEntryId: entry._id
+              }
+            ],
+            { session }
           );
         }
-      }
 
-      // Immutability: Create compensating adjustment entries instead of hard-deleting ledger history
-      const existingEntries = await EmployeeLedger.find({ relatedPayoutOrderId: order._id });
-      for (const entry of existingEntries) {
-        entry.isReversed = true;
-        entry.reversalReason = reason || 'إلغاء وعكس العملية بقرار إداري من المدير العام';
-        await entry.save();
-
-        await EmployeeLedger.create({
-          employeeId: entry.employeeId,
-          entryType: 'ADJUSTMENT_REVERSAL',
-          amount: -Math.abs(entry.amount),
-          payoutMethodUsed: entry.payoutMethodUsed,
-          reason: `[قيد تسوية عكسي] إلغاء واسترجاع القيد #${entry._id}: ${entry.reason}`,
-          warningLevel: 'NONE',
-          relatedPayoutOrderId: order._id,
-          recordedBy: adminId,
-          reversalEntryId: entry._id
-        });
-      }
-
-      if (order.relatedTaskId) {
-        try {
+        let updatedProjectId: any = null;
+        if (order.relatedTaskId) {
           const { Task } = await import('../models/Task.model');
-          const task = await Task.findById(order.relatedTaskId);
+          const task = await Task.findById(order.relatedTaskId).session(session);
           if (task && task.financialRequirement) {
             task.financialRequirement.payoutOrderId = undefined as any;
             task.financialRequirement.adminApprovalStatus = 'PENDING_ADMIN';
-            await task.save();
+            await task.save({ session });
           }
           if (wasDisbursed) {
             const { ProjectSyncService } = await import('./projectSync.service');
-            const project = await ProjectSyncService.findProjectForTask(order.relatedTaskId);
+            const project = await ProjectSyncService.findProjectForTask(order.relatedTaskId, session);
             if (project) {
               project.spentBudget = Math.max(0, FinancialMath.subtract(project.spentBudget, order.amount, 2));
-              await project.save();
-              const populatedProj = await ProjectSyncService.getPopulatedProjectById(project._id);
-              if (populatedProj) {
-                SocketService.broadcast('project:updated', populatedProj);
-              }
+              await project.save({ session });
+              updatedProjectId = project._id;
             }
+          }
+        }
+
+        order.executionStatus = 'CANCELLED';
+        order.summaryForTreasury = `[ملغي بقيد عكسي] ${order.summaryForTreasury} (${reason || 'إلغاء إداري'})`;
+        await order.save({ session });
+        await vault.save({ session });
+
+        return { vault, order, wasDisbursed, updatedProjectId };
+      });
+
+      if (txResult.updatedProjectId) {
+        try {
+          const { ProjectSyncService } = await import('./projectSync.service');
+          const populatedProj = await ProjectSyncService.getPopulatedProjectById(txResult.updatedProjectId);
+          if (populatedProj) {
+            SocketService.broadcast('project:updated', populatedProj);
           }
         } catch {}
       }
@@ -1046,23 +1135,18 @@ export class AccountingService {
         userEmail: adminUser?.email || 'admin@thelordofcrypto.com',
         userRole: 'SUPER_ADMIN',
         actionType: 'TRANSACTION_DELETED',
-        targetName: `عكس وإلغاء أمر الصرف #${order._id}`,
+        targetName: `عكس وإلغاء أمر الصرف #${txResult.order._id}`,
         targetType: 'PAYOUT',
         severity: 'CRITICAL',
         details: {
           action: 'إلغاء أمر صرف وإنشاء قيد تسوية عكسي دون حذف السجل التاريخي',
-          orderAmount: order.amount,
-          refundedToTreasury: wasDisbursed,
+          orderAmount: txResult.order.amount,
+          refundedToTreasury: txResult.wasDisbursed,
           reason: reason || 'إلغاء بقرار إداري من المدير العام'
         }
       });
 
-      order.executionStatus = 'CANCELLED';
-      order.summaryForTreasury = `[ملغي بقيد عكسي] ${order.summaryForTreasury} (${reason || 'إلغاء إداري'})`;
-      await order.save();
-      await vault.save();
-
-      SocketService.emitToAdmins('vault:updated', vault);
+      SocketService.emitToAdmins('vault:updated', txResult.vault);
       SocketService.broadcast('payout:cancelled', { orderId: id });
 
       return {
@@ -1070,23 +1154,28 @@ export class AccountingService {
         message: 'تم حذف أمر الصرف واسترجاع المبالغ للخزينة وتعديل المعاملات المرتبطة بنجاح'
       };
     } else {
-      const idx = vault.manualAdjustmentsLog.findIndex((a: any) => a._id?.toString() === id);
-      if (idx === -1) throw new Error('عملية التعديل غير موجودة');
+      const { vault, adj } = await this.withFinancialTransaction(async (session) => {
+        const activeVault = await this.getOrCreateVault(session);
+        const idx = activeVault.manualAdjustmentsLog.findIndex((a: any) => a._id?.toString() === id);
+        if (idx === -1) throw new Error('عملية التعديل غير موجودة');
 
-      const adj = vault.manualAdjustmentsLog[idx] as any;
+        const activeAdj = activeVault.manualAdjustmentsLog[idx] as any;
 
-      if (adj.operation === 'DEPOSIT') {
-        vault.generalBudget = Math.max(0, vault.generalBudget - adj.amount);
-      } else if (adj.operation === 'FUND_TREASURY') {
-        vault.treasuryBalance = Math.max(0, vault.treasuryBalance - adj.amount);
-        vault.generalBudget += adj.amount;
-      } else if (adj.operation === 'RETURN_TO_BUDGET') {
-        vault.generalBudget = Math.max(0, vault.generalBudget - adj.amount);
-        vault.treasuryBalance += adj.amount;
-      }
+        if (activeAdj.operation === 'DEPOSIT') {
+          activeVault.generalBudget = Math.max(0, FinancialMath.subtract(activeVault.generalBudget, activeAdj.amount, 2));
+        } else if (activeAdj.operation === 'FUND_TREASURY') {
+          activeVault.treasuryBalance = Math.max(0, FinancialMath.subtract(activeVault.treasuryBalance, activeAdj.amount, 2));
+          activeVault.generalBudget = FinancialMath.add(activeVault.generalBudget, activeAdj.amount, 2);
+        } else if (activeAdj.operation === 'RETURN_TO_BUDGET') {
+          activeVault.generalBudget = Math.max(0, FinancialMath.subtract(activeVault.generalBudget, activeAdj.amount, 2));
+          activeVault.treasuryBalance = FinancialMath.add(activeVault.treasuryBalance, activeAdj.amount, 2);
+        }
 
-      vault.manualAdjustmentsLog.splice(idx, 1);
-      await vault.save();
+        const snapshot = { amount: activeAdj.amount, operation: activeAdj.operation };
+        activeVault.manualAdjustmentsLog.splice(idx, 1);
+        await activeVault.save({ session });
+        return { vault: activeVault, adj: snapshot };
+      });
 
       await AuditService.logAction({
         userId: adminId,
@@ -1129,56 +1218,76 @@ export class AccountingService {
     },
     adminId: string
   ) {
-    const vault = await this.getOrCreateVault();
     const adminUser = await User.findById(adminId);
 
     if (type === 'PAYOUT') {
-      const order = await PayoutOrder.findById(id);
-      if (!order) throw new Error('أمر الصرف غير موجود');
+      const { vault, order, oldAmount, newAmount } = await this.withFinancialTransaction(
+        async (session) => {
+          const activeVault = await this.getOrCreateVault(session);
+          const activeOrder = await PayoutOrder.findById(id).session(session);
+          if (!activeOrder) throw new Error('أمر الصرف غير موجود');
 
-      const oldAmount = order.amount;
-      const newAmount = data.amount !== undefined ? Number(data.amount) : oldAmount;
+          const prevAmount = activeOrder.amount;
+          const nextAmount = data.amount !== undefined ? Number(data.amount) : prevAmount;
 
-      if (order.executionStatus === 'DISBURSED' && newAmount !== oldAmount) {
-        const delta = newAmount - oldAmount;
-        if (delta > 0 && vault.treasuryBalance < delta) {
-          throw new Error(`رصيد الصندوق (${vault.treasuryBalance} USDT) لا يكفي لزيادة مبلغ الصرف بمقدار (${delta} USDT)`);
+          if (activeOrder.executionStatus === 'DISBURSED' && nextAmount !== prevAmount) {
+            const delta = FinancialMath.subtract(nextAmount, prevAmount, 2);
+            if (delta > 0 && activeVault.treasuryBalance < delta) {
+              throw new Error(
+                `رصيد الصندوق (${activeVault.treasuryBalance} USDT) لا يكفي لزيادة مبلغ الصرف بمقدار (${delta} USDT)`
+              );
+            }
+
+            activeVault.treasuryBalance = FinancialMath.subtract(activeVault.treasuryBalance, delta, 2);
+
+            const seg = (activeOrder as any).targetVaultSegment;
+            if (
+              seg &&
+              activeVault.segmentedVaults &&
+              activeVault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve']
+            ) {
+              const targetSegment =
+                activeVault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'];
+              targetSegment.balance = FinancialMath.subtract(targetSegment.balance, delta, 2);
+              targetSegment.totalSpent = Math.max(
+                0,
+                FinancialMath.add(targetSegment.totalSpent, delta, 2)
+              );
+            }
+
+            await EmployeeLedger.create(
+              [
+                {
+                  employeeId: activeOrder.beneficiaryId,
+                  entryType: delta > 0 ? 'ADJUSTMENT_CREDIT' : 'ADJUSTMENT_REVERSAL',
+                  amount: delta,
+                  payoutMethodUsed: activeOrder.payoutMethod,
+                  reason: `[قيد تسوية فروقات] تعديل مبلغ أمر الصرف #${activeOrder._id} من ${prevAmount} إلى ${nextAmount} USDT`,
+                  warningLevel: 'NONE',
+                  relatedPayoutOrderId: activeOrder._id,
+                  recordedBy: adminId
+                }
+              ],
+              { session }
+            );
+          }
+
+          activeOrder.amount = nextAmount;
+          if (data.category) activeOrder.category = data.category as any;
+          if (data.summary) activeOrder.summaryForTreasury = data.summary;
+          if (data.targetVault) (activeOrder as any).targetVaultSegment = data.targetVault;
+
+          if (activeOrder.modificationRequest && activeOrder.modificationRequest.status === 'PENDING') {
+            activeOrder.modificationRequest.status = 'APPROVED';
+            activeOrder.modificationRequest.adminDecisionNote = 'تم تنفيذ التعديل بنجاح بواسطة المدير العام';
+            activeOrder.modificationRequest.decidedAt = new Date();
+          }
+
+          await activeOrder.save({ session });
+          await activeVault.save({ session });
+          return { vault: activeVault, order: activeOrder, oldAmount: prevAmount, newAmount: nextAmount };
         }
-
-        vault.treasuryBalance -= delta;
-
-        const seg = (order as any).targetVaultSegment;
-        if (seg && vault.segmentedVaults && vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve']) {
-          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].balance -= delta;
-          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].totalSpent += delta;
-        }
-
-        // Immutability: Post a differential adjustment entry instead of modifying historical rows
-        await EmployeeLedger.create({
-          employeeId: order.beneficiaryId,
-          entryType: delta > 0 ? 'ADJUSTMENT_CREDIT' : 'ADJUSTMENT_REVERSAL',
-          amount: delta,
-          payoutMethodUsed: order.payoutMethod,
-          reason: `[قيد تسوية فروقات] تعديل مبلغ أمر الصرف #${order._id} من ${oldAmount} إلى ${newAmount} USDT`,
-          warningLevel: 'NONE',
-          relatedPayoutOrderId: order._id,
-          recordedBy: adminId
-        });
-      }
-
-      order.amount = newAmount;
-      if (data.category) order.category = data.category as any;
-      if (data.summary) order.summaryForTreasury = data.summary;
-      if (data.targetVault) (order as any).targetVaultSegment = data.targetVault;
-
-      if (order.modificationRequest && order.modificationRequest.status === 'PENDING') {
-        order.modificationRequest.status = 'APPROVED';
-        order.modificationRequest.adminDecisionNote = 'تم تنفيذ التعديل بنجاح بواسطة المدير العام';
-        order.modificationRequest.decidedAt = new Date();
-      }
-
-      await order.save();
-      await vault.save();
+      );
 
       await AuditService.logAction({
         userId: adminId,
@@ -1202,25 +1311,30 @@ export class AccountingService {
 
       return { success: true, message: 'تم تعديل العملية وضبط الأرصدة المتسلسلة بنجاح', data: order };
     } else {
-      const idx = vault.manualAdjustmentsLog.findIndex((a: any) => a._id?.toString() === id);
-      if (idx === -1) throw new Error('عملية التعديل غير موجودة');
+      const vault = await this.withFinancialTransaction(async (session) => {
+        const activeVault = await this.getOrCreateVault(session);
+        const idx = activeVault.manualAdjustmentsLog.findIndex((a: any) => a._id?.toString() === id);
+        if (idx === -1) throw new Error('عملية التعديل غير موجودة');
 
-      const adj = vault.manualAdjustmentsLog[idx] as any;
-      const oldAmount = adj.amount;
-      const newAmount = data.amount !== undefined ? Number(data.amount) : oldAmount;
-      const delta = newAmount - oldAmount;
+        const adj = activeVault.manualAdjustmentsLog[idx] as any;
+        const oldAmount = adj.amount;
+        const newAmount = data.amount !== undefined ? Number(data.amount) : oldAmount;
+        const delta = FinancialMath.subtract(newAmount, oldAmount, 2);
 
-      if (adj.operation === 'DEPOSIT') {
-        vault.generalBudget += delta;
-      } else if (adj.operation === 'FUND_TREASURY') {
-        vault.treasuryBalance += delta;
-        vault.generalBudget -= delta;
-      }
+        if (adj.operation === 'DEPOSIT') {
+          activeVault.generalBudget = FinancialMath.add(activeVault.generalBudget, delta, 2);
+        } else if (adj.operation === 'FUND_TREASURY') {
+          activeVault.treasuryBalance = FinancialMath.add(activeVault.treasuryBalance, delta, 2);
+          activeVault.generalBudget = FinancialMath.subtract(activeVault.generalBudget, delta, 2);
+        }
 
-      adj.amount = newAmount;
-      if (data.reason) adj.reason = data.reason;
+        adj.amount = newAmount;
+        if (data.reason) adj.reason = data.reason;
 
-      await vault.save();
+        await activeVault.save({ session });
+        return activeVault;
+      });
+
       SocketService.emitToAdmins('vault:updated', vault);
 
       return { success: true, message: 'تم تعديل قيد الإيداع/التحويل وضبط الأرصدة بنجاح' };

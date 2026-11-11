@@ -28,16 +28,22 @@ export default function RegisteredSuccessPage() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('lord_current_user');
-      if (stored) {
-        try {
-          setUser(JSON.parse(stored));
-        } catch (e) {
-          console.error(e);
+    let cancelled = false;
+    const loadSessionUser = async () => {
+      try {
+        const { apiFetch } = await import('../../../lib/apiClient');
+        const res = await apiFetch('/auth/me');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.success && data?.user) {
+          setUser(data.user);
         }
-      }
-    }
+      } catch {}
+    };
+    loadSessionUser();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleStartWorking = async () => {
@@ -51,8 +57,7 @@ export default function RegisteredSuccessPage() {
         body: JSON.stringify({ workStatus: 'WORKING' })
       });
       if (res.ok && user) {
-        const updated = { ...user, workStatus: 'WORKING' };
-        localStorage.setItem('lord_current_user', JSON.stringify(updated));
+        setUser({ ...user, workStatus: 'WORKING' });
       }
     } catch (_err) {}
 

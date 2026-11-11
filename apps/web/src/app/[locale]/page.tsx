@@ -55,7 +55,6 @@ export default function HomePage() {
         if (!data?.success || !user) {
           throw new Error('Unauthorized');
         }
-        localStorage.setItem('lord_current_user', JSON.stringify(user));
         if (cancelled) return;
         if (user.accessRole === 'SUPER_ADMIN') {
           router.replace(`/${locale}/dashboard`);

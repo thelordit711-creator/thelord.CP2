@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AccessRole, AppPermission, hasPermission } from '@lord/shared-types';
+import { useGetMeQuery } from '../../store/api/usersApi';
 
 interface PermissionGateProps {
   permission?: AppPermission;
@@ -13,7 +14,8 @@ interface PermissionGateProps {
 
 /**
  * Executive Permission Gate
- * Declaratively guards UI elements based on the central RBAC permission matrix.
+ * Declaratively guards UI elements based on the central RBAC permission matrix
+ * backed by the server-verified HttpOnly session (/users/me).
  */
 export const PermissionGate: React.FC<PermissionGateProps> = ({
   permission,
@@ -22,17 +24,9 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   fallback = null,
   children
 }) => {
-  let activeRole: AccessRole | undefined = propUserRole;
-
-  if (!activeRole && typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem('lord_current_user');
-      if (stored) {
-        const u = JSON.parse(stored);
-        if (u.accessRole) activeRole = u.accessRole as AccessRole;
-      }
-    } catch {}
-  }
+  const { data: meRes } = useGetMeQuery(undefined, { skip: Boolean(propUserRole) });
+  const activeRole: AccessRole | undefined =
+    propUserRole || (meRes?.data?.accessRole as AccessRole | undefined);
 
   if (!activeRole) {
     return <>{fallback}</>;

@@ -50,9 +50,11 @@ export default function LoginPage() {
         return;
       }
 
-      // Store non-sensitive UI profile only; JWT lives exclusively in HttpOnly cookie
+      // JWT & session are managed exclusively via HttpOnly cookies; scrub any legacy localStorage state
       clearClientAuthTokens();
-      localStorage.setItem('lord_current_user', JSON.stringify(data.user));
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('lord_current_user');
+      }
       window.dispatchEvent(new Event('lord:session-changed'));
 
       // Route based on role

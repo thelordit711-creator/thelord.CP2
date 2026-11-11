@@ -24,6 +24,7 @@ import {
 import { NotificationDrawer } from '../notifications/NotificationDrawer';
 import { lordToast } from '../../lib/lordToast';
 import { apiFetch, clearClientSession } from '../../lib/apiClient';
+import { useGetMeQuery } from '../../store/api/usersApi';
 
 // Modular Subcomponents
 import { WorkStatusSelector } from './WorkStatusSelector';
@@ -34,8 +35,9 @@ export const TopBar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const { socket } = useSocket();
+  const { data: meRes } = useGetMeQuery();
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const currentUser = (meRes?.data as any) || null;
   const [workStatus, setWorkStatus] = useState<WorkStatus>('LOGGED_IN');
   const [showNotifications, setShowNotifications] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -197,21 +199,10 @@ export const TopBar: React.FC = () => {
   }, [socket, refetchNotifications]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('lord_current_user');
-      if (stored) {
-        try {
-          const user = JSON.parse(stored);
-          setCurrentUser(user);
-          if (user.workStatus) {
-            setWorkStatus(user.workStatus);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
+    if (currentUser?.workStatus) {
+      setWorkStatus(currentUser.workStatus);
     }
-  }, []);
+  }, [currentUser?.workStatus]);
 
   const switchLanguage = (newLocale: string) => {
     if (newLocale === locale) return;
@@ -243,11 +234,6 @@ export const TopBar: React.FC = () => {
       }
 
       setWorkStatus(newStatus);
-      if (currentUser) {
-        const updated = { ...currentUser, workStatus: newStatus, workStatusUpdatedAt: data.workStatusUpdatedAt };
-        setCurrentUser(updated);
-        localStorage.setItem('lord_current_user', JSON.stringify(updated));
-      }
 
       const statusLabels: Record<WorkStatus, string> = {
         LOGGED_IN: 'تم تسجيل الدخول',
