@@ -5,19 +5,17 @@ import { AppModalPortal } from '../../ui/AppModalPortal';
 import { Button } from '../../ui/Button';
 import { DirectVoiceRecorder } from '../../voice/DirectVoiceRecorder';
 import {
-  Layers,
   X,
   Sparkles,
   Repeat,
-  UserCheck,
-  CheckCircle,
   Coins,
-  Trash2,
-  Plus,
   Edit3,
   Clock,
   Save
 } from 'lucide-react';
+import { TaskAssigneeSection } from './shared/TaskAssigneeSection';
+import { TaskStagesBuilderSection } from './shared/TaskStagesBuilderSection';
+import { STAGE_TEMPLATE_PRESETS, StageTemplateKey } from './shared/taskStageTemplates';
 import { lordToast } from '../../../lib/lordToast';
 import { useUpdateTaskMutation } from '../../../store/api/tasksApi';
 import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
@@ -167,17 +165,17 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
             requiredInputs:
               st.requiredInputs && st.requiredInputs.length > 0
                 ? st.requiredInputs.map((inp: any) => ({
-                    fieldLabel: inp.fieldLabel || 'مرفق أو إثبات المرحلة',
-                    expectedType: inp.expectedType || 'IMAGE',
-                    isMandatory: inp.isMandatory !== false
-                  }))
+                  fieldLabel: inp.fieldLabel || 'مرفق أو إثبات المرحلة',
+                  expectedType: inp.expectedType || 'IMAGE',
+                  isMandatory: inp.isMandatory !== false
+                }))
                 : [
-                    {
-                      fieldLabel: 'مرفق أو إثبات المرحلة',
-                      expectedType: 'IMAGE',
-                      isMandatory: true
-                    }
-                  ]
+                  {
+                    fieldLabel: 'مرفق أو إثبات المرحلة',
+                    expectedType: 'IMAGE',
+                    isMandatory: true
+                  }
+                ]
           }))
         );
       } else {
@@ -239,84 +237,11 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     );
   };
 
-  const handleApplyStageTemplate = (type: 'TRADING' | 'MEDIA' | 'DEV' | 'SINGLE') => {
-    if (type === 'TRADING') {
-      setStages([
-        {
-          stageOrder: 1,
-          stageTitle: 'تحضير التحليل الفني ولقطة الشارت',
-          instructions: 'تحديد مستويات الدخول والوقف بدقة عالية ونسبة مخاطرة 1:3',
-          requiredInputs: [{ fieldLabel: 'لقطة شاشة الشارت والتحليل', expectedType: 'IMAGE', isMandatory: true }]
-        },
-        {
-          stageOrder: 2,
-          stageTitle: 'إنتاج البوستر الإعلاني والمونتاج',
-          instructions: 'تصميم البوستر الملكي أو فيديو ريلز متوافق مع هوية The Lord',
-          requiredInputs: [{ fieldLabel: 'ملف التصميم النهائي أو الفيديو', expectedType: 'IMAGE', isMandatory: true }]
-        },
-        {
-          stageOrder: 3,
-          stageTitle: 'النشر والتفاعل الرسمي وإحصائيات المشاهدات',
-          instructions: 'إرفاق رابط المنشور وتقرير الوصول الأولي',
-          requiredInputs: [{ fieldLabel: 'رابط المنشور الرسمي', expectedType: 'URL', isMandatory: true }]
-        }
-      ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب مراحل التداول والشارتات 📈');
-    } else if (type === 'MEDIA') {
-      setStages([
-        {
-          stageOrder: 1,
-          stageTitle: 'صياغة المحتوى والنص التسويقي',
-          instructions: 'كتابة محتوى منشور احترافي ومقنع متوافق مع معايير The Lord',
-          requiredInputs: [{ fieldLabel: 'المسودة النصية المعتمدة', expectedType: 'TEXT', isMandatory: true }]
-        },
-        {
-          stageOrder: 2,
-          stageTitle: 'تصميم البوستر الجرافيكي أو المونتاج',
-          instructions: 'إخراج التصميم أو الفيديو بأعلى دقة وتنسيق مرئي ملكي',
-          requiredInputs: [{ fieldLabel: 'ملف التصميم النهائي أو الفيديو', expectedType: 'IMAGE', isMandatory: true }]
-        },
-        {
-          stageOrder: 3,
-          stageTitle: 'النشر الرسمي وجلب إحصائيات التفاعل',
-          instructions: 'النشر في التوقيت المناسب وإرفاق رابط المنشور وتقرير الوصول',
-          requiredInputs: [{ fieldLabel: 'رابط المنشور المباشر', expectedType: 'URL', isMandatory: true }]
-        }
-      ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب مراحل الميديا والمونتاج 📱');
-    } else if (type === 'DEV') {
-      setStages([
-        {
-          stageOrder: 1,
-          stageTitle: 'فحص الأكواد وسيرفرات البوت والـ API',
-          instructions: 'مراجعة سجلات الأخطاء والتحقق من استقرار نقاط الاتصال وWebhooks',
-          requiredInputs: [{ fieldLabel: 'سجل الفحص أو كود التعديل', expectedType: 'CODE_SNIPPET', isMandatory: true }]
-        },
-        {
-          stageOrder: 2,
-          stageTitle: 'تنفيذ التحديث أو حل المشكلة التقنية',
-          instructions: 'برمجة التعديل واختبار الاستجابة محلياً والتأكد من عدم وجود تعارض',
-          requiredInputs: [{ fieldLabel: 'ملف التعديلات البرمجية', expectedType: 'DOCUMENT', isMandatory: true }]
-        },
-        {
-          stageOrder: 3,
-          stageTitle: 'الاختبار النهائي والنشر على السيرفر الحي',
-          instructions: 'التأكد من استقرار الخدمة الحية وإرفاق إثبات العمل',
-          requiredInputs: [{ fieldLabel: 'رابط الخدمة بعد النشر', expectedType: 'URL', isMandatory: true }]
-        }
-      ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب مراحل التطوير والبرمجة 💻');
-    } else if (type === 'SINGLE') {
-      setStages([
-        {
-          stageOrder: 1,
-          stageTitle: 'تنفيذ المهمة وإرفاق المخرجات المباشرة',
-          instructions: 'إنجاز كافة متطلبات المهمة وإرفاق الإثبات أو رابط العمل',
-          requiredInputs: [{ fieldLabel: 'مرفق أو إثبات إنجاز المهمة', expectedType: 'IMAGE', isMandatory: true }]
-        }
-      ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب المرحلة الواحدة المباشرة ⚡');
-    }
+  const handleApplyStageTemplate = (type: StageTemplateKey) => {
+    const preset = STAGE_TEMPLATE_PRESETS[type];
+    if (!preset) return;
+    setStages(preset.stages.map((st) => ({ ...st, requiredInputs: st.requiredInputs.map((i) => ({ ...i })) })));
+    lordToast.gold('قالب المراحل', preset.toastMessage);
   };
 
   const handleApplyDailyRoutine = (routineType: string) => {
@@ -445,8 +370,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         assignmentMode === 'SELF'
           ? (currentUser?._id ? [currentUser._id] : [])
           : assignmentMode === 'EMPLOYEES'
-          ? selectedAssignees
-          : [];
+            ? selectedAssignees
+            : [];
 
       const payload: any = {
         title: taskTitle.trim(),
@@ -753,104 +678,16 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           </div>
 
           {/* Assignment */}
-          <div className="p-4 bg-obsidian-card rounded-2xl border border-obsidian-border space-y-3">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-              <span className="text-xs font-bold text-white flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-lord-gold" />
-                <span>إسناد المهمة (المكلف بالتنفيذ والتسليم):</span>
-              </span>
-
-              <div className="flex items-center gap-1 bg-obsidian-primary p-0.5 rounded-xl border border-gray-800 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setAssignmentMode('EMPLOYEES')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    assignmentMode === 'EMPLOYEES'
-                      ? 'bg-lord-gold text-obsidian-primary shadow-sm'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  موظف أو أكثر 👤
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAssignmentMode('DEPARTMENT')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    assignmentMode === 'DEPARTMENT'
-                      ? 'bg-lord-gold text-black font-black shadow-sm'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  قسم كامل 🏢
-                </button>
-              </div>
-            </div>
-
-            {assignmentMode === 'EMPLOYEES' ? (
-              <div className="space-y-2">
-                <p className="text-[11px] text-gray-400">
-                  حدد الموظف أو الكوادر المكلفة بإنجاز هذه المهمة ومراحلها:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
-                  {employees.map((emp: any) => {
-                    const isSelected = selectedAssignees.includes(emp._id);
-                    return (
-                      <div
-                        key={emp._id}
-                        onClick={() => handleToggleAssignee(emp._id)}
-                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                          isSelected
-                            ? 'bg-lord-gold/15 border-lord-gold text-white font-bold'
-                            : 'bg-obsidian-primary border-gray-800 text-gray-300 hover:bg-gray-800'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="w-6 h-6 rounded-lg bg-obsidian-card border border-gray-700 flex items-center justify-center text-[10px] text-lord-gold">
-                            {emp.fullName?.charAt(0) || '👤'}
-                          </span>
-                          <div className="truncate text-right">
-                            <span className="text-xs truncate block">{emp.fullName}</span>
-                            <span className="text-[9px] text-gray-400 block">{emp.primaryDepartment} - {emp.jobTitles?.[0] || emp.accessRole}</span>
-                          </div>
-                        </div>
-                        <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${
-                          isSelected ? 'bg-lord-gold text-obsidian-primary border-lord-gold' : 'border-gray-600'
-                        }`}>
-                          {isSelected ? '✓' : ''}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {selectedAssignees.length > 0 && (
-                  <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    تم تعيين ({selectedAssignees.length}) موظف لهذه المهمة.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-gray-300">اختر القسم المستهدف:</label>
-                <select
-                  value={targetDepartment}
-                  onChange={e => setTargetDepartment(e.target.value)}
-                  className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white"
-                >
-                  <option value="TRADING">📈 قسم التداول والتحليلات الفنية (TRADING)</option>
-                  <option value="MARKETING">🎯 قسم التسويق والحملات الإعلانية (MARKETING)</option>
-                  <option value="CONTENT_MEDIA">🎬 قسم المونتاج والمحتوى والتصميم (CONTENT_MEDIA)</option>
-                  <option value="DEVELOPMENT">💻 قسم البرمجة وتطوير البوتات (DEVELOPMENT)</option>
-                  <option value="SUPPORT">🛡️ قسم خدمة العملاء والدعم الفني (SUPPORT)</option>
-                  <option value="ALL_DEPARTMENTS">🌐 كافة أقسام وكوادر المنظومة (ALL)</option>
-                </select>
-                <p className="text-[11px] text-gray-400 font-semibold">
-                  🏢 سيتم إدراج المهمة تلقائياً في جداول عمل جميع أعضاء هذا القسم.
-                </p>
-              </div>
-            )}
-          </div>
+          <TaskAssigneeSection
+            assignmentMode={assignmentMode}
+            onChangeMode={setAssignmentMode}
+            currentUser={currentUser}
+            employees={employees}
+            selectedAssignees={selectedAssignees}
+            onToggleAssignee={handleToggleAssignee}
+            targetDepartment={targetDepartment}
+            onChangeDepartment={setTargetDepartment}
+          />
 
           {/* Daily Recurring */}
           <div className="p-4 bg-obsidian-card rounded-2xl border border-obsidian-border space-y-2.5">
@@ -941,149 +778,14 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           </div>
 
           {/* Dynamic Stages Builder */}
-          <div className="p-4 bg-obsidian-card rounded-2xl border border-obsidian-border space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-3">
-              <div>
-                <span className="text-xs font-bold text-lord-gold flex items-center gap-1.5">
-                  <Layers className="w-4 h-4" />
-                  مراحل التنفيذ المتسلسلة والمرفقات المطلوبة ({stages.length} مراحل):
-                </span>
-                <p className="text-[11px] text-gray-400">
-                  يمكنك التعديل على أسماء المراحل، إضافة مراحل جديدة، أو تغيير نوع المرفق الإلزامي.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => handleApplyStageTemplate('TRADING')}
-                  className="text-[10px] bg-obsidian-surface hover:bg-gray-800 text-lord-gold px-2 py-1 rounded-lg border border-gray-800"
-                >
-                  صفقة VIP
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyStageTemplate('MEDIA')}
-                  className="text-[10px] bg-obsidian-surface hover:bg-gray-800 text-blue-400 px-2 py-1 rounded-lg border border-gray-800"
-                >
-                  مونتاج فيديو
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyStageTemplate('DEV')}
-                  className="text-[10px] bg-obsidian-surface hover:bg-gray-800 text-emerald-400 px-2 py-1 rounded-lg border border-gray-800"
-                >
-                  برمجة بوت
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyStageTemplate('SINGLE')}
-                  className="text-[10px] bg-obsidian-surface hover:bg-gray-800 text-gray-300 px-2 py-1 rounded-lg border border-gray-800"
-                >
-                  مرحلة واحدة
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {stages.map((st, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 bg-obsidian-primary rounded-2xl border border-gray-800 space-y-3 text-xs shadow-md"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className="w-6 h-6 rounded-full bg-lord-gold/20 text-lord-gold border border-lord-gold/40 flex items-center justify-center font-bold text-xs shrink-0">
-                        {st.stageOrder}
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        placeholder={`عنوان المرحلة ${st.stageOrder}`}
-                        value={st.stageTitle}
-                        onChange={e => handleStageChange(idx, 'stageTitle', e.target.value)}
-                        className="flex-1 bg-obsidian-surface border border-gray-700 focus:border-lord-gold rounded-xl px-3 py-1.5 text-xs text-white font-bold"
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveStage(idx)}
-                      disabled={stages.length <= 1}
-                      className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30"
-                      title="حذف المرحلة"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="توجيهات التنفيذ للموظف (مثال: تحليل شارت BTC ونسبة المخاطرة)..."
-                      value={st.instructions || ''}
-                      onChange={e => handleStageChange(idx, 'instructions', e.target.value)}
-                      className="w-full bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-1.5 text-[11px] text-gray-300 placeholder-gray-500 focus:border-lord-gold"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2 bg-obsidian-card rounded-xl border border-gray-800/80">
-                    <div className="sm:col-span-1">
-                      <label className="block text-[10px] text-gray-400 mb-0.5">نوع المرفق المطلوب:</label>
-                      <select
-                        value={st.requiredInputs?.[0]?.expectedType || 'IMAGE'}
-                        onChange={e => handleRequiredInputChange(idx, 'expectedType', e.target.value)}
-                        className="w-full bg-obsidian-surface border border-gray-700 rounded-lg px-2 py-1 text-[11px] text-white"
-                      >
-                        <option value="IMAGE">📸 صورة / لقطة شاشة شارت</option>
-                        <option value="VIDEO">🎬 فيديو مونتاج / ريلز</option>
-                        <option value="URL">🔗 رابط منشور رسمي / URL</option>
-                        <option value="DOCUMENT">📄 مستند وثائقي / PDF</option>
-                        <option value="CODE_SNIPPET">💻 كود برمجي / سكريبت</option>
-                        <option value="VOICE_NOTE">🎙️ تسجيل صوتي مباشر</option>
-                        <option value="TEXT">✍️ تقرير نصي وشرح</option>
-                        <option value="ANY_FILE">📁 أي ملف أو مرفق</option>
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-1">
-                      <label className="block text-[10px] text-gray-400 mb-0.5">اسم المرفق:</label>
-                      <input
-                        type="text"
-                        value={st.requiredInputs?.[0]?.fieldLabel || ''}
-                        onChange={e => handleRequiredInputChange(idx, 'fieldLabel', e.target.value)}
-                        placeholder="مثال: لقطة الشارت الفني"
-                        className="w-full bg-obsidian-surface border border-gray-700 rounded-lg px-2 py-1 text-[11px] text-white"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-1 flex items-end pb-1">
-                      <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-300">
-                        <input
-                          type="checkbox"
-                          checked={st.requiredInputs?.[0]?.isMandatory !== false}
-                          onChange={e => handleRequiredInputChange(idx, 'isMandatory', e.target.checked)}
-                          className="rounded text-lord-gold"
-                        />
-                        <span>إلزامي (لا يفتح التالي بدونه)</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddStage}
-              className="w-full rounded-xl border border-dashed border-gray-700 hover:border-lord-gold hover:text-lord-gold flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ إضافة مرحلة جديدة إلى مسار المهمة</span>
-            </Button>
-          </div>
+          <TaskStagesBuilderSection
+            stages={stages}
+            onApplyTemplate={handleApplyStageTemplate}
+            onAddStage={handleAddStage}
+            onRemoveStage={handleRemoveStage}
+            onStageChange={handleStageChange}
+            onRequiredInputChange={handleRequiredInputChange}
+          />
 
           {/* Budget Requirement */}
           <div className="p-4 bg-obsidian-card rounded-2xl border border-obsidian-border space-y-3">

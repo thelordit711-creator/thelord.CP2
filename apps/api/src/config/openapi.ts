@@ -20,6 +20,7 @@ export const openApiSpec = {
     { name: 'Tasks', description: 'Tasks, Stages Review, Bounties & Budget Settlement' },
     { name: 'Finance', description: 'General Vault, Financial Requests & Payroll Tranches' },
     { name: 'Treasury', description: 'Isolated Payout Execution, Sub-Vaults & BEP20 Verification' },
+    { name: 'Upload', description: 'Magic-Bytes Validated Uploads & Private S3/R2 Presigned URLs' },
     { name: 'Chat', description: 'Channels & Direct Messages' },
     { name: 'Meetings', description: 'WebRTC Meeting Rooms & AI Task Conversion' },
     { name: 'AI', description: 'TheLord Gemini 2.5 Assistant, WBS & Cashflow Forecast' }
@@ -55,9 +56,58 @@ export const openApiSpec = {
     '/treasury/orders/{id}/disbursed': {
       patch: { tags: ['Treasury'], summary: 'Execute payout disbursement inside MongoDB transaction' }
     },
+    '/upload': {
+      post: { tags: ['Upload'], summary: 'Inspect magic bytes and store file securely (S3/R2 or sandbox)' }
+    },
+    '/upload/presigned-url': {
+      get: { tags: ['Upload'], summary: 'Generate short-lived presigned access URL for private receipts' }
+    },
+    '/users': {
+      get: { tags: ['Users'], summary: 'List workspace directory users' }
+    },
+    '/chat/channels': {
+      get: { tags: ['Chat'], summary: 'List user chat channels' },
+      post: { tags: ['Chat'], summary: 'Create team chat channel' }
+    },
+    '/meetings': {
+      get: { tags: ['Meetings'], summary: 'List active or recent WebRTC meetings' }
+    },
     '/ai/cashflow-forecast': {
       get: { tags: ['AI'], summary: 'Generate AI liquidity forecast' }
     }
   }
 } as const;
+
+/**
+ * Interactive Swagger UI HTML page powered by the runtime `/api/docs.json` manifest.
+ */
+export function getSwaggerUiHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE LORD ERP API — Swagger Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    body { margin: 0; background: #0a0b10; color: #f8fafc; }
+    .swagger-ui .topbar { background: #10131b; border-bottom: 1px solid rgba(212,175,55,0.28); }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    window.onload = function () {
+      window.ui = SwaggerUIBundle({
+        url: '/api/docs.json',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        persistAuthorization: true
+      });
+    };
+  </script>
+</body>
+</html>`;
+}
 

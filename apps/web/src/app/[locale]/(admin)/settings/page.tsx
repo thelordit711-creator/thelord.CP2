@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useGetSystemSettingsQuery, useUpdateSystemSettingsMutation } from '../../../../store/api/usersApi';
 import { Button } from '../../../../components/ui/Button';
+import { SettingsSkeleton } from '../../../../components/ui/SkeletonLoaders';
 import { toast } from 'sonner';
 
 export default function AdminSettingsPage() {
@@ -63,12 +64,7 @@ export default function AdminSettingsPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-12 text-lord-gold">
-        <span className="w-8 h-8 rounded-full border-2 border-lord-gold border-t-transparent animate-spin ml-3" />
-        <span>جاري تحميل إعدادات المنظومة...</span>
-      </div>
-    );
+    return <SettingsSkeleton />;
   }
 
   return (

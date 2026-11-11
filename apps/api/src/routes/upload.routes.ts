@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { verifyKindeJWT } from '../middlewares/verifyKindeJWT';
+import { validateBody, validateQuery } from '../middlewares/validateRequest';
+import { presignedUrlQuerySchema, uploadMetadataSchema } from '../schemas/api.schemas';
 import { StorageService, FileCategory } from '../services/storage.service';
 import { MediaFileType } from '@lord/shared-types';
 
@@ -25,14 +27,18 @@ function detectFileType(mimetype: string): MediaFileType {
   return 'DOCUMENT';
 }
 
-router.post('/', upload.single('file'), async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ success: false, error: 'الملف مطلوب لعملية الرفع' });
-      return;
-    }
+router.post(
+  '/',
+  upload.single('file'),
+  validateBody(uploadMetadataSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ success: false, error: 'الملف مطلوب لعملية الرفع' });
+        return;
+      }
 
-    const category = (req.body.category as FileCategory) || 'general';
+      const category = (req.body.category as FileCategory) || 'general';
     const originalName = req.file.originalname;
     const declaredMime = req.file.mimetype;
 
@@ -80,14 +86,9 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
 });
 
 // Presigned URL generation for sensitive private attachments (e.g. payout receipts)
-router.get('/presigned-url', async (req: Request, res: Response): Promise<void> => {
+router.get('/presigned-url', validateQuery(presignedUrlQuerySchema), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { key } = req.query;
-    if (!key || typeof key !== 'string') {
-      res.status(400).json({ success: false, error: 'File key is required' });
-      return;
-    }
-
+    const key = String(req.query.key);
     const presignedUrl = await StorageService.getPresignedUrl(key);
     res.json({ success: true, presignedUrl });
   } catch (error) {

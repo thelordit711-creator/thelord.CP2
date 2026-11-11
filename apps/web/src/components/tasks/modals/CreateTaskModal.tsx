@@ -9,12 +9,11 @@ import {
   X,
   Sparkles,
   Repeat,
-  UserCheck,
-  CheckCircle,
-  Coins,
-  Trash2,
-  Plus
+  Coins
 } from 'lucide-react';
+import { TaskAssigneeSection } from './shared/TaskAssigneeSection';
+import { TaskStagesBuilderSection } from './shared/TaskStagesBuilderSection';
+import { STAGE_TEMPLATE_PRESETS, StageTemplateKey } from './shared/taskStageTemplates';
 import { lordToast } from '../../../lib/lordToast';
 import { useCreateOrProposeTaskMutation } from '../../../store/api/tasksApi';
 import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
@@ -150,84 +149,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     }));
   };
 
-  const handleApplyStageTemplate = (type: string) => {
-    if (type === 'TRADING') {
-      setStages([
-        {
-          stageOrder: 1,
-          stageTitle: 'تحضير التحليل الفني ولقطة الشارت',
-          instructions: 'تحديد مستويات الدخول والوقف بدقة عالية ونسبة مخاطرة 1:3',
-          requiredInputs: [{ fieldLabel: 'لقطة شاشة الشارت الفني', expectedType: 'IMAGE', isMandatory: true }]
-        },
-        {
-          stageOrder: 2,
-          stageTitle: 'إنتاج البوستر الإعلاني والمونتاج',
-          instructions: 'تصميم البوستر الملكي أو فيديو ريلز متوافق مع هوية The Lord',
-          requiredInputs: [{ fieldLabel: 'ملف التصميم النهائي أو الفيديو', expectedType: 'IMAGE', isMandatory: true }]
-        },
-        {
-          stageOrder: 3,
-          stageTitle: 'النشر والتفاعل الرسمي وإحصائيات المشاهدات',
-          instructions: 'إرفاق رابط المنشور وتقرير الوصول الأولي',
-          requiredInputs: [{ fieldLabel: 'رابط المنشور الرسمي', expectedType: 'URL', isMandatory: true }]
-        }
-      ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب مراحل صفقات VIP 📈');
-    } else if (type === 'MEDIA') {
-      setStages([
-        {
-          stageOrder: 1,
-          stageTitle: 'تجهيز النص والسيناريو الإعلاني',
-          instructions: 'صياغة هوك قوي ومحتوى جذاب متوافق مع هوية The Lord',
-          requiredInputs: [{ fieldLabel: 'ملف أو نص السيناريو', expectedType: 'TEXT', isMandatory: true }]
-        },
-        {
-          stageOrder: 2,
-          stageTitle: 'المونتاج والتصدير النهائي 1080p',
-          instructions: 'مونتاج الفيديو مع المؤثرات الصوتية وشعار The Lord',
-          requiredInputs: [{ fieldLabel: 'الفيديو النهائي المُمنتج', expectedType: 'VIDEO', isMandatory: true }]
-        },
-        {
-          stageOrder: 3,
-          stageTitle: 'النشر والترويج ورصد التفاعل',
-          instructions: 'رفع الفيديو على القناة أو المنصة ومتابعة أول ساعة تفاعل',
-          requiredInputs: [{ fieldLabel: 'رابط الفيديو المنشور', expectedType: 'URL', isMandatory: true }]
-        }
-      ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب مراحل المونتاج والميديا 🎬');
-    } else if (type === 'DEV') {
-      setStages([
-        {
-          stageOrder: 1,
-          stageTitle: 'دراسة المتطلبات وربط الـ API',
-          instructions: 'فحص التوثيق وتجربة الاتصال ونقاط النهاية (Endpoints)',
-          requiredInputs: [{ fieldLabel: 'مستند المواصفات الفنية أو التقرير', expectedType: 'DOCUMENT', isMandatory: true }]
-        },
-        {
-          stageOrder: 2,
-          stageTitle: 'كتابة الكود البرمجي واختبار البوت',
-          instructions: 'تطوير الوظيفة واختبار الأداء والتعامل مع أخطاء الشبكة',
-          requiredInputs: [{ fieldLabel: 'الكود البرمجي المكتوب', expectedType: 'CODE_SNIPPET', isMandatory: true }]
-        },
-        {
-          stageOrder: 3,
-          stageTitle: 'النشر على السيرفر ومراقبة الـ Logs',
-          instructions: 'رفع الكود على السيرفر الحي والتأكد من استقرار التشغيل',
-          requiredInputs: [{ fieldLabel: 'رابط السيرفر أو تقرير النشر', expectedType: 'URL', isMandatory: true }]
-        }
-      ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب مراحل التطوير والبرمجة 💻');
-    } else if (type === 'SINGLE') {
-      setStages([
-        {
-          stageOrder: 1,
-          stageTitle: 'تنفيذ المهمة وتسليم المخرجات كاملة',
-          instructions: 'قم بإنجاز متطلبات المهمة ورفع الإثبات النهائي للاعتماد المباشر',
-          requiredInputs: [{ fieldLabel: 'ملف الإنجاز أو الرابط', expectedType: 'ANY_FILE', isMandatory: true }]
-        }
-      ]);
-      lordToast.gold('قالب المراحل', 'تم تطبيق قالب المرحلة المباشرة ⚡');
-    }
+  const handleApplyStageTemplate = (type: StageTemplateKey) => {
+    const preset = STAGE_TEMPLATE_PRESETS[type];
+    if (!preset) return;
+    setStages(preset.stages.map((st) => ({ ...st, requiredInputs: st.requiredInputs.map((i) => ({ ...i })) })));
+    lordToast.gold('قالب المراحل', preset.toastMessage);
   };
 
   const handleApplyDailyRoutine = (routineType: string) => {
@@ -727,129 +653,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </div>
 
           {/* Assignment */}
-          <div className="p-4 bg-obsidian-card rounded-2xl border border-obsidian-border space-y-3">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-              <span className="text-xs font-bold text-white flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-lord-gold" />
-                <span>إسناد المهمة (المكلف بالتنفيذ والتسليم):</span>
-              </span>
-
-              <div className="flex items-center gap-1 bg-obsidian-primary p-0.5 rounded-xl border border-gray-800 text-[11px]">
-                {isProposal && (
-                  <button
-                    type="button"
-                    onClick={() => setAssignmentMode('SELF')}
-                    className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'SELF'
-                        ? 'bg-lord-gold text-black font-black shadow-sm'
-                        : 'text-gray-400 hover:text-white'
-                      }`}
-                  >
-                    تنفيذ ذاتي 🙋‍♂️
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setAssignmentMode('EMPLOYEES')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'EMPLOYEES'
-                      ? 'bg-lord-gold text-black font-black shadow-sm'
-                      : 'text-gray-400 hover:text-white'
-                    }`}
-                >
-                  {isProposal ? 'تكليف زميل بالكادر 👥' : 'موظف أو أكثر 👤'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAssignmentMode('DEPARTMENT')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${assignmentMode === 'DEPARTMENT'
-                      ? 'bg-lord-gold text-black font-black shadow-sm'
-                      : 'text-gray-400 hover:text-white'
-                    }`}
-                >
-                  قسم كامل 🏢
-                </button>
-              </div>
-            </div>
-
-            {assignmentMode === 'SELF' ? (
-              <div className="p-3.5 rounded-xl bg-obsidian-primary/80 border border-lord-gold/30 space-y-2">
-                <div className="flex items-center gap-2 text-lord-gold font-bold text-xs">
-                  <CheckCircle className="w-4 h-4 text-lord-gold" />
-                  <span>مبادرة وتنفيذ ذاتي: ستقوم بتنفيذ هذه المهمة ومراحلها بنفسك 🙋‍♂️</span>
-                </div>
-                <p className="text-[11px] text-gray-400 leading-relaxed">
-                  سيتم تسجيلك كمنفذ رئيسي للمهمة، وفور مراجعة واعتماد الإدارة للمقترح، ستظهر مباشرة في قائمة مهامك اليومية النشطة لبدء رفع المخرجات والمراحل.
-                </p>
-                {currentUser && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-lord-gold/10 border border-lord-gold/20 text-xs text-white">
-                    <span className="text-gray-400">المنفذ المقترح:</span>
-                    <strong className="text-lord-gold">{currentUser.fullName}</strong>
-                    <span className="text-[10px] text-gray-400 font-mono">({currentUser.primaryDepartment || 'كادر TheLord'})</span>
-                  </div>
-                )}
-              </div>
-            ) : assignmentMode === 'EMPLOYEES' ? (
-              <div className="space-y-2">
-                <p className="text-[11px] text-gray-400">
-                  اختر شخصاً واحداً أو شخصين أو عدة أشخاص للعمل معاً على المهمة:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
-                  {employees.map((emp: any) => {
-                    const isSelected = selectedAssignees.includes(emp._id);
-                    return (
-                      <div
-                        key={emp._id}
-                        onClick={() => handleToggleAssignee(emp._id)}
-                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isSelected
-                            ? 'bg-lord-gold/15 border-lord-gold text-white font-bold'
-                            : 'bg-obsidian-primary border-gray-800 text-gray-300 hover:bg-gray-800'
-                          }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="w-6 h-6 rounded-lg bg-obsidian-card border border-gray-700 flex items-center justify-center text-[10px] text-lord-gold">
-                            {emp.fullName?.charAt(0) || '👤'}
-                          </span>
-                          <div className="truncate text-right">
-                            <span className="text-xs truncate block">{emp.fullName}</span>
-                            <span className="text-[9px] text-gray-400 block">{emp.primaryDepartment} - {emp.jobTitles?.[0] || emp.accessRole}</span>
-                          </div>
-                        </div>
-                        <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] ${isSelected ? 'bg-lord-gold text-obsidian-primary border-lord-gold' : 'border-gray-600'
-                          }`}>
-                          {isSelected ? '✓' : ''}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {selectedAssignees.length > 0 && (
-                  <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    تم تحديد ({selectedAssignees.length}) موظف، سيصلهم إشعار فوري بالمهمة.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-gray-300">اختر القسم المستهدف:</label>
-                <select
-                  value={targetDepartment}
-                  onChange={e => setTargetDepartment(e.target.value)}
-                  className="w-full bg-obsidian-primary border border-gray-700 rounded-xl px-3 py-2 text-xs text-white"
-                >
-                  <option value="TRADING">📈 قسم التداول والتحليلات الفنية (TRADING)</option>
-                  <option value="MARKETING">🎯 قسم التسويق والحملات الإعلانية (MARKETING)</option>
-                  <option value="CONTENT_MEDIA">🎬 قسم المونتاج والمحتوى والتصميم (CONTENT_MEDIA)</option>
-                  <option value="DEVELOPMENT">💻 قسم البرمجة وتطوير البوتات (DEVELOPMENT)</option>
-                  <option value="SUPPORT">🛡️ قسم خدمة العملاء والدعم الفني (SUPPORT)</option>
-                  <option value="ALL_DEPARTMENTS">🌐 كافة أقسام وكوادر المنظومة (ALL)</option>
-                </select>
-                <p className="text-[11px] text-gray-400 font-semibold">
-                  🏢 سيتم إدراج المهمة تلقائياً في جداول عمل جميع أعضاء هذا القسم.
-                </p>
-              </div>
-            )}
-          </div>
+          <TaskAssigneeSection
+            assignmentMode={assignmentMode}
+            onChangeMode={setAssignmentMode}
+            allowSelfMode={isProposal}
+            isProposal={isProposal}
+            currentUser={currentUser}
+            employees={employees}
+            selectedAssignees={selectedAssignees}
+            onToggleAssignee={handleToggleAssignee}
+            targetDepartment={targetDepartment}
+            onChangeDepartment={setTargetDepartment}
+          />
 
           {/* Daily Recurring */}
           <div className="p-4 bg-obsidian-card rounded-2xl border border-obsidian-border space-y-2.5">
@@ -940,149 +755,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </div>
 
           {/* Dynamic Stages Builder */}
-          <div className="p-4 bg-obsidian-card rounded-2xl border border-obsidian-border space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-3">
-              <div>
-                <span className="text-xs font-bold text-lord-gold flex items-center gap-1.5">
-                  <Layers className="w-4 h-4" />
-                  مراحل التنفيذ المتسلسلة والمرفقات المطلوبة ({stages.length} مراحل):
-                </span>
-                <p className="text-[11px] text-gray-400">
-                  يمكنك التعديل على المراحل أو إضافة مراحل جديدة وتحديد نوع المرفق الإلزامي بدقة.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => handleApplyStageTemplate('TRADING')}
-                  className="text-[10px] bg-obsidian-surface hover:bg-gray-800 text-lord-gold px-2 py-1 rounded-lg border border-gray-800"
-                >
-                  صفقة VIP
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyStageTemplate('MEDIA')}
-                  className="text-[10px] bg-obsidian-surface hover:bg-gray-800 text-blue-400 px-2 py-1 rounded-lg border border-gray-800"
-                >
-                  مونتاج فيديو
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyStageTemplate('DEV')}
-                  className="text-[10px] bg-obsidian-surface hover:bg-gray-800 text-emerald-400 px-2 py-1 rounded-lg border border-gray-800"
-                >
-                  برمجة بوت
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyStageTemplate('SINGLE')}
-                  className="text-[10px] bg-obsidian-surface hover:bg-gray-800 text-gray-300 px-2 py-1 rounded-lg border border-gray-800"
-                >
-                  مرحلة واحدة
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {stages.map((st, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 bg-obsidian-primary rounded-2xl border border-gray-800 space-y-3 text-xs shadow-md"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className="w-6 h-6 rounded-full bg-lord-gold/20 text-lord-gold border border-lord-gold/40 flex items-center justify-center font-bold text-xs shrink-0">
-                        {st.stageOrder}
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        placeholder={`عنوان المرحلة ${st.stageOrder}`}
-                        value={st.stageTitle}
-                        onChange={e => handleStageChange(idx, 'stageTitle', e.target.value)}
-                        className="flex-1 bg-obsidian-surface border border-gray-700 focus:border-lord-gold rounded-xl px-3 py-1.5 text-xs text-white font-bold"
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveStage(idx)}
-                      disabled={stages.length <= 1}
-                      className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30"
-                      title="حذف المرحلة"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="توجيهات التنفيذ للموظف (مثال: تحليل شارت BTC ونسبة المخاطرة)..."
-                      value={st.instructions || ''}
-                      onChange={e => handleStageChange(idx, 'instructions', e.target.value)}
-                      className="w-full bg-obsidian-surface border border-gray-800 rounded-xl px-3 py-1.5 text-[11px] text-gray-300 placeholder-gray-500 focus:border-lord-gold"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2 bg-obsidian-card rounded-xl border border-gray-800/80">
-                    <div className="sm:col-span-1">
-                      <label className="block text-[10px] text-gray-400 mb-0.5">نوع المرفق المطلوب:</label>
-                      <select
-                        value={st.requiredInputs?.[0]?.expectedType || 'IMAGE'}
-                        onChange={e => handleRequiredInputChange(idx, 'expectedType', e.target.value)}
-                        className="w-full bg-obsidian-surface border border-gray-700 rounded-lg px-2 py-1 text-[11px] text-white"
-                      >
-                        <option value="IMAGE">📸 صورة / لقطة شاشة شارت</option>
-                        <option value="VIDEO">🎬 فيديو مونتاج / ريلز</option>
-                        <option value="URL">🔗 رابط منشور رسمي / URL</option>
-                        <option value="DOCUMENT">📄 مستند وثائقي / PDF</option>
-                        <option value="CODE_SNIPPET">💻 كود برمجي / سكريبت</option>
-                        <option value="VOICE_NOTE">🎙️ تسجيل صوتي مباشر</option>
-                        <option value="TEXT">✍️ تقرير نصي وشرح</option>
-                        <option value="ANY_FILE">📁 أي ملف أو مرفق</option>
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-1">
-                      <label className="block text-[10px] text-gray-400 mb-0.5">اسم المرفق:</label>
-                      <input
-                        type="text"
-                        value={st.requiredInputs?.[0]?.fieldLabel || ''}
-                        onChange={e => handleRequiredInputChange(idx, 'fieldLabel', e.target.value)}
-                        placeholder="مثال: لقطة الشارت الفني"
-                        className="w-full bg-obsidian-surface border border-gray-700 rounded-lg px-2 py-1 text-[11px] text-white"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-1 flex items-end pb-1">
-                      <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-300">
-                        <input
-                          type="checkbox"
-                          checked={st.requiredInputs?.[0]?.isMandatory !== false}
-                          onChange={e => handleRequiredInputChange(idx, 'isMandatory', e.target.checked)}
-                          className="rounded text-lord-gold"
-                        />
-                        <span>إلزامي (لا يفتح التالي بدونه)</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddStage}
-              className="w-full rounded-xl border border-dashed border-gray-700 hover:border-lord-gold hover:text-lord-gold flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ إضافة مرحلة جديدة إلى مسار المهمة</span>
-            </Button>
-          </div>
+          <TaskStagesBuilderSection
+            stages={stages}
+            onApplyTemplate={handleApplyStageTemplate}
+            onAddStage={handleAddStage}
+            onRemoveStage={handleRemoveStage}
+            onStageChange={handleStageChange}
+            onRequiredInputChange={handleRequiredInputChange}
+          />
 
           {/* Budget Requirement */}
           <div className="p-4 bg-obsidian-card rounded-2xl border border-obsidian-border space-y-3">

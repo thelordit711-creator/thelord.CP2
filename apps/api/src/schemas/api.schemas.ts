@@ -372,3 +372,26 @@ export const aiSummarizeMeetingSchema = z
     meetingTitle: z.string().trim().optional()
   })
   .passthrough();
+
+// ==========================================
+// UPLOAD SCHEMAS
+// ==========================================
+
+export const uploadMetadataSchema = z
+  .object({
+    category: z.enum(['receipts', 'avatars', 'tasks', 'chat', 'general']).optional().default('general'),
+    fileType: z.enum(['IMAGE', 'VOICE_NOTE', 'VIDEO', 'ARCHIVE', 'DOCUMENT']).optional(),
+    durationInSeconds: z.coerce.number().min(0).max(86400).optional()
+  })
+  .passthrough();
+
+export const presignedUrlQuerySchema = z.object({
+  key: z
+    .string({ message: 'مفتاح الملف مطلوب' })
+    .trim()
+    .min(3, 'مفتاح الملف غير صالح')
+    .max(500)
+    .refine((val) => !val.includes('..') && !val.startsWith('/'), {
+      message: 'مفتاح الملف يحتوي على مسار غير مسموح به'
+    })
+});

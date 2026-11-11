@@ -15,7 +15,6 @@ import {
   Hand,
   CheckCircle,
   FileText,
-  Loader2,
   RefreshCw,
   Radio,
   Save,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
+import { ParticipantsSkeleton } from '../../../components/ui/SkeletonLoaders';
 import { VideoPlayerWithNotes } from '../../../components/media/VideoPlayerWithNotes';
 import { useSocket } from '../../../providers/SocketProvider';
 import {
@@ -823,10 +823,7 @@ export default function MeetingPage() {
               </div>
 
               {isLoadingMeeting ? (
-                <div className="p-4 bg-obsidian-card rounded-2xl flex items-center justify-center text-xs text-gray-500">
-                  <Loader2 className="w-4 h-4 animate-spin ml-2 text-lord-gold" />
-                  جاري جلب المشاركين من قاعدة البيانات...
-                </div>
+                <ParticipantsSkeleton />
               ) : participants.length === 0 ? (
                 <div className="p-3 bg-obsidian-card rounded-2xl text-center text-xs text-gray-500 border border-gray-800">
                   أنت أول المنضمين للغرفة 👑

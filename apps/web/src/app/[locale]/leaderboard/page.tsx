@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useGetLeaderboardQuery } from '../../../store/api/usersApi';
 import { Badge } from '../../../components/ui/Badge';
+import { LeaderboardSkeleton } from '../../../components/ui/SkeletonLoaders';
 
 export default function LeaderboardPage() {
   const { data: leaderboardRes, isLoading } = useGetLeaderboardQuery();
@@ -27,12 +28,7 @@ export default function LeaderboardPage() {
   const top3 = leaderboard[2];
 
   if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-12 text-lord-gold">
-        <span className="w-8 h-8 rounded-full border-2 border-lord-gold border-t-transparent animate-spin ml-3" />
-        <span>جاري احتساب وترتيب نقاط أداء الكادر وفق معادلة KPI...</span>
-      </div>
-    );
+    return <LeaderboardSkeleton />;
   }
 
   return (

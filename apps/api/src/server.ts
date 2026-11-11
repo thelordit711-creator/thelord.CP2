@@ -15,7 +15,7 @@ dotenv.config();
 
 import { validateEnvironment } from './config/envValidator';
 import { isOriginAllowed } from './config/cors';
-import { openApiSpec } from './config/openapi';
+import { getSwaggerUiHtml, openApiSpec } from './config/openapi';
 import { csrfGuard } from './middlewares/csrfGuard';
 import { logger } from './utils/logger';
 
@@ -162,9 +162,17 @@ app.get('/ready', (_req, res) => {
   });
 });
 
-// OpenAPI 3.0 JSON manifest
+// OpenAPI 3.0 JSON manifest & Interactive Swagger UI
 app.get('/api/docs.json', (_req, res) => {
   res.json(openApiSpec);
+});
+
+app.get('/api/docs', (_req, res) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://unpkg.com;"
+  );
+  res.type('html').send(getSwaggerUiHtml());
 });
 
 // API Routes

@@ -22,6 +22,7 @@ import { useGetMeQuery, useUpdateProfileMutation } from '../../../store/api/user
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
 import { TwoFactorAuthCard } from '../../../components/profile/TwoFactorAuthCard';
+import { ProfileSkeleton } from '../../../components/ui/SkeletonLoaders';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
@@ -77,12 +78,7 @@ export default function ProfilePage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-12 text-lord-gold">
-        <span className="w-8 h-8 rounded-full border-2 border-lord-gold border-t-transparent animate-spin ml-3" />
-        <span>جاري تحميل بيانات الملف الشخصي...</span>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   return (
