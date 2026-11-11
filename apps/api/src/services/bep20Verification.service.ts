@@ -2,19 +2,22 @@ import { logger } from '../utils/logger';
 
 /**
  * On-Chain BSC BEP20 USDT Verification Service
- * Validates transaction receipts directly from Binance Smart Chain RPC.
+ * Validates transaction receipts and ERC-20/BEP-20 Transfer event logs directly from Binance Smart Chain RPC.
  */
 
 // Official BSC USDT Contract Address (BUSD-T on BSC)
 export const BSC_USDT_CONTRACT = '0x55d398326f99059fF775485246999027B3197955'.toLowerCase();
 
-// ERC-20 / BEP-20 Transfer method signature: transfer(address,uint256)
-const TRANSFER_METHOD_ID = '0xa9059cbb';
+// Keccak-256 hash of Transfer(address,address,uint256)
+export const TRANSFER_EVENT_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+
+// Minimum block confirmations required for finality
+export const MIN_BSC_CONFIRMATIONS = 3;
 
 export interface IBscVerificationResult {
   isValid: boolean;
   isConfirmed: boolean;
-  status: 'CONFIRMED' | 'FAILED' | 'PENDING' | 'INVALID_DETAILS' | 'RPC_ERROR';
+  status: 'CONFIRMED' | 'PENDING_CHAIN_CONFIRMATION' | 'FAILED' | 'PENDING' | 'INVALID_DETAILS' | 'RPC_ERROR';
   txHash: string;
   sender?: string;
   recipient?: string;
@@ -65,7 +68,130 @@ export class Bep20VerificationService {
   }
 
   /**
-   * Verify an on-chain BEP-20 USDT transaction
+   * Pure deterministic evaluator for BSC Transaction + Receipt + Logs.
+   * Ensures only genuine official BEP-20 USDT Transfer events pass validation.
+   */
+  public static evaluateTransactionReceipt(params: {
+    txHash: string;
+    tx: any;
+    receipt: any;
+    currentBlock: number;
+    expectedRecipient?: string;
+    expectedAmount?: number;
+  }): IBscVerificationResult {
+    const { txHash, tx, receipt, currentBlock, expectedRecipient, expectedAmount } = params;
+
+    // 1. Receipt status check: '0x1' = Success, '0x0' = Reverted
+    if (receipt.status !== '0x1') {
+      return {
+        isValid: false,
+        isConfirmed: false,
+        status: 'FAILED',
+        txHash,
+        errorMessage: 'المعاملة فشلت على شبكة البلوكشين (Reverted).'
+      };
+    }
+
+    const txBlock = parseInt(receipt.blockNumber || '0x0', 16);
+    const confirmations = Math.max(0, currentBlock - txBlock);
+    const isConfirmed = confirmations >= MIN_BSC_CONFIRMATIONS;
+
+    // 2. Parse genuine BEP-20 USDT Transfer logs from receipt.logs
+    const logs: any[] = Array.isArray(receipt.logs) ? receipt.logs : [];
+    const usdtTransferLogs = logs.filter(
+      (log) =>
+        typeof log.address === 'string' &&
+        log.address.toLowerCase() === BSC_USDT_CONTRACT &&
+        Array.isArray(log.topics) &&
+        log.topics.length >= 3 &&
+        typeof log.topics[0] === 'string' &&
+        log.topics[0].toLowerCase() === TRANSFER_EVENT_TOPIC
+    );
+
+    if (usdtTransferLogs.length === 0) {
+      const targetContract = (tx?.to || 'unknown').toLowerCase();
+      return {
+        isValid: false,
+        isConfirmed,
+        status: 'INVALID_DETAILS',
+        txHash,
+        contractAddress: targetContract,
+        blockNumber: txBlock,
+        confirmations,
+        errorMessage: `رفض أمني: هذه المعاملة لا تحتوي على حدث Transfer حقيقي لعقد USDT الرسمي على BSC (${BSC_USDT_CONTRACT}). العقد المستهدف كان: ${targetContract}`
+      };
+    }
+
+    // Extract transfers from USDT logs
+    const parsedTransfers = usdtTransferLogs.map((log) => {
+      const fromTopic = log.topics[1] || '';
+      const toTopic = log.topics[2] || '';
+      const sender = `0x${fromTopic.slice(-40)}`.toLowerCase();
+      const recipient = `0x${toTopic.slice(-40)}`.toLowerCase();
+      const rawAmountBigInt = BigInt(log.data && log.data !== '0x' ? log.data : '0x0');
+      // USDT on BSC uses 18 decimals; convert safely to 4 decimal places using BigInt integer division
+      const amountScaled = Number(rawAmountBigInt / BigInt(1e14)) / 10000;
+      return { sender, recipient, amount: amountScaled };
+    });
+
+    // Select matching transfer log if expectedRecipient is given, otherwise take the primary transfer
+    let matchedTransfer = parsedTransfers[0];
+    if (expectedRecipient) {
+      const cleanExpected = expectedRecipient.trim().toLowerCase();
+      const matchingLog = parsedTransfers.find((t) => t.recipient === cleanExpected);
+      if (!matchingLog) {
+        return {
+          isValid: false,
+          isConfirmed,
+          status: 'INVALID_DETAILS',
+          txHash,
+          sender: matchedTransfer.sender,
+          recipient: matchedTransfer.recipient,
+          amount: matchedTransfer.amount,
+          contractAddress: BSC_USDT_CONTRACT,
+          blockNumber: txBlock,
+          confirmations,
+          errorMessage: `عنوان المستلم في سجلات التحويل (${matchedTransfer.recipient}) لا يطابق عنوان محفظة الموظف (${cleanExpected})`
+        };
+      }
+      matchedTransfer = matchingLog;
+    }
+
+    // 3. Validate expected amount (with safe 0.05 USDT tolerance for fee/precision)
+    if (expectedAmount !== undefined && expectedAmount > 0) {
+      if (Math.abs(matchedTransfer.amount - expectedAmount) > 0.05) {
+        return {
+          isValid: false,
+          isConfirmed,
+          status: 'INVALID_DETAILS',
+          txHash,
+          sender: matchedTransfer.sender,
+          recipient: matchedTransfer.recipient,
+          amount: matchedTransfer.amount,
+          contractAddress: BSC_USDT_CONTRACT,
+          blockNumber: txBlock,
+          confirmations,
+          errorMessage: `المبلغ الفعلي المحوّل (${matchedTransfer.amount} USDT) لا يطابق المبلغ المطلوب (${expectedAmount} USDT)`
+        };
+      }
+    }
+
+    return {
+      isValid: true,
+      isConfirmed,
+      status: isConfirmed ? 'CONFIRMED' : 'PENDING_CHAIN_CONFIRMATION',
+      txHash,
+      sender: matchedTransfer.sender,
+      recipient: matchedTransfer.recipient,
+      amount: matchedTransfer.amount,
+      contractAddress: BSC_USDT_CONTRACT,
+      blockNumber: txBlock,
+      confirmations
+    };
+  }
+
+  /**
+   * Verify an on-chain BEP-20 USDT transaction via live BSC RPC
    */
   public static async verifyTransaction(
     txHash: string,
@@ -84,7 +210,6 @@ export class Bep20VerificationService {
     }
 
     try {
-      // 1. Fetch Transaction Details
       const tx = await this.rpcCall('eth_getTransactionByHash', [cleanHash]);
       if (!tx) {
         return {
@@ -96,7 +221,6 @@ export class Bep20VerificationService {
         };
       }
 
-      // 2. Fetch Transaction Receipt
       const receipt = await this.rpcCall('eth_getTransactionReceipt', [cleanHash]);
       if (!receipt) {
         return {
@@ -108,88 +232,17 @@ export class Bep20VerificationService {
         };
       }
 
-      // Check Status: '0x1' is success, '0x0' is reverted
-      if (receipt.status !== '0x1') {
-        return {
-          isValid: false,
-          isConfirmed: false,
-          status: 'FAILED',
-          txHash: cleanHash,
-          errorMessage: 'المعاملة فشلت على شبكة البلوكشين (Reverted).'
-        };
-      }
-
-      // 3. Check Current Block Number for Confirmations
       const latestBlockHex = await this.rpcCall('eth_blockNumber', []);
-      const currentBlock = parseInt(latestBlockHex, 16);
-      const txBlock = parseInt(receipt.blockNumber, 16);
-      const confirmations = Math.max(0, currentBlock - txBlock);
+      const currentBlock = parseInt(latestBlockHex || '0x0', 16);
 
-      // 4. Parse Transfer Input Data (ERC-20 transfer(address,uint256))
-      const input = tx.input;
-      let actualRecipient = '';
-      let actualAmount = 0;
-
-      if (input && input.startsWith(TRANSFER_METHOD_ID) && input.length >= 138) {
-        // Recipient address: next 32 bytes (64 hex characters)
-        const recipientHex = input.slice(34, 74);
-        actualRecipient = `0x${recipientHex}`.toLowerCase();
-
-        // Amount: next 32 bytes, USDT on BSC has 18 decimals
-        const amountHex = input.slice(74, 138);
-        const rawAmount = BigInt(`0x${amountHex}`);
-        actualAmount = Number(rawAmount) / 1e18;
-      }
-
-      // 5. Match target contract with official USDT
-      const contractAddress = (tx.to || '').toLowerCase();
-      const isOfficialUsdt = contractAddress === BSC_USDT_CONTRACT;
-
-      // 6. Validate expected parameters if provided
-      if (expectedRecipient) {
-        const cleanExpected = expectedRecipient.trim().toLowerCase();
-        if (actualRecipient !== cleanExpected) {
-          return {
-            isValid: false,
-            isConfirmed: true,
-            status: 'INVALID_DETAILS',
-            txHash: cleanHash,
-            recipient: actualRecipient,
-            amount: actualAmount,
-            contractAddress,
-            errorMessage: `عنوان المستلم في المعاملة (${actualRecipient}) لا يطابق عنوان محفظة الموظف (${cleanExpected})`
-          };
-        }
-      }
-
-      if (expectedAmount !== undefined && expectedAmount > 0) {
-        // Tolerance margin of 0.01 for rounding/fee differences
-        if (Math.abs(actualAmount - expectedAmount) > 0.05) {
-          return {
-            isValid: false,
-            isConfirmed: true,
-            status: 'INVALID_DETAILS',
-            txHash: cleanHash,
-            recipient: actualRecipient,
-            amount: actualAmount,
-            contractAddress,
-            errorMessage: `المبلغ في المعاملة (${actualAmount} USDT) لا يطابق المبلغ المطلوب صرفه (${expectedAmount} USDT)`
-          };
-        }
-      }
-
-      return {
-        isValid: true,
-        isConfirmed: confirmations >= 3,
-        status: 'CONFIRMED',
+      return this.evaluateTransactionReceipt({
         txHash: cleanHash,
-        sender: tx.from,
-        recipient: actualRecipient,
-        amount: actualAmount,
-        contractAddress,
-        blockNumber: txBlock,
-        confirmations
-      };
+        tx,
+        receipt,
+        currentBlock,
+        expectedRecipient,
+        expectedAmount
+      });
     } catch (err) {
       logger.error('Failed to verify BEP20 TxHash on BSC RPC', err);
       return {
@@ -202,4 +255,3 @@ export class Bep20VerificationService {
     }
   }
 }
-

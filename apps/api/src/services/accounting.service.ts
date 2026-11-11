@@ -10,6 +10,13 @@ import { PayoutCategory, LedgerEntryType } from '@lord/shared-types';
 
 export class AccountingService {
   /**
+   * Safe financial precision rounding (prevents IEEE 754 floating-point drift)
+   */
+  public static roundCurrency(value: number): number {
+    return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+  }
+
+  /**
    * Initializes CompanyVault if not created yet
    */
   public static async getOrCreateVault(session?: mongoose.ClientSession) {
@@ -579,12 +586,13 @@ export class AccountingService {
 
   /**
    * Decide modification request (admin approves or rejects)
+   * Uses immutable cancellation and reversal ledger entries instead of hard deletion.
    */
   public static async decideOrderModification(
     orderId: string,
     decision: 'APPROVED' | 'REJECTED',
     adminDecisionNote: string,
-    _adminId: string
+    adminId: string
   ) {
     const order = await PayoutOrder.findById(orderId);
     if (!order) throw new Error('أمر الصرف غير موجود');
@@ -595,23 +603,23 @@ export class AccountingService {
     order.modificationRequest.status = decision;
     order.modificationRequest.adminDecisionNote = adminDecisionNote;
     order.modificationRequest.decidedAt = new Date();
+    await order.save();
 
-    if (decision === 'APPROVED') {
-      if (order.modificationRequest.requestedAction === 'CANCEL') {
-        if (order.executionStatus === 'WAITING_TREASURY' || order.executionStatus === 'IN_PROGRESS') {
-          await PayoutOrder.findByIdAndDelete(orderId);
-          return { message: 'تم إلغاء وحذف العملية بنجاح بعد موافقة المسؤول' };
-        } else if (order.executionStatus === 'DISBURSED') {
-          const vault = await this.getOrCreateVault();
-          vault.treasuryBalance += order.amount;
-          await vault.save();
-          await PayoutOrder.findByIdAndDelete(orderId);
-          return { message: 'تم إلغاء العملية واسترداد المبلغ لخزينة الصندوق بنجاح' };
-        }
+    if (decision === 'APPROVED' && order.modificationRequest.requestedAction === 'CANCEL') {
+      if (
+        order.executionStatus === 'WAITING_TREASURY' ||
+        order.executionStatus === 'IN_PROGRESS' ||
+        order.executionStatus === 'DISBURSED'
+      ) {
+        return await this.adminDeleteTransaction(
+          orderId,
+          'PAYOUT',
+          adminId,
+          adminDecisionNote || 'إلغاء وعكس أمر الصرف بناءً على طلب تعديل معتمد'
+        );
       }
     }
 
-    await order.save();
     return order;
   }
 
@@ -945,26 +953,29 @@ export class AccountingService {
     if (type === 'PAYOUT') {
       const order = await PayoutOrder.findById(id);
       if (!order) throw new Error('أمر الصرف غير موجود');
+      if (order.executionStatus === 'CANCELLED') {
+        throw new Error('أمر الصرف ملغي ومعكوس مسبقاً ولا يمكن عكس رصيده مرتين');
+      }
 
-      if (order.executionStatus === 'DISBURSED') {
-        vault.treasuryBalance += order.amount;
+      const wasDisbursed = order.executionStatus === 'DISBURSED';
+
+      if (wasDisbursed) {
+        vault.treasuryBalance = this.roundCurrency(vault.treasuryBalance + order.amount);
 
         const seg = (order as any).targetVaultSegment;
         if (seg && vault.segmentedVaults && vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve']) {
-          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].balance += order.amount;
-          vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].totalSpent = Math.max(
-            0,
-            vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'].totalSpent - order.amount
-          );
+          const segment = vault.segmentedVaults[seg as 'salaries' | 'marketing' | 'operationalReserve'];
+          segment.balance = this.roundCurrency(segment.balance + order.amount);
+          segment.totalSpent = Math.max(0, this.roundCurrency(segment.totalSpent - order.amount));
         } else if (vault.segmentedVaults?.salaries && (order.category === 'SALARY' || order.category === 'BONUS' || order.category === 'ADVANCE')) {
-          vault.segmentedVaults.salaries.balance += order.amount;
-          vault.segmentedVaults.salaries.totalSpent = Math.max(0, vault.segmentedVaults.salaries.totalSpent - order.amount);
+          vault.segmentedVaults.salaries.balance = this.roundCurrency(vault.segmentedVaults.salaries.balance + order.amount);
+          vault.segmentedVaults.salaries.totalSpent = Math.max(0, this.roundCurrency(vault.segmentedVaults.salaries.totalSpent - order.amount));
         }
 
         if (vault.totalSpentByCategory && (vault.totalSpentByCategory as any)[order.category.toLowerCase()]) {
           (vault.totalSpentByCategory as any)[order.category.toLowerCase()] = Math.max(
             0,
-            (vault.totalSpentByCategory as any)[order.category.toLowerCase()] - order.amount
+            this.roundCurrency((vault.totalSpentByCategory as any)[order.category.toLowerCase()] - order.amount)
           );
         }
       }
@@ -1006,23 +1017,25 @@ export class AccountingService {
         userName: adminUser?.fullName || 'القائد الأعلى',
         userEmail: adminUser?.email || 'admin@thelordofcrypto.com',
         userRole: 'SUPER_ADMIN',
-        actionType: 'SYSTEM_SECURITY_CONFIG',
-        targetName: `حذف متسلسل لأمر الصرف #${order._id}`,
-        targetType: 'SYSTEM',
+        actionType: 'TRANSACTION_DELETED',
+        targetName: `عكس وإلغاء أمر الصرف #${order._id}`,
+        targetType: 'PAYOUT',
         severity: 'CRITICAL',
         details: {
-          action: 'حذف وإلغاء أمر صرف واسترجاع الرصيد المتسلسل',
+          action: 'إلغاء أمر صرف وإنشاء قيد تسوية عكسي دون حذف السجل التاريخي',
           orderAmount: order.amount,
-          refundedToTreasury: order.executionStatus === 'DISBURSED',
-          reason: reason || 'حذف بقرار إداري من المدير العام'
+          refundedToTreasury: wasDisbursed,
+          reason: reason || 'إلغاء بقرار إداري من المدير العام'
         }
       });
 
-      await PayoutOrder.findByIdAndDelete(id);
+      order.executionStatus = 'CANCELLED';
+      order.summaryForTreasury = `[ملغي بقيد عكسي] ${order.summaryForTreasury} (${reason || 'إلغاء إداري'})`;
+      await order.save();
       await vault.save();
 
       SocketService.emitToAdmins('vault:updated', vault);
-      SocketService.broadcast('payout:deleted', { orderId: id });
+      SocketService.broadcast('payout:cancelled', { orderId: id });
 
       return {
         success: true,

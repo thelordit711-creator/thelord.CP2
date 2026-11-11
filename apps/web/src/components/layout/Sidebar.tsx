@@ -129,7 +129,7 @@ export const Sidebar: React.FC = () => {
       href: `/${locale}/chat`,
       icon: MessageSquare,
       badge: 'لحظي',
-      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE', 'TREASURY']
+      allowedRoles: ['SUPER_ADMIN', 'EMPLOYEE']
     },
     {
       title: 'غرف الاجتماعات وبث الفيديو',

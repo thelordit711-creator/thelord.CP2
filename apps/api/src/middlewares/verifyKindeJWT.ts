@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { User } from '../models/User.model';
 import { IUser } from '@lord/shared-types';
+import { treasuryIsolationGuard } from './treasuryIsolationGuard';
 
 export interface AuthenticatedRequest extends Request {
   user?: IUser;
@@ -76,7 +77,7 @@ export const verifyKindeJWT = async (
               return;
             }
             req.user = (directUser.toObject() as unknown) as IUser;
-            next();
+            treasuryIsolationGuard(req, res, next);
             return;
           }
         }
@@ -123,6 +124,8 @@ export const verifyKindeJWT = async (
             return;
           }
           req.user = (existingUser.toObject() as unknown) as IUser;
+          treasuryIsolationGuard(req, res, next);
+          return;
         }
 
         next();

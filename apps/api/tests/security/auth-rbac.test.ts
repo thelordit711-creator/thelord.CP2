@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { hasPermission, AppPermission, AccessRole } from '@lord/shared-types';
+import { isTreasuryPathAllowed } from '../../src/middlewares/treasuryIsolationGuard';
+import { SocketService } from '../../src/services/socket.service';
+import { AccountingService } from '../../src/services/accounting.service';
+import type { Socket } from 'socket.io';
 
 describe('RBAC & Permission Matrix Security Tests', () => {
   it('SUPER_ADMIN should have all operational and financial permissions', () => {
@@ -58,5 +62,71 @@ describe('RBAC & Permission Matrix Security Tests', () => {
   it('should reject non-existent or malicious roles gracefully', () => {
     assert.strictEqual(hasPermission('HACKER' as AccessRole, 'TREASURY:DISBURSE'), false);
     assert.strictEqual(hasPermission('' as AccessRole, 'TASKS:VIEW'), false);
+  });
+
+  it('isTreasuryPathAllowed should strictly isolate TREASURY endpoints', () => {
+    const allowedPaths = [
+      '/api/v1/treasury/orders',
+      '/api/v1/finance/vault',
+      '/api/v1/upload/presigned-url',
+      '/api/v1/notifications',
+      '/api/v1/auth/me',
+      '/api/v1/users/me',
+      '/api/v1/users/team',
+      '/api/v1/users/profile'
+    ];
+    for (const path of allowedPaths) {
+      assert.strictEqual(isTreasuryPathAllowed(path), true, `Expected TREASURY to be allowed on ${path}`);
+    }
+
+    const blockedPaths = [
+      '/api/v1/tasks',
+      '/api/v1/tasks/123',
+      '/api/v1/chat/rooms',
+      '/api/v1/meetings/create',
+      '/api/v1/ai/cashflow-forecast',
+      '/api/v1/projects',
+      '/api/v1/users/admin/all'
+    ];
+    for (const path of blockedPaths) {
+      assert.strictEqual(isTreasuryPathAllowed(path), false, `Expected TREASURY to be blocked on ${path}`);
+    }
+  });
+
+  it('SocketService.extractTokenFromHandshake should extract tokens safely across handshake channels', () => {
+    const fromAuth = SocketService.extractTokenFromHandshake({
+      auth: { token: 'jwt-from-auth' },
+      headers: {},
+      query: {}
+    } as unknown as Socket['handshake']);
+    assert.strictEqual(fromAuth, 'jwt-from-auth');
+
+    const fromHeader = SocketService.extractTokenFromHandshake({
+      auth: {},
+      headers: { authorization: 'Bearer jwt-from-header' },
+      query: {}
+    } as unknown as Socket['handshake']);
+    assert.strictEqual(fromHeader, 'jwt-from-header');
+
+    const fromCookie = SocketService.extractTokenFromHandshake({
+      auth: {},
+      headers: { cookie: 'other=1; lord_auth_token=jwt-from-cookie; foo=bar' },
+      query: {}
+    } as unknown as Socket['handshake']);
+    assert.strictEqual(fromCookie, 'jwt-from-cookie');
+
+    const missing = SocketService.extractTokenFromHandshake({
+      auth: {},
+      headers: {},
+      query: {}
+    } as unknown as Socket['handshake']);
+    assert.strictEqual(missing, null);
+  });
+
+  it('AccountingService.roundCurrency should prevent IEEE 754 floating-point drift', () => {
+    assert.strictEqual(AccountingService.roundCurrency(0.1 + 0.2), 0.3);
+    assert.strictEqual(AccountingService.roundCurrency(100.125), 100.13);
+    assert.strictEqual(AccountingService.roundCurrency(19.999), 20);
+    assert.strictEqual(AccountingService.roundCurrency(0), 0);
   });
 });

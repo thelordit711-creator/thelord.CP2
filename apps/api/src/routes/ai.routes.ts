@@ -140,7 +140,7 @@ router.get('/cashflow-forecast', async (req: AuthenticatedRequest, res: Response
 
     const vault = await CompanyVault.findOne({});
     const recurring = await RecurringExpense.find({ isActive: true });
-    const employees = await User.find({ status: 'ACTIVE' });
+    const employees = await User.find({ isSuspended: { $ne: true } });
 
     const totalSubscriptions = recurring.reduce((sum, r) => sum + (r.amount || 0), 0);
     const totalPayroll = employees.reduce((sum, e) => sum + (e.compensation?.baseSalary || 0), 0);
