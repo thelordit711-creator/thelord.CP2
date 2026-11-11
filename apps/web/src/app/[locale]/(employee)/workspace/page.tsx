@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { Sparkles, FolderKanban, ArrowUpRight } from 'lucide-react';
 import { Badge } from '../../../../components/ui/Badge';
 import {
   useGetTasksQuery,
   useSettleTaskBudgetMutation
 } from '../../../../store/api/tasksApi';
+import { useGetProjectsQuery } from '../../../../store/api/projectsApi';
 import { useConfirmPayoutReceiptMutation } from '../../../../store/api/financeApi';
 import { useSocket } from '../../../../providers/SocketProvider';
 import { WorkStatus } from '@lord/shared-types';
@@ -19,8 +22,14 @@ import { TaskExecutionPanel } from '../../../../components/workspace/TaskExecuti
 import { toast } from 'sonner';
 
 export default function EmployeeWorkspacePage() {
+  const params = useParams();
+  const locale = (params?.locale as string) || 'ar';
   const { socket } = useSocket();
   const { data: tasksRes, refetch: refetchTasks } = useGetTasksQuery();
+  const { data: projectsRes } = useGetProjectsQuery();
+  const activeProjects = (projectsRes?.data || []).filter(
+    (p: any) => p.status === 'ACTIVE' || p.status === 'PLANNING'
+  );
   const [confirmPayoutReceipt, { isLoading: isConfirmingReceipt }] = useConfirmPayoutReceiptMutation();
   const [settleTaskBudget, { isLoading: isSettlingBudget }] = useSettleTaskBudgetMutation();
 
@@ -168,6 +177,44 @@ export default function EmployeeWorkspacePage() {
         updatingStatus={updatingStatus}
         onStatusChange={handleStatusChange}
       />
+
+      {/* Active Projects Summary Strip */}
+      {activeProjects.length > 0 && (
+        <div className="obsidian-card border border-lord-gold/20 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-black text-lord-gold">
+              <FolderKanban className="w-4 h-4" />
+              <span>مشاريعي النشطة ({activeProjects.length})</span>
+            </div>
+            <Link
+              href={`/${locale}/projects`}
+              className="text-[11px] font-bold text-gray-400 hover:text-lord-gold flex items-center gap-1 transition-colors"
+            >
+              <span>عرض الكل</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {activeProjects.slice(0, 3).map((proj: any) => (
+              <Link
+                key={proj._id}
+                href={`/${locale}/projects?projectId=${proj._id}`}
+                className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-gray-950/60 border border-gray-800/80 hover:border-lord-gold/40 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white truncate">{proj.title}</p>
+                  <p className="text-[10px] font-mono text-gray-400 mt-0.5">
+                    {proj.code || 'PRJ'} • {proj.progressPercentage || 0}%
+                  </p>
+                </div>
+                <span className="text-[11px] font-black text-lord-gold shrink-0">
+                  {proj.progressPercentage || 0}%
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tab 1: Tasks & Stages Stepper */}
       {activeTab === 'tasks' && (

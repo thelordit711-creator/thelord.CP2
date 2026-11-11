@@ -23,7 +23,7 @@ export const treasuryApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: data
       }),
-      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger']
+      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger', 'Project']
     }),
     auditReceiptImage: builder.mutation<
       IApiResponse<{
@@ -93,7 +93,7 @@ export const treasuryApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body
       }),
-      invalidatesTags: ['PayoutOrder', 'CompanyVault']
+      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'Project']
     }),
 
     // Employee salary update
@@ -139,7 +139,7 @@ export const treasuryApi = baseApi.injectEndpoints({
         url: `/treasury/recurring-expenses/${id}/execute`,
         method: 'POST'
       }),
-      invalidatesTags: ['PayoutOrder', 'CompanyVault']
+      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'Project']
     }),
 
     // Reports
@@ -171,7 +171,7 @@ export const treasuryApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body
       }),
-      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger']
+      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger', 'Project']
     }),
 
     adminDeleteTransaction: builder.mutation<
@@ -183,7 +183,7 @@ export const treasuryApi = baseApi.injectEndpoints({
         method: 'DELETE',
         body
       }),
-      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger']
+      invalidatesTags: ['PayoutOrder', 'CompanyVault', 'EmployeeLedger', 'Project']
     }),
 
     recalculateVault: builder.mutation<IApiResponse<any>, void>({

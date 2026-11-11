@@ -18,6 +18,7 @@ import {
 import { lordToast } from '../../../lib/lordToast';
 import { useCreateOrProposeTaskMutation } from '../../../store/api/tasksApi';
 import { useGetAllEmployeesQuery, useGetMeQuery } from '../../../store/api/usersApi';
+import { useGetProjectsQuery } from '../../../store/api/projectsApi';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -37,6 +38,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const currentUser = meRes?.data;
   const { data: employeesRes } = useGetAllEmployeesQuery();
   const employees = employeesRes?.data || [];
+  const { data: projectsRes } = useGetProjectsQuery();
+  const projects = projectsRes?.data || [];
+
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedMilestoneIndex, setSelectedMilestoneIndex] = useState<string>('');
 
   // Form States
   const [taskTitle, setTaskTitle] = useState('');
@@ -383,6 +389,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         isProposedByEmployee: isProposal,
         priority: priority as any,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        projectId: selectedProjectId || undefined,
+        milestoneIndex:
+          selectedProjectId && selectedMilestoneIndex !== ''
+            ? Number(selectedMilestoneIndex)
+            : undefined,
         isDailyRecurring,
         dailyRecurrenceTime: isDailyRecurring ? dailyRecurrenceTime : undefined,
         isBountyTask,
@@ -549,6 +560,52 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               className="w-full bg-obsidian-primary border border-gray-700 rounded-xl p-3 text-xs text-white focus:border-lord-gold transition-colors"
             />
           </div>
+
+          {/* Optional Project & Milestone Link */}
+          {projects.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-gray-950/60 border border-lord-gold/20">
+              <div>
+                <label className="text-[11px] font-bold text-lord-gold mb-1 block">
+                  ربط بمشروع (اختياري)
+                </label>
+                <select
+                  value={selectedProjectId}
+                  onChange={(e) => {
+                    setSelectedProjectId(e.target.value);
+                    setSelectedMilestoneIndex('');
+                  }}
+                  className="w-full h-10 bg-gray-950 border border-gray-800 rounded-xl px-3 text-xs text-gray-200 focus:border-lord-gold/50 focus:outline-none"
+                >
+                  <option value="">مهمة مستقلة (بدون مشروع)</option>
+                  {projects.map((p: any) => (
+                    <option key={p._id} value={p._id}>
+                      {p.code ? `[${p.code}] ` : ''}{p.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-gray-400 mb-1 block">
+                  المرحلة في خطة العمل (اختياري)
+                </label>
+                <select
+                  value={selectedMilestoneIndex}
+                  onChange={(e) => setSelectedMilestoneIndex(e.target.value)}
+                  disabled={!selectedProjectId}
+                  className="w-full h-10 bg-gray-950 border border-gray-800 rounded-xl px-3 text-xs text-gray-200 focus:border-lord-gold/50 focus:outline-none disabled:opacity-40"
+                >
+                  <option value="">عام على المشروع</option>
+                  {(projects.find((p: any) => p._id === selectedProjectId)?.wbsMilestones || []).map(
+                    (m: any, idx: number) => (
+                      <option key={idx} value={String(idx)}>
+                        {idx + 1}. {m.title}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* Platform & Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

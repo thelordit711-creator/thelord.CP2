@@ -286,17 +286,19 @@ export class AccountingService {
       // Deduct ONLY from Treasury Balance (do not deduct from General Budget, as it was already deducted upon funding)
       vault.treasuryBalance -= order.amount;
 
-      // Project Budget Hard Ceiling Enforcement
+      // Project Budget Hard Ceiling Enforcement (via milestone link or direct task.projectId)
       if (order.relatedTaskId) {
-        const { Project } = await import('../models/Project.model');
-        const project = await Project.findOne({ 'wbsMilestones.assignedTasks': order.relatedTaskId }).session(session);
+        const { ProjectSyncService } = await import('./projectSync.service');
+        const project = await ProjectSyncService.findProjectForTask(order.relatedTaskId, session);
         if (project && project.allocatedBudget > 0) {
-          if (project.spentBudget + order.amount > project.allocatedBudget) {
+          const projectedSpend = FinancialMath.add(project.spentBudget, order.amount, 2);
+          if (projectedSpend > project.allocatedBudget) {
+            const remainingBudget = Math.max(0, FinancialMath.subtract(project.allocatedBudget, project.spentBudget, 2));
             throw new Error(
-              `المبلغ المطلوب صرفه (${order.amount} USDT) يتجاوز السقف المالي المتبقي لميزانية هذا المشروع (${(project.allocatedBudget - project.spentBudget)} USDT)!`
+              `المبلغ المطلوب صرفه (${order.amount} USDT) يتجاوز السقف المالي المتبقي لميزانية هذا المشروع (${remainingBudget} USDT)!`
             );
           }
-          project.spentBudget += order.amount;
+          project.spentBudget = projectedSpend;
           await project.save({ session });
         }
       }
@@ -386,6 +388,19 @@ export class AccountingService {
 
       await session.commitTransaction();
       session.endSession();
+
+      if (order.relatedTaskId) {
+        try {
+          const { ProjectSyncService } = await import('./projectSync.service');
+          const updatedProj = await ProjectSyncService.findProjectForTask(order.relatedTaskId);
+          if (updatedProj) {
+            const populatedProj = await ProjectSyncService.getPopulatedProjectById(updatedProj._id);
+            if (populatedProj) {
+              SocketService.broadcast('project:updated', populatedProj);
+            }
+          }
+        } catch {}
+      }
 
       // Retrieve beneficiary & treasury executor for audit & sockets
       const beneficiary = await User.findById(order.beneficiaryId);
@@ -1009,6 +1024,18 @@ export class AccountingService {
             task.financialRequirement.payoutOrderId = undefined as any;
             task.financialRequirement.adminApprovalStatus = 'PENDING_ADMIN';
             await task.save();
+          }
+          if (wasDisbursed) {
+            const { ProjectSyncService } = await import('./projectSync.service');
+            const project = await ProjectSyncService.findProjectForTask(order.relatedTaskId);
+            if (project) {
+              project.spentBudget = Math.max(0, FinancialMath.subtract(project.spentBudget, order.amount, 2));
+              await project.save();
+              const populatedProj = await ProjectSyncService.getPopulatedProjectById(project._id);
+              if (populatedProj) {
+                SocketService.broadcast('project:updated', populatedProj);
+              }
+            }
           }
         } catch {}
       }

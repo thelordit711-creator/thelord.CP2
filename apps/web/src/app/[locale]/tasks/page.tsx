@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useGetTasksQuery, useDeleteTaskMutation } from '../../../store/api/tasksApi';
 import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
 import { useSocket } from '../../../providers/SocketProvider';
@@ -20,7 +21,10 @@ import { EditTaskModal } from '../../../components/tasks/modals/EditTaskModal';
 import { ExecutionWorkspaceModal } from '../../../components/tasks/ExecutionWorkspaceModal';
 import { ImageLightboxModal } from '../../../components/ui/ImageLightboxModal';
 
-export default function TasksPage() {
+function TasksPageContent() {
+  const searchParams = useSearchParams();
+  const initialTaskIdParam = searchParams.get('taskId');
+  const handledTaskParamRef = useRef<string | null>(null);
   const { data: tasksRes, isLoading, refetch } = useGetTasksQuery();
   const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
   const { data: employeesRes } = useGetAllEmployeesQuery();
@@ -109,6 +113,17 @@ export default function TasksPage() {
   const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null);
 
   const tasks = tasksRes?.data || [];
+
+  useEffect(() => {
+    if (!initialTaskIdParam || handledTaskParamRef.current === initialTaskIdParam || tasks.length === 0) {
+      return;
+    }
+    const matchedTask = tasks.find((t: any) => String(t._id) === initialTaskIdParam);
+    if (matchedTask) {
+      setSelectedTask(matchedTask);
+      handledTaskParamRef.current = initialTaskIdParam;
+    }
+  }, [initialTaskIdParam, tasks]);
   const employees = employeesRes?.data || [];
   const dailyTasksCount = tasks.filter(t => t.isDailyRecurring).length;
 
@@ -289,5 +304,13 @@ export default function TasksPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-obsidian-deep" />}>
+      <TasksPageContent />
+    </Suspense>
   );
 }

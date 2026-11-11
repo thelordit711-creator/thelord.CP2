@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import {
   useGetVaultQuery,
   useAdjustVaultMutation,
   useGetFinancialRequestsQuery,
   useDecideFinancialRequestMutation
 } from '../../../../store/api/financeApi';
+import { useGetProjectsQuery } from '../../../../store/api/projectsApi';
 import { Button } from '../../../../components/ui/Button';
 import {
   UserPlus,
@@ -26,7 +29,8 @@ import {
   Activity,
   Users,
   Clock,
-  Sparkles
+  Sparkles,
+  FolderKanban
 } from 'lucide-react';
 import { useSocket } from '../../../../providers/SocketProvider';
 import { lordToast } from '../../../../lib/lordToast';
@@ -41,8 +45,11 @@ import { InviteStaffModal } from '../../../../components/dashboard/modals/Invite
 import { VaultLiquidityModal } from '../../../../components/dashboard/modals/VaultLiquidityModal';
 
 export default function AdminDashboardPage() {
+  const params = useParams();
+  const locale = (params?.locale as string) || 'ar';
   const { data: vaultRes, refetch: refetchVault } = useGetVaultQuery();
   const { data: requestsRes, refetch: refetchRequests } = useGetFinancialRequestsQuery();
+  const { data: projectsRes } = useGetProjectsQuery();
   const { socket } = useSocket();
 
   const [adjustVault, { isLoading: isAdjusting }] = useAdjustVaultMutation();
@@ -579,6 +586,66 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Active Strategic Projects Strip */}
+      {(() => {
+        const activeProjects = (projectsRes?.data || []).filter(
+          (p: any) => p.status === 'ACTIVE' || p.status === 'PLANNING'
+        );
+        if (activeProjects.length === 0) return null;
+        return (
+          <div className="obsidian-card border border-lord-gold/25 rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-lord-gold/15 border border-lord-gold/30 flex items-center justify-center text-lord-gold">
+                  <FolderKanban className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">المشاريع الاستراتيجية الجارية</h3>
+                  <p className="text-[11px] text-gray-400">
+                    متابعة التقدم والميزانية مباشرة مع لوحة المشاريع ({activeProjects.length})
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={`/${locale}/projects`}
+                className="text-xs font-bold text-lord-gold hover:underline flex items-center gap-1"
+              >
+                <span>إدارة المشاريع</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {activeProjects.slice(0, 3).map((proj: any) => {
+                const allocated = Number(proj.allocatedBudget || 0);
+                const spent = Number(proj.spentBudget || 0);
+                const burnPct = allocated > 0 ? Math.min(100, Math.round((spent / allocated) * 100)) : 0;
+                return (
+                  <Link
+                    key={proj._id}
+                    href={`/${locale}/projects?projectId=${proj._id}`}
+                    className="p-3.5 rounded-xl bg-gray-950/60 border border-gray-800/80 hover:border-lord-gold/40 transition-colors space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-lord-gold/10 text-lord-gold border border-lord-gold/20">
+                        {proj.code || 'PRJ'}
+                      </span>
+                      <span className="text-xs font-black text-emerald-400">
+                        {proj.progressPercentage || 0}% إنجاز
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-white truncate">{proj.title}</p>
+                    <div className="flex items-center justify-between text-[11px] text-gray-400">
+                      <span>الصرف: ${spent.toLocaleString()}</span>
+                      <span>من ${allocated.toLocaleString()} ({burnPct}%)</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ======================================================== */}
       {/* MODAL 1: نافذة تفاصيل الخزينة والسيولة المركزية */}

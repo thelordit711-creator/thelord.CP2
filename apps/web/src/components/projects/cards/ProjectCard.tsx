@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import {
   FileText,
   Sparkles,
@@ -8,7 +10,9 @@ import {
   Trash2,
   Layers,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  MessageSquare,
+  ExternalLink
 } from 'lucide-react';
 
 interface ProjectCardProps {
@@ -22,6 +26,7 @@ interface ProjectCardProps {
   onOpenEdit: (project: any) => void;
   onDeleteProject: (projectId: string, title: string) => void;
   onQuickStatusChange: (projectId: string, status: string) => void;
+  onOpenProjectChat?: (projectId: string) => void;
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -34,11 +39,20 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onDecomposeMilestone,
   onOpenEdit,
   onDeleteProject,
-  onQuickStatusChange
+  onQuickStatusChange,
+  onOpenProjectChat
 }) => {
-  const spentPercent = project.allocatedBudget > 0
-    ? Math.min(100, Math.round((project.spentBudget / project.allocatedBudget) * 100))
-    : 0;
+  const params = useParams();
+  const locale = (params?.locale as string) || 'ar';
+
+  const spentPercent =
+    project.allocatedBudget > 0
+      ? Math.min(100, Math.round(((project.spentBudget || 0) / project.allocatedBudget) * 100))
+      : 0;
+
+  const totalMilestones = project.wbsMilestones?.length || 0;
+  const completedMilestones = (project.wbsMilestones || []).filter((m: any) => m.isCompleted).length;
+  const milestonePercent = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
 
   return (
     <div className="bg-obsidian-card border border-obsidian-border hover:border-lord-gold/40 rounded-3xl p-6 shadow-xl space-y-5 transition-all text-right">
@@ -49,7 +63,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             {project.code}
           </span>
           <div>
-            <h3 className="text-base font-black text-white">{project.title}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base font-black text-white">{project.title}</h3>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold">
+                إنجاز WBS: {milestonePercent}%
+              </span>
+            </div>
             <p className="text-xs text-gray-400 mt-0.5">{project.description}</p>
           </div>
         </div>
@@ -61,8 +80,19 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             className="px-3 py-1.5 rounded-xl bg-obsidian-surface border border-gray-700 hover:border-lord-gold text-xs font-bold text-gray-200 hover:text-white transition-all flex items-center gap-1.5 shadow-md"
           >
             <FileText className="w-3.5 h-3.5 text-lord-gold" />
-            <span>عرض الخطة 📋</span>
+            <span>الخطة والمالية 📋</span>
           </button>
+
+          {onOpenProjectChat && (
+            <button
+              type="button"
+              onClick={() => onOpenProjectChat(project._id)}
+              className="px-3 py-1.5 rounded-xl bg-cyber-blue/15 border border-cyber-blue/40 hover:bg-cyber-blue hover:text-obsidian-primary text-xs font-bold text-cyber-blue transition-all flex items-center gap-1.5 shadow-md"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>قناة الفريق</span>
+            </button>
+          )}
 
           {isAdmin && (
             <>
@@ -97,10 +127,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 <span>حذف</span>
               </button>
 
-              {/* Quick Status Selector */}
               <select
                 value={project.status || 'ACTIVE'}
                 onChange={(e) => onQuickStatusChange(project._id, e.target.value)}
+                aria-label="حالة المشروع"
                 className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                   project.status === 'COMPLETED'
                     ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
@@ -115,16 +145,22 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 <option value="ACTIVE">نشط قيد التنفيذ ⚡</option>
                 <option value="ON_HOLD">معلق مؤقتاً ⏸️</option>
                 <option value="COMPLETED">مكتمل 100% 🏆</option>
+                <option value="CANCELLED">ملغي ❌</option>
               </select>
             </>
           )}
         </div>
       </div>
 
-      {/* Objectives & Resources */}
+      {/* Objectives & Budget */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
         <div className="p-3 bg-obsidian-surface/60 rounded-2xl border border-gray-800 space-y-1.5">
-          <span className="font-bold text-lord-gold block">الأهداف الاستراتيجية:</span>
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-lord-gold">الأهداف الاستراتيجية:</span>
+            <span className="text-[10px] text-gray-400">
+              الفريق: {(project.teamMembers || []).length} عضو
+            </span>
+          </div>
           <ul className="text-gray-300 space-y-1 list-disc list-inside">
             {(project.objectives || []).slice(0, 3).map((obj: string, idx: number) => (
               <li key={idx} className="line-clamp-1">{obj}</li>
@@ -132,7 +168,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           </ul>
         </div>
 
-        {/* Budget & Spend Hard Ceiling Indicator */}
         <div className="p-3 bg-obsidian-surface/60 rounded-2xl border border-gray-800 space-y-2">
           <div className="flex items-center justify-between">
             <span className="font-bold text-lord-gold">سقف ميزانية المشروع:</span>
@@ -148,7 +183,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               style={{ width: `${spentPercent}%` }}
             />
           </div>
-          <div className="flex justify-between text-[10px] text-gray-500">
+          <div className="flex justify-between text-[10px] text-gray-400">
             <span>استهلاك الميزانية: {spentPercent}%</span>
             <span>سقف حرج يمنع التجاوز</span>
           </div>
@@ -160,17 +195,22 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-lord-gold" />
-            <span>معالم هيكل تفكيك العمل (WBS Milestones - {project.wbsMilestones?.length || 0}):</span>
+            <span>معالم هيكل تفكيك العمل (WBS Milestones - {totalMilestones}):</span>
           </span>
-          <span className="text-[10px] text-gray-400">تحويل أي معلم لمهمة بضغطة زر</span>
+          <span className="text-[10px] text-gray-400">انقر على أي مهمة مرتبطة لفتحها مباشرة</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {(project.wbsMilestones || []).map((milestone: any, mIdx: number) => {
-            const hasAssignedTasks = milestone.assignedTasks?.length > 0;
+            const linkedTasks = milestone.assignedTasks || [];
+            const hasAssignedTasks = linkedTasks.length > 0;
+            const firstTask = linkedTasks[0];
+            const firstTaskId = typeof firstTask === 'string' ? firstTask : firstTask?._id;
+            const firstTaskStatus = typeof firstTask === 'object' ? firstTask?.status : '';
+
             return (
               <div
-                key={mIdx}
+                key={milestone._id || mIdx}
                 className="p-3 bg-obsidian-primary/80 border border-gray-800 rounded-2xl space-y-2 flex flex-col justify-between"
               >
                 <div>
@@ -186,13 +226,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                   <p className="text-[11px] text-gray-400 line-clamp-2 mt-0.5">{milestone.description}</p>
                 </div>
 
-                <div className="pt-2 border-t border-gray-800 flex items-center justify-between">
+                <div className="pt-2 border-t border-gray-800 flex items-center justify-between gap-2">
                   {hasAssignedTasks ? (
-                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>مهمة تنفيذية نشطة</span>
-                    </span>
-                  ) : (
+                    <Link
+                      href={`/${locale}/tasks?taskId=${firstTaskId}`}
+                      className={`text-[10px] font-bold flex items-center gap-1 hover:underline ${
+                        milestone.isCompleted ? 'text-emerald-400' : 'text-lord-gold'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">
+                        {milestone.isCompleted
+                          ? 'مكتمل (فتح المهمة)'
+                          : `فتح المهمة (${firstTaskStatus || 'نشطة'})`}
+                      </span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </Link>
+                  ) : isAdmin ? (
                     <button
                       type="button"
                       onClick={() => onDecomposeMilestone(project._id, mIdx)}
@@ -201,6 +251,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                       <ArrowRight className="w-3 h-3" />
                       <span>تحويل إلى مهمة 🚀</span>
                     </button>
+                  ) : (
+                    <span className="text-[10px] text-gray-500">بانتظار إسناد الإدارة</span>
                   )}
                 </div>
               </div>
@@ -211,4 +263,3 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     </div>
   );
 };
-

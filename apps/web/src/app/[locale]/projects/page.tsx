@@ -1,36 +1,62 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  FolderKanban,
-  Plus,
-  Calendar
-} from 'lucide-react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { FolderKanban, Plus, Calendar, AlertTriangle } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { AppModalPortal } from '../../../components/ui/AppModalPortal';
 import { useGetAllEmployeesQuery } from '../../../store/api/usersApi';
+import { useGetVaultQuery } from '../../../store/api/financeApi';
+import {
+  useGetProjectsQuery,
+  useAiGenerateProjectPlanMutation,
+  useCreateProjectMutation,
+  useUpdateProjectMutation,
+  useDeleteProjectMutation,
+  useDecomposeMilestoneMutation,
+  useDecomposeAllMilestonesMutation,
+  useOpenProjectChannelMutation
+} from '../../../store/api/projectsApi';
 import { useSocket } from '../../../providers/SocketProvider';
 import { InteractiveGanttChart } from '../../../components/projects/InteractiveGanttChart';
 import { ProjectCard } from '../../../components/projects/cards/ProjectCard';
-import { CreateProjectModal } from '../../../components/projects/modals/CreateProjectModal';
+import { CreateProjectModal, ManualMilestoneDraft } from '../../../components/projects/modals/CreateProjectModal';
 import { ProjectPlanModal } from '../../../components/projects/modals/ProjectPlanModal';
-import { EditProjectModal } from '../../../components/projects/modals/EditProjectModal';
+import { EditProjectModal, EditMilestoneItem } from '../../../components/projects/modals/EditProjectModal';
 import { toast } from 'sonner';
 
-export default function ProjectsPage() {
+function ProjectsContent() {
+  const router = useRouter();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const locale = (params?.locale as string) || 'ar';
+  const queryProjectId = searchParams?.get('projectId');
+
   const { socket } = useSocket();
   const { data: employeesRes } = useGetAllEmployeesQuery();
+  const { data: vaultRes } = useGetVaultQuery();
+  const { data: projectsRes, isLoading, refetch } = useGetProjectsQuery();
+
+  const [aiGeneratePlan, { isLoading: isGeneratingAI }] = useAiGenerateProjectPlanMutation();
+  const [createProject] = useCreateProjectMutation();
+  const [updateProject, { isLoading: isUpdatingProject }] = useUpdateProjectMutation();
+  const [deleteProject, { isLoading: isDeletingProject }] = useDeleteProjectMutation();
+  const [decomposeMilestone] = useDecomposeMilestoneMutation();
+  const [decomposeAll, { isLoading: isDecomposingAll }] = useDecomposeAllMilestonesMutation();
+  const [openProjectChannel] = useOpenProjectChannelMutation();
+
   const employees = employeesRes?.data || [];
+  const projects = projectsRes?.data || [];
+  const vault = vaultRes?.data;
 
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'CARDS' | 'GANTT'>('CARDS');
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createMode, setCreateMode] = useState<'AI' | 'MANUAL'>('AI');
   const [selectedProjectPlan, setSelectedProjectPlan] = useState<any | null>(null);
-  const [isDecomposingAll, setIsDecomposingAll] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   // Edit Project States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -41,216 +67,175 @@ export default function ProjectsPage() {
   const [editAllocatedBudget, setEditAllocatedBudget] = useState(2500);
   const [editTargetEndDate, setEditTargetEndDate] = useState('');
   const [editTeamMembers, setEditTeamMembers] = useState<string[]>([]);
-  const [isUpdatingProject, setIsUpdatingProject] = useState(false);
-  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [editObjectivesText, setEditObjectivesText] = useState('');
+  const [editMilestones, setEditMilestones] = useState<EditMilestoneItem[]>([]);
 
   // Form states for creation
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [allocatedBudget, setAllocatedBudget] = useState(2500);
   const [targetDays, setTargetDays] = useState(14);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<string[]>([]);
+  const [manualMilestones, setManualMilestones] = useState<ManualMilestoneDraft[]>([
+    { title: 'المعلم 1: الإعداد والتجهيز الأولي', description: 'تجهيز خطة العمل والمتطلبات', daysFromStart: 4 }
+  ]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('lord_current_user');
         if (stored) setCurrentUser(JSON.parse(stored));
-      } catch (e) { }
+      } catch {}
     }
   }, []);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-
-  const fetchProjects = async () => {
-    try {
-      const { apiFetch } = await import('../../../lib/apiClient');
-      const res = await apiFetch('/projects');
-      const data = await res.json();
-      if (data.success) {
-        setProjects(data.data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Open project modal if linked via ?projectId=
   useEffect(() => {
-    fetchProjects();
-
-    if (socket) {
-      socket.on('project:created', (newProj: any) => {
-        setProjects((prev) => [newProj, ...prev]);
-        toast.info(`مشروع جديد: ${newProj.title}`);
-      });
-      socket.on('project:updated', (updated: any) => {
-        setProjects((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
-      });
+    if (queryProjectId && projects.length > 0 && !selectedProjectPlan) {
+      const target = projects.find((p) => p._id === queryProjectId);
+      if (target) setSelectedProjectPlan(target);
     }
+  }, [queryProjectId, projects, selectedProjectPlan]);
+
+  // Keep open plan modal synced when project refreshes
+  useEffect(() => {
+    if (selectedProjectPlan) {
+      const fresh = projects.find((p) => p._id === selectedProjectPlan._id);
+      if (fresh) setSelectedProjectPlan(fresh);
+    }
+  }, [projects, selectedProjectPlan?._id]);
+
+  // Socket real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleProjectCreated = (newProj: any) => {
+      refetch();
+      if (newProj?.title) toast.info(`مشروع جديد: ${newProj.title}`);
+    };
+    const handleRefresh = () => refetch();
+
+    socket.on('project:created', handleProjectCreated);
+    socket.on('project:updated', handleRefresh);
+    socket.on('project:deleted', handleRefresh);
+    socket.on('task:updated', handleRefresh);
 
     return () => {
-      if (socket) {
-        socket.off('project:created');
-        socket.off('project:updated');
-      }
+      socket.off('project:created', handleProjectCreated);
+      socket.off('project:updated', handleRefresh);
+      socket.off('project:deleted', handleRefresh);
+      socket.off('task:updated', handleRefresh);
     };
-  }, [socket]);
+  }, [socket, refetch]);
 
-  // Create Project Submit
   const handleCreateProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { apiFetch } = await import('../../../lib/apiClient');
-    const targetEndDate = new Date(Date.now() + targetDays * 86400000);
+    const targetEndDate = new Date(Date.now() + Math.max(1, targetDays) * 86400000).toISOString();
+    const selectedTeam =
+      teamMembers.length > 0
+        ? teamMembers
+        : currentUser?._id
+        ? [currentUser._id]
+        : [];
 
     if (createMode === 'AI') {
-      setIsGeneratingAI(true);
       try {
-        const planRes = await apiFetch('/projects/ai-generate-plan', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            title,
-            description,
-            allocatedBudget,
-            targetDays
-          })
-        });
-        const planData = await planRes.json();
-        if (!planData.success) throw new Error(planData.error || 'فشل التوليد بالذكاء الاصطناعي');
+        const planRes = await aiGeneratePlan({
+          title,
+          description,
+          allocatedBudget,
+          targetDays
+        }).unwrap();
 
-        const aiPlan = planData.data;
+        if (!planRes.success || !planRes.data) {
+          throw new Error(planRes.error || 'فشل التوليد بالذكاء الاصطناعي');
+        }
 
-        const createRes = await apiFetch('/projects', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            title,
-            description,
-            code: aiPlan.code,
-            allocatedBudget,
-            targetEndDate,
-            objectives: aiPlan.objectives,
-            requirements: aiPlan.requirements,
-            toolsAndResources: aiPlan.toolsAndResources,
-            teamMembers: employees.slice(0, 3).map((e) => e._id),
-            wbsMilestones: aiPlan.milestones.map((m: any) => ({
-              title: m.title,
-              description: m.description,
-              dueDate: new Date(Date.now() + (m.daysFromStart || 3) * 86400000),
-              isCompleted: false,
-              assignedTasks: []
-            }))
-          })
-        });
-        const created = await createRes.json();
+        const aiPlan = planRes.data;
+        const created = await createProject({
+          title,
+          description,
+          code: aiPlan.code,
+          allocatedBudget,
+          targetEndDate,
+          objectives: aiPlan.objectives,
+          requirements: aiPlan.requirements,
+          toolsAndResources: aiPlan.toolsAndResources,
+          teamMembers: selectedTeam,
+          wbsMilestones: (aiPlan.milestones || []).map((m) => ({
+            title: m.title,
+            description: m.description,
+            dueDate: new Date(Date.now() + (m.daysFromStart || 3) * 86400000).toISOString(),
+            isCompleted: false,
+            suggestedAssigneeId: m.tasks?.[0]?.suggestedAssigneeId || undefined,
+            assignedTasks: []
+          }))
+        }).unwrap();
+
         if (!created.success) throw new Error(created.error || 'فشل حفظ المشروع');
 
         toast.success('تم بناء المشروع وتفكيك معالمه بالذكاء الاصطناعي بنجاح! ✨');
         setIsCreateModalOpen(false);
         setTitle('');
         setDescription('');
-        fetchProjects();
+        setTeamMembers([]);
       } catch (err: any) {
-        toast.error(err.message || 'حدث خطأ أثناء التوليد');
-      } finally {
-        setIsGeneratingAI(false);
+        toast.error(err?.data?.error || err?.message || 'حدث خطأ أثناء التوليد');
       }
     } else {
       try {
-        const createRes = await apiFetch('/projects', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            title,
-            description,
-            code: `PRJ-${Math.floor(1000 + Math.random() * 9000)}`,
-            allocatedBudget,
-            targetEndDate,
-            objectives: ['تحقيق أهداف المشروع التشغيلية'],
-            requirements: ['التنفيذ الفني المتقن للمراحل'],
-            toolsAndResources: ['نظام TheLord Cloud'],
-            teamMembers: employees.slice(0, 3).map((e) => e._id),
-            wbsMilestones: [
-              {
-                title: 'المعلم 1: إعداد وتجهيز المشروع',
-                description: 'المسودة والتحضير الأولي',
-                dueDate: targetEndDate,
-                isCompleted: false,
-                assignedTasks: []
-              }
-            ]
-          })
-        });
-        const created = await createRes.json();
+        const created = await createProject({
+          title,
+          description,
+          code: `PRJ-${Math.floor(1000 + Math.random() * 9000)}`,
+          allocatedBudget,
+          targetEndDate,
+          objectives: ['تحقيق أهداف المشروع التشغيلية'],
+          requirements: ['التنفيذ الفني المتقن للمراحل'],
+          toolsAndResources: ['نظام TheLord Cloud'],
+          teamMembers: selectedTeam,
+          wbsMilestones: manualMilestones.map((m) => ({
+            title: m.title,
+            description: m.description,
+            dueDate: new Date(Date.now() + Math.max(1, m.daysFromStart) * 86400000).toISOString(),
+            isCompleted: false,
+            assignedTasks: []
+          }))
+        }).unwrap();
+
         if (!created.success) throw new Error(created.error || 'فشل حفظ المشروع');
 
         toast.success('تم إنشاء المشروع بنجاح!');
         setIsCreateModalOpen(false);
         setTitle('');
         setDescription('');
-        fetchProjects();
+        setTeamMembers([]);
       } catch (err: any) {
-        toast.error(err.message || 'حدث خطأ أثناء إنشاء المشروع');
+        toast.error(err?.data?.error || err?.message || 'حدث خطأ أثناء إنشاء المشروع');
       }
     }
   };
 
-  // Convert milestone into executable Task
   const handleDecomposeMilestone = async (projectId: string, milestoneIndex: number) => {
     try {
-      const { apiFetch } = await import('../../../lib/apiClient');
-      const res = await apiFetch(`/projects/${projectId}/decompose-milestone`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ milestoneIndex })
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'فشل تحويل المعلم لمهمة');
-
+      const res = await decomposeMilestone({ projectId, milestoneIndex }).unwrap();
+      if (!res.success) throw new Error(res.error || 'فشل تحويل المعلم لمهمة');
       toast.success('تم تحويل المعلم إلى مهمة تنفيذية وإضافتها لمحرك المراحل! 📋');
-      fetchProjects();
     } catch (err: any) {
-      toast.error(err.message || 'حدث خطأ أثناء تحويل المعلم');
+      toast.error(err?.data?.error || err?.message || 'حدث خطأ أثناء تحويل المعلم');
     }
   };
 
-  // Convert ALL milestones in project to tasks in one click
   const handleDecomposeAll = async (projectId: string) => {
-    setIsDecomposingAll(true);
     try {
-      const { apiFetch } = await import('../../../lib/apiClient');
-      const res = await apiFetch(`/projects/${projectId}/decompose-all`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'فشل تحويل خطة المشروع');
-
-      toast.success(data.message || 'تم تحويل خطة المشروع بالكامل إلى مهام تنفيذية وتوزيعها على الكادر! 🚀');
-      fetchProjects();
-      if (selectedProjectPlan && selectedProjectPlan._id === projectId) {
-        setSelectedProjectPlan(data.data.project);
-      }
+      const res = await decomposeAll(projectId).unwrap();
+      if (!res.success) throw new Error(res.error || 'فشل تحويل خطة المشروع');
+      toast.success(res.message || 'تم تحويل خطة المشروع إلى مهام تنفيذية وتوزيعها على الكادر! 🚀');
     } catch (err: any) {
-      toast.error(err.message || 'حدث خطأ أثناء تحويل الخطة');
-    } finally {
-      setIsDecomposingAll(false);
+      toast.error(err?.data?.error || err?.message || 'حدث خطأ أثناء تحويل الخطة');
     }
   };
 
-  // Open Edit Modal
   const handleOpenEdit = (project: any) => {
     setEditingProjectId(project._id);
     setEditTitle(project.title || '');
@@ -260,91 +245,93 @@ export default function ProjectsPage() {
     setEditTargetEndDate(
       project.targetEndDate ? new Date(project.targetEndDate).toISOString().slice(0, 10) : ''
     );
-    setEditTeamMembers((project.teamMembers || []).map((m: any) => m._id || m));
+    setEditTeamMembers((project.teamMembers || []).map((m: any) => m?._id || m));
+    setEditObjectivesText((project.objectives || []).join('\n'));
+    setEditMilestones(
+      (project.wbsMilestones || []).map((m: any) => ({
+        _id: m._id,
+        title: m.title || '',
+        description: m.description || '',
+        dueDate: m.dueDate ? new Date(m.dueDate).toISOString().slice(0, 10) : '',
+        isCompleted: Boolean(m.isCompleted),
+        assignedTasks: m.assignedTasks || []
+      }))
+    );
     setIsEditModalOpen(true);
   };
 
-  // Submit Edit Project
   const handleSaveEditProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProjectId) return;
-    setIsUpdatingProject(true);
     try {
-      const { apiFetch } = await import('../../../lib/apiClient');
-      const res = await apiFetch(`/projects/${editingProjectId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const res = await updateProject({
+        id: editingProjectId,
+        data: {
           title: editTitle,
           description: editDescription,
-          status: editStatus,
+          status: editStatus as any,
           allocatedBudget: editAllocatedBudget,
-          targetEndDate: editTargetEndDate ? new Date(editTargetEndDate) : undefined,
-          teamMembers: editTeamMembers
-        })
-      });
+          targetEndDate: editTargetEndDate ? new Date(editTargetEndDate).toISOString() : undefined,
+          teamMembers: editTeamMembers,
+          objectives: editObjectivesText
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean),
+          wbsMilestones: editMilestones.map((m) => ({
+            ...(m._id ? { _id: m._id } : {}),
+            title: m.title,
+            description: m.description,
+            dueDate: m.dueDate ? new Date(m.dueDate).toISOString() : undefined,
+            isCompleted: m.isCompleted
+          })) as any
+        }
+      }).unwrap();
 
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'فشل تعديل المشروع');
+      if (!res.success) throw new Error(res.error || 'فشل تعديل المشروع');
 
       toast.success('تم تحديث بيانات وسجلات المشروع بنجاح! 💾');
       setIsEditModalOpen(false);
-      fetchProjects();
-      if (selectedProjectPlan && selectedProjectPlan._id === editingProjectId) {
-        setSelectedProjectPlan(data.data);
-      }
     } catch (err: any) {
-      toast.error(err.message || 'حدث خطأ أثناء تعديل المشروع');
-    } finally {
-      setIsUpdatingProject(false);
+      toast.error(err?.data?.error || err?.message || 'حدث خطأ أثناء تعديل المشروع');
     }
   };
 
-  // Delete Project
-  const handleDeleteProject = async (projectId: string, projectTitle: string) => {
-    if (!confirm(`هل أنت متأكد من رغبتك بحذف المشروع "${projectTitle}" نهائياً من قاعدة البيانات؟`)) {
-      return;
-    }
-    setIsDeletingProject(true);
+  const handleConfirmDeleteProject = async () => {
+    if (!deleteTarget) return;
     try {
-      const { apiFetch } = await import('../../../lib/apiClient');
-      const res = await apiFetch(`/projects/${projectId}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'فشل حذف المشروع');
-
+      const res = await deleteProject(deleteTarget.id).unwrap();
+      if (!res.success) throw new Error(res.error || 'فشل حذف المشروع');
       toast.success('تم حذف المشروع نهائياً من النظام!');
-      setSelectedProjectPlan(null);
-      fetchProjects();
+      if (selectedProjectPlan?._id === deleteTarget.id) {
+        setSelectedProjectPlan(null);
+      }
+      setDeleteTarget(null);
     } catch (err: any) {
-      toast.error(err.message || 'تعذر حذف المشروع');
-    } finally {
-      setIsDeletingProject(false);
+      toast.error(err?.data?.error || err?.message || 'تعذر حذف المشروع');
     }
   };
 
-  // Quick Status Switch
   const handleQuickStatusChange = async (projectId: string, newStatus: string) => {
     try {
-      const { apiFetch } = await import('../../../lib/apiClient');
-      const res = await apiFetch(`/projects/${projectId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'فشل تغيير حالة المشروع');
-
+      const res = await updateProject({
+        id: projectId,
+        data: { status: newStatus as any }
+      }).unwrap();
+      if (!res.success) throw new Error(res.error || 'فشل تغيير حالة المشروع');
       toast.success(`تم تحديث حالة المشروع إلى: ${newStatus}`);
-      fetchProjects();
     } catch (err: any) {
-      toast.error(err.message || 'حدث خطأ أثناء تغيير الحالة');
+      toast.error(err?.data?.error || err?.message || 'حدث خطأ أثناء تغيير الحالة');
+    }
+  };
+
+  const handleOpenProjectChat = async (projectId: string) => {
+    try {
+      const res = await openProjectChannel(projectId).unwrap();
+      if (res.success && res.data?.channelId) {
+        router.push(`/${locale}/chat?roomId=${encodeURIComponent(res.data.channelId)}`);
+      }
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'تعذر فتح قناة فريق المشروع');
     }
   };
 
@@ -375,13 +362,13 @@ export default function ProjectsPage() {
                 {isAdmin ? 'إدارة المشاريع الاستراتيجية ومحرك WBS' : 'المشاريع الاستراتيجية ومراحل العمل'}
               </h1>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-lord-gold/20 text-lord-gold border border-lord-gold/40 font-bold">
-                {isAdmin ? 'إشراف المدير التنفيذي' : 'استعراض الفريق'}
+                {isAdmin ? 'إشراف المدير التنفيذي' : 'مشاريعي المسندة'}
               </span>
             </div>
             <p className="text-xs text-gray-400 mt-1">
               {isAdmin
                 ? 'أهداف المشاريع، الميزانيات المحجوزة، تفكيك المعالم لمهام تنفيذية، والتحكم الصارم بسقف الصرف'
-                : 'استعراض أهداف المشاريع والمعالم المحددة والمهام التنفيذية المرتبطة بفريق العمل'}
+                : 'استعراض أهداف مشاريعك والمعالم المحددة والمهام وقناة الفريق المرتبطة'}
             </p>
           </div>
         </div>
@@ -408,28 +395,36 @@ export default function ProjectsPage() {
         </div>
         <div className="bg-obsidian-card border border-lord-gold/30 rounded-2xl p-4 shadow-lg">
           <span className="text-xs text-lord-gold block mb-1">الميزانيات المخصصة للمشاريع</span>
-          <div className="text-2xl font-black text-white font-mono">${totalAllocated.toLocaleString()} <span className="text-xs text-lord-gold font-normal">USDT</span></div>
+          <div className="text-2xl font-black text-white font-mono">
+            ${totalAllocated.toLocaleString()} <span className="text-xs text-lord-gold font-normal">USDT</span>
+          </div>
         </div>
         <div className="bg-obsidian-card border border-emerald-500/30 rounded-2xl p-4 shadow-lg">
           <span className="text-xs text-emerald-400 block mb-1">إجمالي المصروف الفعلي</span>
-          <div className="text-2xl font-black text-white font-mono">${totalSpent.toLocaleString()} <span className="text-xs text-emerald-400 font-normal">USDT</span></div>
+          <div className="text-2xl font-black text-white font-mono">
+            ${totalSpent.toLocaleString()} <span className="text-xs text-emerald-400 font-normal">USDT</span>
+          </div>
         </div>
         <div className="bg-obsidian-card border border-cyber-blue/30 rounded-2xl p-4 shadow-lg">
           <span className="text-xs text-cyber-blue block mb-1">الميزانية المتبقية في السقف</span>
-          <div className="text-2xl font-black text-white font-mono">${Math.max(0, totalAllocated - totalSpent).toLocaleString()} <span className="text-xs text-cyber-blue font-normal">USDT</span></div>
+          <div className="text-2xl font-black text-white font-mono">
+            ${Math.max(0, totalAllocated - totalSpent).toLocaleString()}{' '}
+            <span className="text-xs text-cyber-blue font-normal">USDT</span>
+          </div>
         </div>
       </div>
 
-      {/* View Mode Tabs (Cards vs Interactive Gantt) */}
+      {/* View Mode Tabs */}
       <div className="flex items-center justify-between gap-3 bg-obsidian-surface p-2 rounded-2xl border border-gray-800">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setViewMode('CARDS')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'CARDS'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              viewMode === 'CARDS'
                 ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
-              }`}
+            }`}
           >
             <FolderKanban className="w-4 h-4" />
             <span>عرض بطاقات المشاريع ومعالم WBS</span>
@@ -437,10 +432,11 @@ export default function ProjectsPage() {
           <button
             type="button"
             onClick={() => setViewMode('GANTT')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'GANTT'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              viewMode === 'GANTT'
                 ? 'bg-lord-gold text-obsidian-primary shadow-gold-glow'
                 : 'text-gray-400 hover:text-white'
-              }`}
+            }`}
           >
             <Calendar className="w-4 h-4" />
             <span>مخطط جانت التفاعلي (Gantt Timeline) 📊</span>
@@ -452,18 +448,18 @@ export default function ProjectsPage() {
         </span>
       </div>
 
-      {/* Render Gantt View if active */}
       {viewMode === 'GANTT' ? (
-        <InteractiveGanttChart projects={projects} />
+        <InteractiveGanttChart projects={projects as any} onSelectProject={(p) => setSelectedProjectPlan(p)} />
       ) : (
-        /* Projects Cards Grid */
         <div className="space-y-6">
           {projects.length === 0 ? (
             <div className="bg-obsidian-card border border-gray-800 rounded-3xl p-12 text-center text-gray-500 space-y-3">
               <FolderKanban className="w-12 h-12 mx-auto text-gray-600 opacity-40" />
               <p className="text-sm font-bold text-gray-400">لا توجد مشاريع مسجلة حالياً</p>
               <p className="text-xs max-w-sm mx-auto">
-                اضغط على زر "مشروع جديد +" لإنشاء أول مشروع وتفكيك معالمه آلياً بالذكاء الاصطناعي.
+                {isAdmin
+                  ? 'اضغط على زر "مشروع جديد +" لإنشاء أول مشروع وتفكيك معالمه آلياً بالذكاء الاصطناعي.'
+                  : 'لم يتم إسنادك إلى أي مشروع نشط حتى الآن.'}
               </p>
             </div>
           ) : (
@@ -478,8 +474,9 @@ export default function ProjectsPage() {
                 onDecomposeAll={handleDecomposeAll}
                 onDecomposeMilestone={handleDecomposeMilestone}
                 onOpenEdit={handleOpenEdit}
-                onDeleteProject={handleDeleteProject}
+                onDeleteProject={(id, projTitle) => setDeleteTarget({ id, title: projTitle })}
                 onQuickStatusChange={handleQuickStatusChange}
+                onOpenProjectChat={handleOpenProjectChat}
               />
             ))
           )}
@@ -500,6 +497,14 @@ export default function ProjectsPage() {
         setAllocatedBudget={setAllocatedBudget}
         targetDays={targetDays}
         setTargetDays={setTargetDays}
+        employees={employees}
+        teamMembers={teamMembers}
+        setTeamMembers={setTeamMembers}
+        manualMilestones={manualMilestones}
+        setManualMilestones={setManualMilestones}
+        vaultLiquidity={
+          vault ? { generalBudget: vault.generalBudget || 0, treasuryBalance: vault.treasuryBalance || 0 } : undefined
+        }
         isGeneratingAI={isGeneratingAI}
         onSubmit={handleCreateProjectSubmit}
       />
@@ -515,7 +520,8 @@ export default function ProjectsPage() {
         onDecomposeAll={handleDecomposeAll}
         onDecomposeMilestone={handleDecomposeMilestone}
         onOpenEdit={handleOpenEdit}
-        onDeleteProject={handleDeleteProject}
+        onDeleteProject={(id, projTitle) => setDeleteTarget({ id, title: projTitle })}
+        onOpenProjectChat={handleOpenProjectChat}
       />
 
       {/* Edit Project Modal */}
@@ -535,9 +541,58 @@ export default function ProjectsPage() {
         setEditTargetEndDate={setEditTargetEndDate}
         editTeamMembers={editTeamMembers}
         setEditTeamMembers={setEditTeamMembers}
+        editObjectivesText={editObjectivesText}
+        setEditObjectivesText={setEditObjectivesText}
+        editMilestones={editMilestones}
+        setEditMilestones={setEditMilestones}
         isUpdatingProject={isUpdatingProject}
         onSubmit={handleSaveEditProject}
       />
+
+      {/* Branded Delete Confirmation Modal */}
+      <AppModalPortal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        maxWidthClassName="max-w-md"
+      >
+        <div className="bg-obsidian-surface border-2 border-red-500/50 rounded-3xl p-6 shadow-2xl space-y-4 text-right">
+          <div className="flex items-center gap-3 text-red-400">
+            <AlertTriangle className="w-6 h-6 shrink-0" />
+            <h3 className="text-base font-black text-white">تأكيد حذف المشروع نهائياً</h3>
+          </div>
+          <p className="text-xs text-gray-300 leading-relaxed">
+            هل أنت متأكد من رغبتك بحذف المشروع <strong className="text-white">"{deleteTarget?.title}"</strong> نهائياً؟ سيتم فك ارتباط المهام التابعة له دون حذف السجلات المالية المصروفة.
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              isLoading={isDeletingProject}
+              onClick={handleConfirmDeleteProject}
+            >
+              تأكيد الحذف النهائي
+            </Button>
+          </div>
+        </div>
+      </AppModalPortal>
     </div>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 flex items-center justify-center p-12 text-lord-gold">
+          <span>جاري تهيئة وحدة المشاريع...</span>
+        </div>
+      }
+    >
+      <ProjectsContent />
+    </Suspense>
   );
 }

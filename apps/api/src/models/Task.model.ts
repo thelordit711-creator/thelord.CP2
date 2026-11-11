@@ -132,6 +132,9 @@ const TaskSchema = new Schema<ITaskDocument>({
     default: 'UNCLAIMED'
   },
 
+  projectId: { type: Schema.Types.ObjectId, ref: 'Project', index: true },
+  milestoneIndex: { type: Number },
+
   status: {
     type: String,
     enum: ['PENDING_ADMIN_REVIEW', 'TODO', 'IN_PROGRESS', 'COMPLETED', 'REJECTED'],
